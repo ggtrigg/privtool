@@ -10,6 +10,10 @@
  * Description : 
  */
 
+#ifdef HAVE_CONFIG_H
+#include	"config.h"
+#endif
+
 #include	<stdio.h>
 #include	<X11/Intrinsic.h>
 #include	<X11/IntrinsicP.h>
@@ -200,13 +204,6 @@ alignCaptions(Widget parent)
     WidgetList		kids;
     Dimension		length = 0;
     XtWidgetGeometry	curr;
-
-#if 0
-    if(XmeTraitGet(parent, XmQTcontainer) == NULL){
-	/* This widget can't contain children, esp. Captions. */
-	return;
-    }
-#endif
 
     XtVaGetValues(parent, XmNchildren, &kids,
 		  XmNnumChildren, &numkids, NULL);

@@ -97,44 +97,30 @@ static	int	security;
 static	time_t	last_displayed = 0;
 
 static	char	*mail_args[] =
-
 {
-#if defined(__FreeBSD__)
-	"/usr/sbin/sendmail",
-#else
-#ifdef linux
-	_PATH_SENDMAIL,
-#else
-	"/usr/lib/sendmail",
-#endif
-#endif
-	"-t",
-	NULL
+    SENDMAIL_PATH,
+    "-t",
+    NULL
 };
 
 static	char	*uudecode_args[] =
-
 {
-	"/usr/bin/uudecode",
-	NULL,
+#ifdef UUDECODE_PATH
+    UUDECODE_PATH,
+#else
+    UUDEVIEW_PATH,
+    "-iv",
+#endif
+    NULL,
 };
 
 static	char	*print_args[] =
-
 {
-#ifdef linux
-	"/usr/bin/lpr",
-#else
-#ifdef __FreeBSD__
-	"/usr/bin/lpr",
-#else
-	"/usr/ucb/lpr",
-#endif
-#endif
-	NULL
+    LPR_PATH,
+    NULL
 };
 
-#ifdef MIXEXEC
+#ifdef HAVE_MIXMASTER
 static	char	*remail_args[32] =
 {
 	MIXEXEC,
@@ -151,7 +137,7 @@ static	char	*remail_args[32] =
 static	char	mix_path[] = MIXPATH;
 #endif
 
-#ifdef PREMAILEXEC
+#ifdef HAVE_PREMAIL
 static	char	premail_exec[] = PREMAILEXEC;
 
 static	char	*premail_send_args[3] =
@@ -184,14 +170,14 @@ COMPOSE_WINDOW	*callback_win;
 extern	char	*our_userid;
 extern char	*current_nym(void);
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 static	byte	md5_pass[16];
 #endif
 
 MESSAGE	*last_message_read;
 MESSAGE	*message_to_decrypt;
 
-#ifdef COMPACT
+#if defined(COMPACT) || defined(HAVE_MOTIF)
 int	layout_compact = TRUE;
 #else
 int	layout_compact = FALSE;
@@ -261,18 +247,18 @@ void	set_message_description(MESSAGE *m)
 
 	if (layout_compact) {
 		sprintf(mess_desc,
-#ifdef MOTIF
+#ifdef HAVE_MOTIF
 			"%3.3s %4d %-20.20s %17.16s %4d ",
 #else
 			"%3.3s %4d %-20.20s %17.16s %4d %-64.64s",
 #endif
 			mess_type,m->number,m->email,m->date,
 			m->lines
-#ifndef MOTIF
+#ifndef HAVE_MOTIF
 			,m->subject ? m->subject : ""
 #endif
 			);
-#ifdef MOTIF
+#ifdef HAVE_MOTIF
 		if(m->subject != NULL) {
 		    strncat(mess_desc, m->subject, 255 - strlen(mess_desc));
 		}
@@ -504,7 +490,7 @@ MESSAGE	*m;
 			i = decrypt_message(message_contents(m),
 				m->decrypted,
 				m->signature,passphrase,FL_ASCII,
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 				md5_pass
 #else
 				NULL
@@ -608,7 +594,7 @@ MESSAGE	*m;
 		clear_busy ();
 	}
 
-#ifdef PREMAILEXEC
+#ifdef HAVE_PREMAIL
 	/* Deal with mail to a nym */
 
 	else if (m->flags & MESS_NYM) {
@@ -912,7 +898,7 @@ void	got_passphrase()
 	passphrase = read_passphrase_string();
 	close_passphrase_window();
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 
 	/* If we have PGP Tools, we only store the MD5 */
 
@@ -949,7 +935,7 @@ int	force;
 
 		wipe_passphrase();
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 		/* Now clear the MD5 */
 		
 		bzero (md5_pass, sizeof (md5_pass));
@@ -1291,7 +1277,7 @@ char	*expand_filename (char *s)
 	return s;
 }
 
-#ifdef MIXEXEC
+#ifdef HAVE_MIXMASTER
 static	setup_remail_args(char *addrs, char *subject, char *temp)
 
 {
@@ -1460,7 +1446,7 @@ static	setup_remail_args(char *addrs, char *subject, char *temp)
 			/* We basically scale the probability of choosing a 
 			   remailer by the reliability. */
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 			j = our_randombyte() * 65536 + 
 				our_randombyte() * 256 + our_randombyte();
 #else
@@ -1679,7 +1665,7 @@ try_again:
 			ret_val = encrypt_message(userid,to_send,
 				encrypted,encrypt_flags,passphrase,
 				key_name,
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 				md5_pass
 #else
 				NULL
@@ -1774,21 +1760,13 @@ try_again:
 
 		if (!(deliver_flags & DELIVER_REMAIL)) {
 			char	*domain, *replyto, *organization;
-#ifdef MAILER_LINE
+#ifdef SHOW_XMAILER
 			sprintf(buff, "X-Mailer: %s [%s] (%s/%s)\n",
 				prog_name, prog_ver,
-#if defined(linux)
-				"Linux",
-#elif defined(__FreeBSD__)
-				"FreeBSD",
-#elif defined(__sgi)
-				"SGI",
-#else
-				"Unknown",
-#endif
-#ifdef MOTIF
+				SYSTEM_TYPE,
+#ifdef HAVE_MOTIF
 				"Motif"
-#else
+#elif defined(HAVE_XVIEW)
 				"XView"
 #endif
 				);
@@ -1877,7 +1855,7 @@ try_again:
 
 		/* Do we remail or send direct ? */
 
-#ifdef MIXEXEC
+#ifdef HAVE_MIXMASTER
 		if (deliver_flags & DELIVER_REMAIL) {
 			char	*addr;
 #ifdef MIXMASTER_STDIN
@@ -1987,7 +1965,7 @@ remail_error_exit:
 #endif
 			run_program(mail_args[0],mail_message->message,
 				mail_message->length,mail_args,NULL, NULL);
-#ifdef MIXEXEC
+#ifdef HAVE_MIXMASTER
 		}
 #endif
 
@@ -2649,11 +2627,17 @@ int	raw;
 		char	*s;
 
 		s = find_mailrc ("printmail");
+		if(s != NULL && *s != '\0') {
+		    print_exec(s, out->message, out->length);
+		    sprintf(mess,"%d message%s sent to %s for printing",
+			    c, (c == 1) ? "" : "s", s);
+		}
+		else {
+		    print_exec(print_args[0], out->message, out->length);
+		    sprintf(mess,"%d message%s sent to %s for printing",
+			    c, (c == 1) ? "" : "s", print_args[0]);
+		}
 
-		print_exec(s,out->message,out->length);
-
-		sprintf(mess,"%d message%s sent to %s for printing",
-			c, (c == 1) ? "" : "s", s);
 		set_main_footer(mess);
 	}
 
@@ -2784,7 +2768,7 @@ MESSAGE	*m;
 	}
 }
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 void	reseed_random_generator ()
 
 {

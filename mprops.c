@@ -293,7 +293,7 @@ create_comp_page(Widget parent)
     XtManageChild(propw.comp_log);
     propw.comp_lograw = XmCreateToggleButton(tglctrl, "lograw", NULL, 0);
     XtManageChild(propw.comp_lograw);
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
     propw.comp_remail = XmCreateToggleButton(tglctrl, "remail", NULL, 0);
     XtManageChild(propw.comp_remail);
 #endif
@@ -427,7 +427,8 @@ create_hdr_page(Widget parent)
 		  NULL);
 
     /* Get color for header notebook. */
-    bgnd = GetResourceString(propw.hdr_list, "retainColor", "Background");
+    bgnd = (char *)GetResourceString(propw.hdr_list, "retainColor",
+				     "Background");
     if( bgnd != NULL ) {
 	XtVaGetValues(propw.hdr_list, XmNcolormap, &cmap, NULL);
 	XcmsAllocNamedColor(XtDisplay(propw.hdr_list), cmap, bgnd,
@@ -719,9 +720,11 @@ load_guistuff()
     if( rcval = find_mailrc("printmail") ) {
 	XtVaSetValues(propw.print_cmd, XmNvalue, rcval, NULL);
     }
+#if 0
     else {
 	XtVaSetValues(propw.print_cmd, XmNvalue, "|lpr", NULL);
     }
+#endif
 
     XmToggleButtonSetState(propw.detached,
 			   (int)find_mailrc("detachedmessagewin"), False);
@@ -761,7 +764,7 @@ load_compstuff()
 			   (int)find_mailrc("nodontlogmessages"), False);
     XmToggleButtonSetState(propw.comp_lograw,
 			   (int)find_mailrc("log-raw"), False);
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
     XmToggleButtonSetState(propw.comp_remail,
 			   !(int)find_mailrc("nodefaultremail"), False);
 #endif
@@ -973,7 +976,7 @@ savePropsCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	else {
 	    remove_mailrc("log-raw");
 	}
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
 	if(!XmToggleButtonGetState(propw.comp_remail)) {
 	    fprintf(nprivrc, "set nodefaultremail\n");
 	    replace_mailrc("nodefaultremail", "");

@@ -15,16 +15,9 @@
  */
 
 typedef struct {
-
-#ifndef SVR4
 	byte	*message;
 	int32	length;
 	int32	size;
-#else
-	char	*message;
-	int	length;
-	int	size;
-#endif
 } BUFFER;
 
 /* We allocate space in units of QUANTA bytes to try to avoid too much

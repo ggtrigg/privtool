@@ -235,6 +235,7 @@ static void		resizePwinCb(Widget, XtPointer, XEvent *, Boolean *);
 static void		textMapCb(Widget, XtPointer, XEvent *, Boolean *);
 void			populate_combo(Widget);
 static void		folderCb(Widget, XtPointer, XtPointer);
+static void		printCb(Widget, XtPointer, XtPointer);
 static void		saveCb(Widget, XtPointer, XtPointer);
 static void		insert_message(Widget, char *);
 static void		filerCb(Widget, XtPointer, XtPointer);
@@ -387,13 +388,7 @@ clear_display_window()
     if(text_ != NULL && XtIsRealized(text_)){
 	empty = XmStringGenerate("", NULL, XmCHARSET_TEXT,
 				 (XmStringTag)"LIST");
-#if 0
-	XmTextDisableRedisplay(text_);
-	XmTextSetString(text_, empty);
-	XmTextEnableRedisplay(text_);
-#else
 	XtVaSetValues(text_, XmNtextValue, "", NULL);
-#endif
 	XmStringFree(empty);
     }
 }
@@ -640,125 +635,89 @@ display_sender_info(MESSAGE *m)
 {
     XmString	info;
 
+    char	*allhdr = strdup(m->header->message), *ptr, *split;
+    char	colon;
+    char	keyword[256];	/* Should be long enough? :-) */
+    int		length, skip = 0;
+    XmTextPosition	pos = 0;
+
     if(m == NULL)
 	return;
 
-#if 0
-    if(!full_header_){
-	info = XmStringGenerate("From:\t", NULL, XmCHARSET_TEXT,
-				(XmStringTag)"HDR_B");
-	if(m->sender != NULL)
-	    info = XmStringConcatAndFree(info,
-					 XmStringGenerate(m->sender, NULL,
-							  XmCHARSET_TEXT,
-							  (XmStringTag)"HDR"));
-	info = XmStringConcatAndFree(info,
-				     XmStringGenerate("\nSubject:\t", NULL,
-						      XmCHARSET_TEXT,
-						      (XmStringTag)"HDR_B"));
-	if(m->subject != NULL)
-	    info = XmStringConcatAndFree(info,
-					 XmStringGenerate(m->subject, NULL,
-							  XmCHARSET_TEXT,
-							  (XmStringTag)"HDR_U"));
-	info = XmStringConcatAndFree(info,
-				     XmStringGenerate("\nDate:\t", NULL,
-						      XmCHARSET_TEXT,
-						      (XmStringTag)"HDR_B"));
-	if(m->date != NULL)
-	    info = XmStringConcatAndFree(info,
-					 XmStringGenerate(m->date, NULL,
-							  XmCHARSET_TEXT,
-							  (XmStringTag)"HDR"));
-	XmCSTextSetString(hdrtext_, info);
+    ptr = strtok(allhdr, "\n");
 
-	XmStringFree(info);
+    if(ptr == NULL){
+	free(allhdr);
+	return;
     }
-    else
-#endif
-    {
-	char		*allhdr = strdup(m->header->message), *ptr, *split;
-	char		colon;
-	char		keyword[256];	/* Should be long enough? :-) */
-	int		length, skip = 0;
 
-	XmTextPosition	pos = 0;
+    info = XmStringGenerate("", NULL, XmCHARSET_TEXT,
+			    (XmStringTag)"HDR");
+    XmCSTextSetString(hdrtext_, info);
+    XmStringFree(info);
 
-	ptr = strtok(allhdr, "\n");
-
-	if(ptr == NULL){
-	    free(allhdr);
-	    return;
-	}
-
-	info = XmStringGenerate("", NULL, XmCHARSET_TEXT,
-				(XmStringTag)"HDR");
-	XmCSTextSetString(hdrtext_, info);
-	XmStringFree(info);
-
-	do{
-	    if(((split = strchr(ptr, ':')) != NULL) && (*ptr != '\t')) {
-		split++;
-		length = split - ptr;
-		strncpy(keyword, ptr, length);
-		keyword[length] = '\0';
-		if( ! full_header_ ) {
-		    /* Check if this header should be shown. */
-		    if( (colon = keyword[length-1]) == ':' )
-			keyword[length-1] = '\0';	/* Strip ':' */
-		    if(! retain_line(keyword) ) {
-			skip = 1;
-			continue;
-		    }
-		    keyword[length-1] = colon;
-		    *split = '\t';
+    do{
+	if(((split = strchr(ptr, ':')) != NULL) && (*ptr != '\t')) {
+	    split++;
+	    length = split - ptr;
+	    strncpy(keyword, ptr, length);
+	    keyword[length] = '\0';
+	    if( ! full_header_ ) {
+		/* Check if this header should be shown. */
+		if( (colon = keyword[length-1]) == ':' )
+		    keyword[length-1] = '\0';	/* Strip ':' */
+		if(! retain_line(keyword) ) {
+		    skip = 1;
+		    continue;
 		}
-		skip = 0;
+		keyword[length-1] = colon;
+		*split = '\t';
+	    }
+	    skip = 0;
 
-		info = XmStringGenerate(keyword, NULL, XmCHARSET_TEXT,
-					(XmStringTag)"HDR_B");
-		if(!strncmp(keyword, "From:", 5)){
-		    pos = XmCSTextGetInsertionPosition(hdrtext_);
-		}
-		if(!strncmp(keyword, "Subject:", 8)){
-		    info = XmStringConcatAndFree(info,
-						 XmStringGenerate(split, NULL,
-							XmCHARSET_TEXT,
-							(XmStringTag)"HDR_U"));
-		}
-		else{
-		    info = XmStringConcatAndFree(info,
-						 XmStringGenerate(split, NULL,
-							XmCHARSET_TEXT,
-							(XmStringTag)"HDR"));
-		}
+	    info = XmStringGenerate(keyword, NULL, XmCHARSET_TEXT,
+				    (XmStringTag)"HDR_B");
+	    if(!strncmp(keyword, "From:", 5)){
+		pos = XmCSTextGetInsertionPosition(hdrtext_);
+	    }
+	    if(!strncmp(keyword, "Subject:", 8)){
 		info = XmStringConcatAndFree(info,
-					     XmStringGenerate("\n", NULL,
+					     XmStringGenerate(split, NULL,
 							      XmCHARSET_TEXT,
-							      (XmStringTag)"HDR"));
-		XmCSTextInsert(hdrtext_, XmCSTextGetInsertionPosition(hdrtext_),
-			       info);
-		XmStringFree(info);
+							      (XmStringTag)"HDR_U"));
 	    }
 	    else{
-		if( skip )
-		    continue;
-		info = XmStringGenerate(ptr, NULL, XmCHARSET_TEXT,
-					(XmStringTag)"HDR");
 		info = XmStringConcatAndFree(info,
-					     XmStringGenerate("\n", NULL,
+					     XmStringGenerate(split, NULL,
 							      XmCHARSET_TEXT,
 							      (XmStringTag)"HDR"));
-		XmCSTextInsert(hdrtext_, XmCSTextGetInsertionPosition(hdrtext_),
-			       info);
-		XmStringFree(info);
 	    }
-	}while((ptr = strtok(NULL, "\n")));
+	    info = XmStringConcatAndFree(info,
+					 XmStringGenerate("\n", NULL,
+							  XmCHARSET_TEXT,
+							  (XmStringTag)"HDR"));
+	    XmCSTextInsert(hdrtext_, XmCSTextGetInsertionPosition(hdrtext_),
+			   info);
+	    XmStringFree(info);
+	}
+	else{
+	    if( skip )
+		continue;
+	    info = XmStringGenerate(ptr, NULL, XmCHARSET_TEXT,
+				    (XmStringTag)"HDR");
+	    info = XmStringConcatAndFree(info,
+					 XmStringGenerate("\n", NULL,
+							  XmCHARSET_TEXT,
+							  (XmStringTag)"HDR"));
+	    XmCSTextInsert(hdrtext_, XmCSTextGetInsertionPosition(hdrtext_),
+			   info);
+	    XmStringFree(info);
+	}
+    }while((ptr = strtok(NULL, "\n")));
 
-	XmCSTextSetTopCharacter(hdrtext_, pos);
+    XmCSTextSetTopCharacter(hdrtext_, pos);
 
-	free(allhdr);
-    }
+    free(allhdr);
 }
 
 /*----------------------------------------------------------------------*/
@@ -860,7 +819,7 @@ read_deliver_flags(COMPOSE_WINDOW *w)
     flags |= (XmToggleButtonGetState(w->encrypt) << 1);
     flags |= (XmToggleButtonGetState(w->log) << 2);
     flags |= (XmToggleButtonGetState(w->raw) << 3);
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
     flags |= (XmToggleButtonGetState(w->remail) << 4);
 #endif
 
@@ -927,7 +886,7 @@ read_subject(COMPOSE_WINDOW *w)
 
 /*----------------------------------------------------------------------*/
 
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
 void
 remail_failed_notice_proc()
 {
@@ -1345,7 +1304,7 @@ compose_find_free()
     XtManageChild(win->log);
     win->raw = XmCreateToggleButton(tbox, "raw", NULL, 0);
     XtManageChild(win->raw);
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
     win->remail = XmCreateToggleButton(tbox, "remail", NULL, 0);
     XtManageChild(win->remail);
 #endif
@@ -1435,7 +1394,7 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype,
 			   win->deliver_flags & DELIVER_LOG, False);
     XmToggleButtonSetState(win->raw,
 			   win->deliver_flags & DELIVER_RAW, False);
-#ifndef NO_MIXMASTER
+#ifdef HAVE_MIXMASTER
     XmToggleButtonSetState(win->remail,
 			   win->deliver_flags & DELIVER_REMAIL, False);
 #endif
@@ -1803,7 +1762,7 @@ create_file_menu(Widget parent)
     button_ = XmCreatePushButtonGadget (menu_, "print", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
-		   print_cooked_proc, NULL);
+		   printCb, NULL);
 
     button_ = XmCreatePushButtonGadget (menu_, "done", NULL, 0);
     XtManageChild (button_);
@@ -2849,6 +2808,23 @@ folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	delete_message_proc();
     }
 } /* folderCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+printCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    MESSAGE		*m;
+
+    m = messages.start;
+    while (m) {
+	if(XmListPosSelected(mailslist_, m->list_pos)) {
+	    m->flags |= MESS_SELECTED;
+	}
+	m = m->next;
+    }
+    print_cooked_proc();
+} /* printCb */
 
 /*----------------------------------------------------------------------*/
 

@@ -166,6 +166,35 @@ esac
 ]
 )
 
+dnl Enable or disable the X-mailer header line.
+AC_ARG_ENABLE(xmailer,
+[  --enable-xmailer        enable the X-mailer header line.],
+[
+XMAILER=1;
+case "$enableval" in
+   yes) XMAILER=1 ;;
+   no) XMAILER=0 ;;
+   *) AC_MSG_ERROR(--enable-xmailer takes no arguments.) ;;
+esac
+if test ${XMAILER} = 1; then
+   AC_DEFINE(SHOW_XMAILER)
+fi
+]
+)
+
+dnl Enable or disable safe mode.
+AC_ARG_ENABLE(safemode,
+[  --enable-safemode       enable safe mode. (Keeps a copy of your mail file
+                          when saving.)],
+[
+case "$enableval" in
+   yes) AC_DEFINE(SAFE_MODE) ;;
+   no) ;;
+   *) AC_MSG_ERROR(--enable-safemode takes no arguments.) ;;
+esac
+]
+)
+
 AC_ARG_ENABLE(mailspool,
 [  --enable-mailspool=DIR  specify the mail spool directory (if necessary).],
 [
@@ -174,6 +203,44 @@ case "$enableval" in
    no) ;;
    *) AC_DEFINE_UNQUOTED(MAIL_SPOOL_DIR, "${enableval}")
      ;;
+esac
+]
+)
+
+dnl Checking for /dev/audio
+AC_ARG_ENABLE(audio,
+[  --enable-audio          specify use of /dev/audio for random byte source.],
+[
+case "$enableval" in
+   yes)
+      AC_MSG_CHECKING(/dev/audio)
+      if test -c /dev/audio; then
+         AC_DEFINE(USE_AUDIO)
+         AC_MSG_RESULT(yes)
+      else
+         AC_MSG_RESULT(no)
+      fi ;;
+   no) ;;
+   *) AC_MSG_ERROR(--enable-audio takes no arguments.) ;;
+esac
+]
+)
+
+dnl Checking for /dev/random
+AC_ARG_ENABLE(random,
+[  --enable-random          specify use of /dev/random for random byte source.],
+[
+case "$enableval" in
+   yes)
+      AC_MSG_CHECKING(/dev/random)
+      if test -c /dev/random; then
+         AC_DEFINE(DEV_RANDOM)
+         AC_MSG_RESULT(yes)
+      else
+         AC_MSG_RESULT(no)
+      fi ;;
+   no) ;;
+   *) AC_MSG_ERROR(--enable-random takes no arguments.) ;;
 esac
 ]
 )
@@ -431,7 +498,7 @@ dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h limits.h malloc.h paths.h sys/file.h sys/ioctl.h sys/time.h unistd.h)
+AC_CHECK_HEADERS(fcntl.h gdbm.h limits.h malloc.h paths.h sys/file.h sys/ioctl.h sys/time.h unistd.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -445,10 +512,12 @@ AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_MMAP
 AC_TYPE_SIGNAL
-dnl AC_CHECK_TYPE(byte, char)
+AC_CHECK_TYPE(byte, char)
 AC_CHECK_TYPE(int32, int)
+AC_CHECK_TYPE(word16, unsigned short)
+AC_CHECK_TYPE(word32, unsigned long)
 AC_FUNC_VFORK
-AC_CHECK_FUNCS(ftime gettimeofday memcpy mktime putenv random select strchr strdup strerror strstr usleep)
+AC_CHECK_FUNCS(ftime geteuid getlogin gettimeofday memcpy mktime putenv random select strchr strdup strerror strstr usleep)
 
 CPPFLAGS="${EXTRACPPFLAGS} ${CPPFLAGS}"
 LDFLAGS="${EXTRALDFLAGS} ${LDFLAGS}"

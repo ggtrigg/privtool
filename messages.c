@@ -18,8 +18,12 @@
  *		- Anders Baekgaard (baekgrd@ibm.net) 10th August 1995
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
-#ifdef __FreeBSD__
+#ifndef HAVE_MALLOC_H
 #include <stdlib.h>
 #else
 #include <malloc.h>

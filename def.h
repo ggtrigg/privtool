@@ -19,13 +19,6 @@
 #define FALSE	0
 #endif
 
-#if (!defined(HAVE_PGPTOOLS) || !defined(PGPLIB))
-typedef unsigned char	byte;
-typedef unsigned short	word16;
-typedef unsigned long	word32;
-#endif
-typedef int		int32;
-
 #define FL_ASCII	0x01
 #define FL_SIGN		0x02
 #define FL_ENCRYPT	0x04
@@ -82,7 +75,7 @@ extern char	*my_malloc(), *my_realloc();
 
 #define BUFSIZE	1024
 
-#ifdef SLOW_STRSTR
+#ifndef HAVE_STRSTR
 #define strstr	mystrstr
 extern	char	*mystrstr (char *, char *);
 #endif

@@ -51,7 +51,9 @@ $(DIRS):
 clean:
 		$(RM) privtool $(OBJS)
 
-depend .depend:	$(SOURCE)
+depend:		.depend
+
+.depend:	$(SOURCE)
 		$(CC) $(CFLAGS) $(CPPFLAGS) -M $(SOURCE) > .depend
 
 include .depend

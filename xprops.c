@@ -31,6 +31,10 @@
  *                      30 May 1996
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifdef SVR4
 #include <stdio.h>
 #else /* !SVR4 */

@@ -3,12 +3,16 @@
  * $Id$
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
 #include <sys/param.h>
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 #include <gdbm.h>
 #else
 #include <fcntl.h>
@@ -59,7 +63,7 @@ static	FILE	*open_pgp_file (char *s, char *attr)
 #endif
 }
 
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 static	char	pgptools_file[] = "pubring.dbm";
 #else
 static	char	pgptools_file[] = "pubring.db";
@@ -71,7 +75,7 @@ static	void	process_file(char *s)
 	FILE		*in;
 	char	out[1024], *pgppath, *q;
 	char	username[2048];
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 	GDBM_FILE	outfile;
 	datum	key, data, fdata, id;
 #else
@@ -101,7 +105,7 @@ static	void	process_file(char *s)
 		exit (1);
 	}
 
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 	outfile = gdbm_open (out, 512, GDBM_WRCREAT, 0600, 0);
 #else
 	outfile = dbopen (out, O_RDWR|O_CREAT, 0600, DB_HASH, NULL);
@@ -114,7 +118,7 @@ static	void	process_file(char *s)
 
 	f = fifo_file_create (in);
 
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 	data.dptr = &pk;
 	data.dsize = sizeof (pk);
 	fdata.dptr = full_key;
@@ -154,7 +158,7 @@ static	void	process_file(char *s)
 			while (*q && *q != '<')
 				q++;
 			if (*q) {
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 				key.dptr = q + 1;
 #else
 				key.data = q + 1;
@@ -162,7 +166,7 @@ static	void	process_file(char *s)
 				while (*q && *q != '>')
 					q++;
 				*q = 0;
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 				key.dsize = strlen (key.dptr);
 				gdbm_store (outfile, key, data, GDBM_REPLACE);
 #else
@@ -173,7 +177,7 @@ static	void	process_file(char *s)
 			}
 		}
 		if (!pk.comp) {
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 			fdata.dsize = i;
 			gdbm_store (outfile, id, fdata, GDBM_REPLACE);
 #else
@@ -183,7 +187,7 @@ static	void	process_file(char *s)
 		}
 		fifo_destroy (k2);
 	}
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 	gdbm_close (outfile);
 #else
 	outfile->close (outfile);

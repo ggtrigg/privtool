@@ -43,6 +43,10 @@
 
 #define UI_MAIN
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdlib.h>
 #ifndef __FreeBSD__
 /* malloc .h superceded by stdlib.h included above */

@@ -13,7 +13,11 @@
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *
  */
-#ifdef __FreeBSD__
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifndef HAVE_MALLOC_H
 #include <stdlib.h>
 #else
 #include <malloc.h>

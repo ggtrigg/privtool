@@ -11,6 +11,10 @@
  *		 based mail folder handling.
  */
 
+#ifdef HAVE_CONFIG_H
+#include	"config.h"
+#endif
+
 #include	<stdlib.h>
 #include	<stdio.h>
 #include	<X11/X.h>
@@ -104,16 +108,8 @@ show_mail_folders(Widget parent)
 		      (XtCallbackProc) destinationCb, NULL);
 	XtAddCallback(container, XmNconvertCallback,
 		      (XtCallbackProc) containerConvertCb, NULL);
-#if 0
-	XtAddEventHandler(mainwin, StructureNotifyMask, False,
-			  resizeCb, container);
-#endif
 
 	i = 0;
-#if 0
-	XtSetArg(args[i], XmNdragProc, cDragProc); i++;
-	XmDropSiteUpdate(container, args, i);
-#endif
 
 	fillin_folders(container);
     }
@@ -454,14 +450,6 @@ destinationCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	    cbs->location_data, XtName(cbs->location_data)));
 
     XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_SUCCEED);
-#if 0
-    /* Only process DnD transfers. */
-    if(cbs->selection != MOTIF_DROP)
-	return;
-
-    XmTransferValue(cbs->transfer_id, TARGETS, (XtCallbackProc) transferProc,
-		    NULL, XtLastTimestampProcessed(XtDisplay(w)));
-#endif
 } /* destinationCb */
 
 /*----------------------------------------------------------------------*/
@@ -537,34 +525,6 @@ containerConvertCb(Widget w, XtPointer clientdata, XtPointer calldata)
     }
     else if(cbs->target == PRIVTOOL_FOLDERDIR){
 	DEBUG2(("   converting a folderdir...\n"));
-#if 0
-	if(cbs->location_data != 0){ /* This is the list item to transfer */
-	    for(m = messages.start; m != NULL; m = m->next){
-		if(m->list_pos == (int)cbs->location_data + 1)
-		    break;
-	    }
-	}
-	else{			/* Do all selected items (somehow). */
-	    for(m = messages.start; m != NULL; m = m->next){
-		if(XmListPosSelected(mailslist_, m->list_pos)){
-		    break;
-		}
-	    }
-	}
-	if(m != NULL){
-	    if(m->decrypted){
-		b = m->decrypted;
-	    }
-	    else{
-		b = message_contents(m);
-	    }
-	    cbs->value = b->message;
-	    cbs->length = strlen(b->message);
-	    cbs->type = XA_STRING;
-	    cbs->format = 8;
-	    cbs->status = XmCONVERT_DONE;
-	}
-#endif
 	cbs->status = XmCONVERT_DONE;
     }
     else{

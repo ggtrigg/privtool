@@ -44,7 +44,7 @@
 #endif
 
 #include <string.h>
-#if defined(__FreeBSD__) || defined (linux)
+#ifndef HAVE_MALLOC_H
 #include <stdlib.h>
 #else
 #include <malloc.h>
@@ -58,7 +58,7 @@
 #include <sys/timeb.h>
 #include <sys/resource.h>
 #include <ctype.h>
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 #include <gdbm.h>
 #endif
 #ifdef BDB
@@ -68,7 +68,7 @@
 
 #include "def.h"
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 #include <usuals.h>
 #include <md5.h>
 #include <idea.h>
@@ -92,10 +92,6 @@
    specific, or we should include the right SunOS header file. */
 
 extern	char	*getenv();
-
-#ifdef __sgi
-#define vfork fork
-#endif
 
 /* BUF_SIZE is the general size of stack buffers. Should this ever be used 
    on DOS, you might want to reduce the value of BUF_SIZE, or replace the 
@@ -123,7 +119,7 @@ static	BUFFER	stdout_messages;
 static	char	begin_key [] = "\n-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: ";
 static	char	end_key [] = "\n-----END PGP PUBLIC KEY BLOCK-----";
 
-#ifdef SLOW_STRSTR
+#ifndef HAVE_STRSTR
 
 /* Use this routine if your machine doesn't have strstr () or it's really 
    slow like SunOS */
@@ -169,7 +165,7 @@ char	*mystrstr (char *s1, char *s2)
 /* All this is only needed if we're using PGP Tools rather than forking off
    a copy of PGP for encryption/decryption */
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 
 /* We'll set up all the strings and data we need here */
 
@@ -662,7 +658,7 @@ void	reseed_random (void)
 #endif
 }
 
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 static	GDBM_FILE	keyfile = 0;
 #endif
 #ifdef BDB
@@ -681,7 +677,7 @@ static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key,
 	int	revoked;
 	int	found = FALSE;
 	byte	our_uid [256];
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 	datum	data, idkey;
 #endif
 #ifdef BDB
@@ -695,14 +691,14 @@ static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key,
 		return TRUE;
 #endif
 
-#if defined(GDBM) || defined (BDB)
+#if defined(HAVE_GDBM_H) || defined (BDB)
 	if (!keyfile) {
 		char	file[PATH_MAX];
 		char	*pgpp;
 
 		pgpp = getenv ("PGPPATH");
 		if (pgpp) {
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 			sprintf (file, "%s/pubring.dbm", pgpp);
 			keyfile = gdbm_open (file, 512, GDBM_READER, 
 				0600, 0);
@@ -714,7 +710,7 @@ static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key,
 		}
 	}
 	if (keyfile) {
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 		idkey.dptr = id;
 		idkey.dsize = 8;
 		data = gdbm_fetch (keyfile, idkey);
@@ -1369,7 +1365,7 @@ static	int	decrypt_fifo (struct fifo *inf, BUFFER *decrypted,
 void	update_random(void)
 
 {
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 	byte	low_byte;
 	struct	timeb	timestamp;
 
@@ -1404,7 +1400,7 @@ void	update_random(void)
 void	init_pgplib(void)
 
 {
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 	FILE	*fp;
 
 	/* Set mpilib precision */
@@ -1465,7 +1461,7 @@ void	init_pgplib(void)
 void	close_pgplib(void)
 
 {
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 	FILE	*fp;
 	byte	old_random [RAND_SIZE];
 	int	i;
@@ -1528,9 +1524,9 @@ void	close_pgplib(void)
 	eject_floppy();
 #endif
 
-#if defined(GDBM) || defined (BDB)
+#if defined(HAVE_GDBM_H) || defined (BDB)
 	if (keyfile) {
-#ifdef GDBM
+#ifdef HAVE_GDBM_H
 		gdbm_close (keyfile);
 #else
 		keyfile->close (keyfile);
@@ -1895,7 +1891,7 @@ int	run_program(char *prog, byte *message, int msg_len,
    doesn't check that the program exists; run_program will return
    -1 if so. */
 
-#ifndef PGPTOOLS
+#ifndef HAVE_PGPTOOLS
 static	int	run_pgp(byte *message, int msg_len, char **args,
 			char *pass)
 
@@ -1941,7 +1937,7 @@ int	decrypt_message (BUFFER *message, BUFFER *decrypted, BUFFER *signature,
 
 {
 	int	ret_val;
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 #define STRING_SIZE	256
 	char	buf [STRING_SIZE];
 	byte	userid [STRING_SIZE];
@@ -2363,7 +2359,7 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 		int flags, char *pass, char *key_name, byte *md5_pass)
 
 {
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 	FILE	*skr;
 	FILE	*pkr;
 	FILE	*smkr;
@@ -3174,7 +3170,7 @@ int	add_key (BUFFER *m)
 {
 	char	*s, *e;
 	char	*dir;
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 	struct	fifo	*armor;
 	struct	fifo	*new_key;
 	struct	fifo	*n_kr;
@@ -3225,7 +3221,7 @@ int	add_key (BUFFER *m)
 	if (!e || e >= (char *)(m->message + m->length))
 		return ADD_NO_KEY;
 
-#ifdef PGPTOOLS
+#ifdef HAVE_PGPTOOLS
 	s += strlen (begin_key);
 
 	/* Skip the begin key line and search for the key data */

@@ -32,10 +32,13 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_GETEUID
+#include <pwd.h>
+#endif
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef __FreeBSD__
+#ifdef HAVE_MALLOC_H
 /* malloc.h superceded by stdlib.h included above */
 #include <malloc.h>
 #endif
@@ -967,15 +970,18 @@ void	read_mailrc(void)
 	fclose(mailrcf);
 }
 
-#ifndef PGPTOOLS
+#ifndef HAVE_PGPTOOLS
 static	char	pgp_exec [] = PGPEXEC;
 #endif
 
 main(int argc, char *argv[])
 
 {
-	char	*s;
-	int	i;
+	char		*s;
+	int		i;
+#ifdef HAVE_GETEUID
+	struct passwd	*pwent;
+#endif
 #ifdef MALLOC_TEST
 	extern	void	malloc_dump();
 
@@ -984,7 +990,7 @@ main(int argc, char *argv[])
 
 	/* Check for PGP */
 
-#ifndef PGPTOOLS
+#ifndef HAVE_PGPTOOLS
 	if (!pgp_path()) {
 		printf ("Can't find PGP at '%s', exiting !\n", pgp_exec);
 	}
@@ -997,8 +1003,11 @@ main(int argc, char *argv[])
 	umask (077);
 
 	/* Get our user id */
+#ifdef HAVE_GETEUID
+	pwent = getpwuid(geteuid());
+	our_userid = strdup(pwent->pw_name);
 
-#ifdef __FreeBSD__
+#elif defined(HAVE_GETLOGIN)
 /* cuserid:
    a) is obselete and replaced by getpwuid.
    b) returns the effective user id rather than the real one.
@@ -1006,9 +1015,9 @@ main(int argc, char *argv[])
       belongs to at the moment */
 
 	our_userid = getlogin();
-#else
+#else  /* Last resort (?) */
 	our_userid = cuserid (0);
-#endif
+#endif /* HAVE_GETEUID */
 
 	/* Do all the SETGID stuff */
 
@@ -1088,7 +1097,7 @@ void	copy_to_nl(char *from, char *to)
 	*to = 0;
 }
 
-#ifndef PGPTOOLS
+#ifndef HAVE_PGPTOOLS
 char	*pgp_path(void)
 
 {

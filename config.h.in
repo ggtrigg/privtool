@@ -26,6 +26,7 @@
 
 /* Define if any of these header files exist. */
 #undef HAVE_FCNTL_H
+#undef HAVE_GDBM_H
 #undef HAVE_LIMITS_H
 #undef HAVE_MALLOC_H
 #undef HAVE_PATHS_H
@@ -69,6 +70,8 @@
 
 /* Various defines if the functions are available. */
 #undef HAVE_FTIME
+#undef HAVE_GETEUID
+#undef HAVE_GETLOGIN
 #undef HAVE_GETTIMEOFDAY
 #undef HAVE_GNUPG
 #undef HAVE_MEMCPY
@@ -82,8 +85,11 @@
 #undef HAVE_STRSTR
 #undef HAVE_USLEEP
 
-/* Define to char if byte is unknown */
+/* Define to some varius types if they're not already known. */
 #undef byte
+#undef int32
+#undef word16
+#undef word32
 
 /* Define this to fork is your vfork is broken. */
 #undef vfork
@@ -102,3 +108,13 @@
 #undef MIXEXEC
 #undef MIXPATH
 #undef PREMAILEXEC
+
+/* Show the X-mailer header line. */
+#undef SHOW_XMAILER
+
+/* Using safe mode? */
+#undef SAFE_MODE
+
+/* Random byte sources. */
+#undef USE_AUDIO
+#undef DEV_RANDOM

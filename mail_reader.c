@@ -37,6 +37,10 @@
  *                30 May 1996
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -44,7 +48,7 @@
 #include <sys/file.h>
 #include <unistd.h>
 #include <string.h>
-#ifdef __FreeBSD__
+#ifndef HAVE_MALLOC_H
 #include <stdlib.h>
 #else
 #include <malloc.h>
@@ -87,7 +91,6 @@ extern	FILE	*mail_fp;
 extern	char	*our_userid;
 
 static	void	set_real (void)
-
 {
 #ifdef SETGID
 	setegid (real_gid);
@@ -95,22 +98,14 @@ static	void	set_real (void)
 }
 
 static	void	set_mail (void)
-
 {
 #ifdef	SETGID
 	setegid (mail_gid);
 #endif
 }
 
-#if !defined(linux) && !defined(__sgi)
-#ifdef SYSV
-#ifdef NON_ANSI
-void	usleep(n)
-
-int	n;
-#else
+#ifndef HAVE_USLEEP
 void	usleep (int n)
-#endif
 {
 	struct	timeval	t;
 
@@ -119,7 +114,6 @@ void	usleep (int n)
 
 	(void) select (0, NULL, NULL, NULL, &t);
 }
-#endif
 #endif
 
 /* Unfortunately, we have to cope with people who use very, very long lines */
@@ -1450,7 +1444,7 @@ int	save_changes (void)
 {
 	char	tmp_file [MAXPATHLEN];
 	char	lock_file [MAXPATHLEN];
-#ifdef SAFE
+#ifdef SAFE_MODE
 	char	save_file [MAXPATHLEN];
 #endif
 	FILE	*tmp_fp;
@@ -1471,7 +1465,7 @@ int	save_changes (void)
 
 	sprintf(lock_file,"%s.lock",last_file);
 	sprintf(tmp_file,"%s.%d.tmp",last_file,getpid());
-#ifdef SAFE
+#ifdef SAFE_MODE
 	sprintf(save_file,"%s.save",last_file);
 #endif
 
@@ -1539,7 +1533,7 @@ int	save_changes (void)
 	/* Rename the temporary file to the real file */
 
 	set_mail ();
-#ifdef SAFE	
+#ifdef SAFE_MODE
 	unlink (save_file);
 	rename (last_file, save_file);
 #else
