@@ -14,5 +14,7 @@
  */
 
 extern	FILE	*get_flop_file ();
+#ifdef AUTO_EJECT
 extern	void	eject_floppy ();
+#endif
 

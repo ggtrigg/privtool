@@ -1,6 +1,6 @@
 
 /*
- *	@(#)gui.c	1.63 9/6/95
+ *	@(#)gui.c	1.72 6/11/96
  *
  *	Gui.c : It is intended that this file will contain as much
  *	as possible of the user-interface code, allowing privtool to
@@ -28,6 +28,13 @@
  *	Make subjects line up in message list
  *		- Richard Huveneers (richard@hekkihek.hacom.nl) 
  *			5th September 1995
+ *
+ *	Fix printing
+ *		- Anthony B Gialluca (tony@hgc.edu) 11th Oct 1995
+ *
+ *      Fix function: expand_filename()
+ *              - Scott Cannon Jr. (scottjr@silver.cal.sdl.usu.edu)
+ *                30 May 1996
  */
 
 #include <stdio.h>
@@ -57,7 +64,11 @@ static	time_t	last_displayed = 0;
 static	char	*mail_args[] =
 
 {
+#ifdef __FreeBSD__
+	"/usr/sbin/sendmail",
+#else
 	"/usr/lib/sendmail",
+#endif
 	"-t",
 	NULL
 };
@@ -68,7 +79,11 @@ static	char	*print_args[] =
 #ifdef linux
 	"/usr/bin/lpr",
 #else
+#ifdef __FreeBSD__
+	"/usr/bin/lpr",
+#else
 	"/usr/ucb/lpr",
+#endif
 #endif
 	NULL
 };
@@ -123,11 +138,7 @@ char	prog_name[] = "XSafeMail";
 char	prog_name[] = "Privtool";
 #endif
 
-#ifdef MOTIF
-char	prog_ver [] = "V0.85M BETA";
-#else
-char	prog_ver [] = "V0.85 BETA";
-#endif
+char	prog_ver [] = "V0.86 BETA";
 
 /* Set the description of the message for the message list */
 
@@ -333,6 +344,7 @@ MESSAGE	*m;
 
 {
 	int	i;
+	DISPLAY_WINDOW	*w;
 
 	/* Add time to random seed */
 
@@ -346,17 +358,17 @@ MESSAGE	*m;
 	/* Set the icon back in case it was 'new mail' */
 
 	show_normal_icon ();
-	create_display_window();
+	w = create_display_window(m);
 
 	/* Let user know we're doing something */
 
-	set_display_footer("Displaying Message...");
-	clear_display_footer ();
+	set_main_footer("Displaying Message...");
+	clear_display_footer (w);
 
 	/* Display sender and date */
 
-	display_sender_info(m);
-	clear_display_window();
+	display_sender_info(m,w);
+	clear_display_window(w);
 
 	if (m->flags & MESS_DIGEST) {
 
@@ -396,7 +408,8 @@ MESSAGE	*m;
 					callback_win = NULL;
 					clear_busy ();
 					get_passphrase(decrypt_passphrase);
-					clear_display_footer();
+					clear_display_footer(w);
+					clear_main_footer ();
 					return;
 				}
 			}
@@ -404,9 +417,9 @@ MESSAGE	*m;
 			/* Keep the user informed */
 
 			if (m->flags & MESS_ENCRYPTED)
-				set_display_footer("Decrypting message...");
+				set_display_footer(w,"Decrypting message...");
 			else
-				set_display_footer("Verifying signature...");
+				set_display_footer(w,"Verifying signature...");
 
 			/* Call PGP to decrypt/verify */
 
@@ -437,7 +450,8 @@ MESSAGE	*m;
 					message_to_decrypt = m;
 					get_passphrase(decrypt_passphrase);
 				}
-				clear_display_footer();
+				clear_display_footer(w);
+				clear_main_footer ();
 				return;
 			}
 
@@ -466,7 +480,7 @@ MESSAGE	*m;
 
 			/* Keep the user informed */
 
-			set_display_footer("Found encrypted mailfeed...");
+			set_display_footer(w,"Found encrypted mailfeed...");
 
 			/* Replace the old message with the decrypted one */
 
@@ -505,11 +519,11 @@ MESSAGE	*m;
 
 		/* Otherwise, just display the decrypted message */
 
-		display_message_body(m->decrypted);
-		display_message_sig(m->signature);
+		display_message_body(m->decrypted,w);
+		display_message_sig(m->signature,w);
 
 		if (buffer_contains_key (m->decrypted))
-			show_addkey ();
+			show_addkey (w);
 
 		clear_busy ();
 	}
@@ -518,10 +532,10 @@ MESSAGE	*m;
 	display_plaintext:
 		/* Or display the plaintext message */
 
-		display_message_body(message_contents (m));
+		display_message_body(message_contents (m),w);
 
 		if (buffer_contains_key (message_contents (m)))
-			show_addkey ();
+			show_addkey (w);
 	}
 
 	/* Update status to say we read it */
@@ -540,8 +554,8 @@ MESSAGE	*m;
 
 	/* Lock the display window to prevent edits, and show it */
 
-	lock_display_window();
-	show_display_window(m);
+	lock_display_window(w);
+	show_display_window(m,w);
 
 	/* Just in case anything's changed */
 
@@ -554,12 +568,13 @@ MESSAGE	*m;
 
 	/* Clear the footer now it's displayed */
 
-	clear_display_footer();
+	clear_display_footer(w);
+	clear_main_footer ();
 }
 
 /* Selecting next or previous message */
 
-static	void	select_message_proc(m)
+void	select_message_proc(m)
 
 MESSAGE	*m;
 
@@ -860,6 +875,9 @@ void	decrypt_with_passphrase()
 
 {
 	display_message(message_to_decrypt);
+#ifdef MOTIF
+	sync_list();
+#endif
 }
 
 void	set_flags_from_decryption(m,i)
@@ -1036,7 +1054,14 @@ char	*s;
 		/* If folder specified, we need to build up
 		   the full pathname */
 
-		if (folder && *folder && *s == '+') {
+		if (folder && *folder && 
+#ifndef DONT_REQUIRE_PLUS
+			*s == '+'
+#else
+			TRUE
+#endif
+			) {
+
 
 			/* We'll be kind to malloc here */
 
@@ -1061,10 +1086,23 @@ char	*s;
 			}
 
 			if (*folder == '/')
-				sprintf(filename, "%s/%s", folder, s+1);
+#ifdef DONT_REQUIRE_PLUS
+				sprintf(filename, "%s/%s", folder, s);
+#else
+			  {
+			    if (*s == '/')
+			      strcpy(filename, s);
+			    else
+			      sprintf(filename, "%s/%s", folder, s);
+			  }
+#endif
 			else
 				sprintf (filename, "%s/%s/%s",
+#ifdef DONT_REQUIRE_PLUS
+					home, folder, s);
+#else
 					home, folder, s+1);
+#endif
 
 			s = filename;
 		}
@@ -1440,10 +1478,21 @@ try_again:
 		mail_message = new_buffer();
 
 		if (!(deliver_flags & DELIVER_REMAIL)) {
+			char	*domain, *replyto;
 #ifdef MAILER_LINE
-			sprintf(buff,"Mailer: %s\n",prog_name);
+			sprintf(buff,"Mailer: %s",prog_name);
+#ifdef linux
+			strcat (buff, "(Linux)");
+#else
+#ifdef __FreeBSD__
+			strcat (buff, "(FreeBSD)");
+#endif
+#endif
+			strcat (buff, "\n");
 			add_to_buffer(mail_message,buff,strlen(buff));
 #endif
+
+			/* Add in-reply-to: to the header */
 
 			if (replying_message_id &&
 				replying_message_sender) {
@@ -1452,6 +1501,26 @@ try_again:
 					replying_message_sender);
 				add_to_buffer (mail_message,buff,strlen(buff));
 			}
+
+			/* Allow the user to set the domain name */
+
+			if ((domain = find_mailrc("domain")) && *domain) {
+				sprintf (buff, "From: %s@%s\n", our_userid, 
+					domain);
+				add_to_buffer (mail_message, buff,
+					strlen (buff));
+			}
+
+			/* Allow the user to set the reply-to line */
+
+			if ((replyto = find_mailrc("replyto")) && 
+				*replyto) {
+				sprintf (buff, "Reply-To: %s\n", replyto); 
+				add_to_buffer (mail_message, buff,
+					strlen (buff));
+			}
+
+			/* Add the subject to the header */
 
 			if (*subject) {
 				sprintf(buff,"Subject: %s\n",subject);
@@ -2150,6 +2219,22 @@ static	char	dec_mess [] = "Decrypted message reads :\n\n";
 static	char	sig_mess [] = "\n\nMessage was signed :\n\n";
 static	char	end_mess [] = "\n\nEnd of signature information\n";
 
+static void print_exec(args, buff, l)
+
+char	*args;
+byte	*buff;
+int	l;
+
+{
+  FILE *out, *popen();
+
+  if( (out = popen(args,"w")) == (FILE *) NULL) {
+    return;
+  }
+  fwrite (buff, l, 1, out);
+  pclose(out);
+}
+
 static	void	print_message_proc (raw)
 
 int	raw;
@@ -2207,26 +2292,13 @@ int	raw;
 
 	if (out->length) {
 		char	*s;
-		char	**args;
-		int	count = 0;
 
 		s = find_mailrc ("printmail");
-		if (s) {
-			s = strdup (s);
-			args = split_string (s, &count);
 
-			if (!count) {
-				free (args);
-				free (s);
-				return;
-			}
-		}
-		else
-			args = print_args;
+		print_exec(s,out->message,out->length);
 
-		run_program(args[0],out->message,out->length,args,NULL);
-
-		sprintf(mess,"%d messages sent for printing",c);
+		sprintf(mess,"%d message%s sent to %s for printing",
+			c, (c == 1) ? "" : "s", s);
 		set_main_footer(mess);
 	}
 
@@ -2282,4 +2354,14 @@ void	add_key_proc ()
 		break;
 	}
 }
+
+#ifdef PGPTOOLS
+void	reseed_random_generator ()
+
+{
+	show_busy();
+	reseed_random();
+	clear_busy();
+}
+#endif
 

@@ -1,6 +1,6 @@
 
 /*
- * @(#)buffers.c	1.8 9/10/94
+ * @(#)buffers.c	1.9 3/5/96
  *
  *	(c) Copyright 1993-1994 by Mark Grant. All right reserved.
  *	The author assumes no liability for damages resulting from the 
@@ -13,8 +13,11 @@
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *
  */
-
+#ifdef __FreeBSD__
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
 
 #include "def.h"
 #include "buffers.h"

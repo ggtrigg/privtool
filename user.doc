@@ -201,8 +201,20 @@ set nodefaultsign
 This will disable the default PGP-signing of messages. You will have to
 check the 'Sign' box manually to sign outgoing messages.
 
-5. Public key access
---------------------
+set domain='domainname'
+
+If the domain name of the machine you are using is different to the
+domain name for your email address, then you can specify the correct
+domain name to use in outgoing messages.
+
+set replyto='reply-address'
+
+You may also specify the reply-address to use in the Reply-To: line of
+outgoing messages. Most mail programs will detect this line and use it
+as the destination for replies.
+
+5. Keyring access
+-----------------
 
 Normally privtool will read the public keys to use out of PGP's pubring.pgp
 file, however if it is compiled with PGP Tools then it will first look for
@@ -211,22 +223,40 @@ key in this file before checking the main one. If you have a large pubring.pgp
 file, then you can store commonly used keys in smallring.pgp to reduce
 the time required to access them.
 
+Currently there is a limited support for retaining secret keys on a floppy
+disk as a 'physical token'. This works on SunOS and Linux, with some
+limitations. In particular it requires global read access to /dev/fd0, which
+you may prefer to avoid.
+
+If you would like to try it, take the following steps:
+
+	1. Find a blank floppy disk.
+	2. Low-level format the disk, using 'fdformat /dev/fd0'
+	3. Copy your secret keyring onto the disk, using 'cp secring.pgp
+	   /dev/fd0'
+
+You now have your secret key on the disk. Whenever Privtool requires the
+key it will open the disk device and read from the disk rather than the
+normal PGP secret key file. If you remove the disk then noone else will
+be able to use your secret key even if you accidentally leave your desk
+and forget to erase your passphrase. On machines with software eject you 
+will find a new 'Eject Floppy' option on the Edit button menu.
+
+The problem at the moment is that PGP keyring files do not include an
+'end of file' marker. Consequently if Privtool is looking for a key
+which does not exist in the secret key file it will scan the entire
+floppy disk before aborting. This can take a long time!
+
 6. ToDo
 -------
 
 Features to be added :
 
-	Graphical .mailrc properties window.
-
 	Hopefully a Motif or Xt replacement for x.c.
-
-	Support for key management.
 
 	Improved security in general.
 
 	Create color icon.
-
-	Add multiple compose and display windows.
 
 See README.1ST for other information on current bugs and intended fixes.
 
@@ -236,7 +266,50 @@ See README.1ST for other information on current bugs and intended fixes.
 I'm not sure how good the random number generation is at the moment, it
 essentially keeps an array of user interface interaction times and
 passes it to the PGP Tools random number functions (the old array will
-be stored as 'privseed.bin' in your $PGPPATH).
+be stored as 'privseed.bin' in your $PGPPATH). When the contents of
+privseed.bin are loaded, they are first IDEA-encrypted using a key
+based on the current time and process id. It will then be XOR-ed with
+the contents of PGP's randseed.bin file if you have one available.
+
+Optionally, if you have an audio device with no microphone, it can
+be used as a source of physical random data. Privtool will read 16
+512-byte blocks from /dev/audio, and take the MD5 of each. These will
+then be concatenated into a 256-byte block and XOR-ed with the data
+read from, or written to, the privseed.bin file. On Linux we also read
+the contents of various system files such as /proc/interrupts and XOR
+in the MD5 of these files.
+
+This guarantees that there is at least a small amount of randomness 
+in generated keys, even if an attacker has a copy of your privseed.bin 
+file (of course, the amount of randomness depends on whether the attacker 
+can access your machine to find the process id or startup time). After 
+this, each time a user interface event occurs (e.g. pressing a button), 
+the low-order byte of the time in seconds and the high-order byte of 
+the time in milliseconds are XOR-ed together, and then XOR-ed into the 
+privseed array, along with other sources of non-deterministic data such 
+as MD5 hashes of messages read.
+
+This should ensure that the privseed array is soon filled with 
+non-deterministically random data, which is used to generate a random
+128-bit key for encryption. In addition, this key is XOR-ed with the
+MD5 hash of the message you are sending before it is used, and as a
+result an attacker would need to know the internal state of the
+random number routine, the contents of the privseed array, *and*
+the MD5 of the message in order to crack the key. Clearly, if the
+attacker knows the MD5 of the message, they probably know the message
+itself and don't need the key.
+
+Finally, on exit the privseed array is again IDEA-encrypted to prevent
+state information leaking, and XOR-ed with the old contents of the
+privseed.bin file. The modification time of the file is reset to zero
+in order to prevent an attacker using it to determine the key that was
+used to encrypt the data prior to the XOR. Even if they could do this
+it would not neccesarily make it possible to recreate the random number
+sequence, as the internal state of PGP Tools' random number generator
+is not saved.
+
+I suspect that this is pretty secure, however I'd appreciate any 
+comments from people who have analysed the code and found weaknesses.
 
 Another major concern is that if you mail out an encrypted message to
 several people it will be encrypted to all those people rather than
@@ -268,4 +341,4 @@ them to mark@unicorn.com.
 
 		Mark
 
-File: @(#)user.doc	1.12 7/21/95
+File: @(#)user.doc	1.14 9/28/95

@@ -1,5 +1,5 @@
 #
-# @(#)Makefile	1.27 9/5/95
+# @(#)Makefile	1.30 3/28/96
 #
 # Makefile for Privtool, by Mark Grant (mark@unicorn.com). Linux changes
 # from David Summers (david@actsn.fay.ar.us) and Anders Baekgaard.
@@ -11,7 +11,7 @@
 #
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
-#DISPLAY_OBJECT = x.o
+#DISPLAY_OBJECT = x.o xprops.o
 DISPLAY_OBJECT = motif.o
 
 #
@@ -20,10 +20,12 @@ DISPLAY_OBJECT = motif.o
 #
 
 #FLOPPY_OBJECT = floppy.o
-#FLOPPY_FLAGS = -DUSE_FLOPPY
+#FLOP_FILE = /dev/fd0
+#FLOPPY_FLAGS = -DUSE_FLOPPY -DAUTO_EJECT -DFLOP_FILE=\"$(FLOP_FILE)\"
 
 FLOPPY_OBJECT = 
 FLOPPY_FLAGS = 
+FLOP_FILE =
 
 OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
@@ -104,7 +106,7 @@ LDFLAGS= $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
 #
 
 #PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
-	-DNO_ASM -DHIGHFIRST -DIDEA32
+	-DNO_ASM -DHIGHFIRST -DIDEA32 -DUSE_AUDIO
 PGPTOOLS=
 
 #
@@ -112,7 +114,7 @@ PGPTOOLS=
 # default fixed width font.
 #
 #DEFAULT_FONT=-DFIXED_WIDTH_FONT=FONT_FAMILY_COUR
-#DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
+DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
 
 #
 # Define XResources below to override the default ".Xdefaults"
@@ -135,13 +137,18 @@ PGPTOOLS=
 #
 # Add -DALLOCA if you have alloca().
 #
+# Add -DDONT_REQUIRE_PLUS if you want all mailbox access to occur
+# relative to your folder directory even if you don't put a + sign
+# at the beginning of the file name.
+#
 
-DEBUG=-g
-#DEBUG=-O
+#DEBUG=-g
+DEBUG=-O6 -g
 
 CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
-	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
-	$(DEFAULT_FONT) $(XRESOURCES) -D_BSD_SOURCE -DNSA_ICON -DCOMPACT -DMOTIF
+	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
+	$(DEFAULT_FONT) $(XRESOURCES) -D_BSD_SOURCE -DNSA_ICON -DCOMPACT \
+	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -154,7 +161,7 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 #
 
 #CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
-CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -Dlinux $(FLOPPY_FLAGS)
+CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS)
 
 #
 # Code is written for cc, but should work with gcc. However, I'm wary
@@ -164,7 +171,7 @@ CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -Dlinux $(FLOPPY_FLAGS)
 
 #CC=gcc
 #CC=cc -DNON_ANSI
-CC=cc -ansi -mpentium
+CC=cc -ansi -mpentium -DSYSV
 
 # Or, use acc for Solaris 2.x
 #CC=acc -DSYSV
@@ -174,8 +181,8 @@ CC=cc -ansi -mpentium
 
 # If using Linux, use the first line, otherwise use the second.
 
-#LINUX_OBJ = linux/gettime.o linux/parsedate.o
-LINUX_OBJ = 
+LINUX_OBJ = linux/gettime.o linux/parsedate.o
+#LINUX_OBJ = 
 
 #
 # Following provides automatic dependencies on SunOS

@@ -1,6 +1,6 @@
 
 /*
- *	@(#)gui.h	1.19 8/10/95
+ *	@(#)gui.h	1.21 9/25/95
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -46,6 +46,7 @@ extern	void	deliver_proc();
 extern	void	display_message();
 extern	void	move_message_proc();
 extern	void	copy_message_proc();
+extern	void	select_message_proc();
 extern	void	check_for_new_mail();
 extern	void	inbox_proc ();
 extern	void	save_changes_proc ();
@@ -58,6 +59,9 @@ extern  void	sort_by_sender ();
 extern	void	sort_by_size ();
 extern	void	sort_by_status ();
 extern	void	add_key_proc ();
+#ifdef PGPTOOLS
+extern	void	reseed_random_generator ();
+#endif
 
 /* GUI variable definitions */
 

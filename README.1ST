@@ -1,5 +1,5 @@
 
-	Privtool Beta Release	@(#)README.1ST	1.34 9/12/95
+	Privtool Beta Release @(#)README.1ST	1.41 6/11/96
 	-----------------------------------------------------
 
 Privtool ("Privacy Tool") is intended to be a PGP-aware replacement 
@@ -55,10 +55,8 @@ Known Nonfeatures :
 	message decrypted. Also, the message will be sent encrypted to all
 	users, not just the one who is receiving each copy.
 
-	Only one display window.
-
 	Code should be more modular to assist with ports to Xt, Motif, Mac,
-	Windows, etc. 
+	Windows, etc. I may port it to C++ in the near future.
 
 	Not very well documented !
 
@@ -67,7 +65,7 @@ Known Nonfeatures :
 
 	No support for anonymous return addresses.
 
-	Not very well tested on Solaris 2.x, or Linux.
+	Not very well tested on Solaris 2.x, or SunOS.
 
 Recent fixes for 0.81:
 
@@ -186,6 +184,49 @@ Changes for 0.85:
 
 	Fixed SEGV when delivering messages (with some .mailrc files), 
 	caused by a bug in the alias-handling code.
+
+Changes for 0.86:
+
+	Optionally use /dev/audio to supplement the random number
+	generation code.
+
+	Anders Baekgaard fixed a few bugs that sneaked in at the last
+	minute, updating the header window, parsing dates, compose
+	window layout, and SEGV when tabbing between fields on the
+	compose window.
+
+	Gregory Margo (gmargo@newton.vip.best.com) provided multiple
+	display windows.
+
+	Tony Gialluca (tony@hgc.edu) made some of the compose window
+	buttons work.
+
+	Fixed some file descriptor leaks in pgplib.c.
+
+	On Linux we now read the contents of a number of files under
+	/proc, and use these as an additional source of random
+	data (e.g. /proc/interrupts, /proc/meminfo).
+
+	Added 'Reseed Random' menu option, which will reseed the
+	random number generator at any time. If possible this will
+	come from the audio device and/or the /proc files.
+
+	Added FreeBSD patch from Stuart Arnold (sja@epo.e-mail.com).
+	See README.FREEBSD for more information.
+
+	No longer destroy compose windows when you select 'Done'!
+
+	Graphical properties window added. I've lost the address of
+	the person who did the original work, so if it was you then
+	please contact me! This was expanded and incorporated into
+	0.86 by Scott Cannon (rscott@silver.cal.sdl.usu.edu).
+
+	Fixed memory corruption in pgplib.c.
+
+	Limited support for secret keys on floppy disks.
+
+	Allow users to specify their domain name and reply-to: header
+	lines.
 
 Privtool can be compiled to either use PGP Tools, or to fork off a copy of
 PGP whenever it is needed. There are also a number of different security

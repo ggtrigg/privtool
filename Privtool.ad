@@ -2,7 +2,6 @@
 ! Resources for motif privtool.
 ! $Id$
 
-?.title:				Privtool
 *.background:				lightsteelblue2
 *.menu_bar*background:  		lightsteelblue3
 *.menu_bar*foreground:  		black
@@ -119,10 +118,12 @@
 *.HDR_U.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_U.underlineType:		SINGLE_LINE
 *.LIST.fontType:		FONT_IS_FONT
-*.LIST.fontName:		fixed
+*.LIST.fontName:		6x13
 *.LIST_ST.fontType:		FONT_IS_FONT
-*.LIST_ST.fontName:		fixed
+*.LIST_ST.fontName:		6x13
 *.LIST_ST.strikethruType:	SINGLE_LINE
+*.LIST_B.fontType:		FONT_IS_FONT
+*.LIST_B.fontName:		6x13bold
 *.BIG.fontType:			FONT_IS_FONT
 *.BIG.fontName:			-*-charter-bold-r-*-*-24-*-*-*-*-*-iso8859-1
 *.BLUE.fontType:		FONT_IS_FONT

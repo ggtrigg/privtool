@@ -11,7 +11,7 @@
 #
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
-DISPLAY_OBJECT = x.o
+DISPLAY_OBJECT = x.o xprops.o
 #DISPLAY_OBJECT = dummy.o
 
 #
@@ -20,7 +20,8 @@ DISPLAY_OBJECT = x.o
 #
 
 #FLOPPY_OBJECT = floppy.o
-#FLOPPY_FLAGS = -DUSE_FLOPPY
+#FLOP_FILE = /dev/fd0
+#FLOPPY_FLAGS = -DUSE_FLOPPY -DFLOP_FILE=\"$(FLOP_FILE)\"
 
 FLOPPY_OBJECT = 
 FLOPPY_FLAGS = 
@@ -31,8 +32,8 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 #
 # Use the following lines if you don't have PGPTools.
 #
-PGPLDFLAGS=
-PGPTOOLDIR=
+#PGPLDFLAGS=
+#PGPTOOLDIR=
 
 #
 # Use the following lines if you do have PGPTools, and set PGPTOOLDIR
@@ -40,8 +41,8 @@ PGPTOOLDIR=
 # may want to simply create a link from this directory to the PGPTools
 # directory.
 #
-#PGPTOOLDIR=./pgptools
-#PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+PGPTOOLDIR=./pgptools.linux
+PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
 
 #
 # Set the following to the path for your PGP executable - can be blank
@@ -85,14 +86,12 @@ OPENWINCPPFLAGS=-I/cdrom/usr/openwin/include
 #LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
 #	$(PGPLDFLAGS)
 
-LDFLAGS=$(OPENWINLDFLAGS) /cdrom/usr/openwin/lib/libxview.a /cdrom/usr/openwin/lib/libolgx.a -lX11 -lm $(PGPLDFLAGS) \
-	-L/usr/X11/lib
-#LDFLAGS=$(OPENWINLDFLAGS) -lX11 -lm $(PGPLDFLAGS) \
-#	-L/usr/X11/lib
+LDFLAGS=$(OPENWINLDFLAGS) -L/usr/X11/lib -lxview -lolgx -lX11 -lm \
+	$(PGPLDFLAGS) 
 
 #
 # If you have PGP Tools, use the first line, otherwise use the
-# second. 
+# second. Remove -DUSE_AUDIO if you do not have /dev/audio.
 #
 # You should modify the flags after -I$(PGPTOOLDIR) to match the
 # flags you used when compiling libpgptools.a.
@@ -103,9 +102,9 @@ LDFLAGS=$(OPENWINLDFLAGS) /cdrom/usr/openwin/lib/libxview.a /cdrom/usr/openwin/l
 # pubring.pgp.
 #
 
-#PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
-#	-DNO_ASM -DHIGHFIRST -DIDEA32
-PGPTOOLS=
+PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX \
+	-DIDEA32 -DSYSV -DUSE_AUDIO
+#PGPTOOLS=
 
 #
 # Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
@@ -135,7 +134,7 @@ PGPTOOLS=
 #
 
 #DEBUG=-g
-DEBUG=-O
+DEBUG=-O2
 
 CFLAGS= $(DEBUG) -DSTART_OPEN -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
@@ -188,7 +187,7 @@ LINUX_OBJ = linux/gettime.o linux/parsedate.o
 all:		 privtool
 
 privtool:	$(OFILES)
-		$(CC) $(CFLAGS) $(OFILES) -o privtool $(LDFLAGS)
+		$(CC) $(OFILES) -o privtool $(LDFLAGS)
 
 .c.o:	
 		$(CC) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)

@@ -1,6 +1,6 @@
 
 /*
- * @(#)def.h	1.20 9/6/95
+ * @(#)def.h	1.21 9/21/95
  *
  *	(c) Copyright 1993-1994 by Mark Grant. All right reserved.
  *	The author assumes no liability for damages resulting from the 
@@ -63,9 +63,16 @@ extern char	*pgp_path();
 
 #ifdef SYSV
 #define bzero(a,b)	memset((a),0,(b))
-#define bcopy (s,d,l)	memcpy((d),(s),(l))
+#define bcopy(s,d,l)	memcpy((d),(s),(l))
 #ifndef linux
 #define random()	rand()
 #define srandom(s)	srand((s))
 #endif
+#endif
+
+#ifdef MALLOC_TEST
+extern char	*my_malloc(), *my_realloc();
+#define malloc(c)	my_malloc((c),__FILE__,__LINE__)
+#define free(x)		my_free((x))
+#define realloc(p,s)	my_realloc((p),(s),__FILE__,__LINE__)
 #endif

@@ -10,52 +10,61 @@ the md5sum program supplied with PGP.
 	Mark (mark@unicorn,com)
 
 8ca43cbc842c2336e835926c2166c28b  COPYING
-104ac3586b035d5e10ed49a891e0d0e2  Credits
+2124f134a0b87396b2b615d22834ed06  Credits
 85868aa330a2a64b17a5960869c75dbe  Mailrc.test
-3c141bee5d8762d6ebfc3ec1409caa56  Makefile
-ba6c0ebe9082a8c0bf124680e8dc71f5  Makefile.linux
-336120b0585149bb9966b8654f3e174d  README
-aba74ebfd25a9e280585ad47343280e3  README.1ST
-149b143b966df949e2744bcf7ff4ab81  buffers.c
-77862c7374148117c07b14db290cbb60  buffers.h
-82d2fb188cc99d05a5466c4662ca6635  def.h
-420380eae2f1cce01b144e672a8b8417  floppy.c
-2ac47ac75f43d80f83a36e8130bf662f  floppy.h
-5b257ee97cb6465642d462a2941ae433  gui.c
-b82cbcc583bb0c1272cdd8cb295369ba  gui.h
+9bb4f3141d080fad2fd7352e5f5b0251  Makefile
+c1dd624fe2bf1d164fd5139d31045692  Makefile.FreeBSD
+c237578e1f685ee9b87d31a78dc837ff  Makefile.linux
+b40270e464f1157bc7661c353f4c1fea  README
+d0bda9a1d3fe168027eec1674704641c  README.1ST
+9313e3d8d0001b27f240bbbeecd753b3  README.FREEBSD
+3a11dbc2af191cd9499d64ea46dd1e4e  buffers.c
+342f302015b03480ae3696bf5d88b03e  buffers.h
+f0f1b741c13ffbb9fcb2270924da1d2c  def.h
+fbcbdc8f66e7d3a6e668d20293f40194  floppy.c
+5c6b53b9820db69a3ee7dcb8eaa304f2  floppy.h
+db4001b6912953026ee0fd63001a2dc2  gui.c
+63b5d2fe7c3005c85b9ab98b5ab29685  gui.h
 a3fc173c5c30a492a03c82a4e08b16d1  keys.asc
-0ba946a830c111057237930aa94747b0  linux
-9f9a6f2280be0b8bc3a865b2223dc356  mail_reader.c
-1c2985ca2c0c617b423698ef5ec9a010  mailrc.h
-9e2df0c132f0293bc496357d8c4dc6bf  main.c
-5f776562d71ac1089a464258f5da6d53  message.h
-71215cf8b281f006b546bdfc4af58955  messages.c
-d045cbc1f6988848ddd31cf297b986f4  pgplib.c
+3ac1ea0a3d8449d7028151f605f3120b  mail_reader.c
+f422b789df8cda50c799b88bad9b701e  mailrc.h
+4f57acd6c07108321905cede8b953cdf  main.c
+3dced70bf471e9a6bb3a61fe0b4276ee  message.h
+17d8b4159e30d403379877101e2ed026  messages.c
+c2acaea27dcd68d6a65cc1cba003421e  my_malloc.c
+7be6dd40ca57e0dadac437b8ffb65b27  pgp-exit.h
+08c865f2119e879ee60607762cce7629  pgplib.c
 ccc801ee61f65025ffa80e0e5d9258eb  privtool-mask.icon
 8d54db7dda6c5c6766f48a3fa5fb3d26  privtool-mask.xbm
 b64da18d9e2ea88c086656543f0b1ce0  privtool-new.icon
 bb31aa4b8804cb159c7e26bc82c596ce  privtool-new.xbm
 6d27d2cc6ab6d0a22142b5709e4fc713  privtool.icon
 6a12e86bec91f62cb1b71e6e3aa09750  privtool.xbm
-a53144592b25b153323409d1651613f6  user.doc
-415c61997beeb3b8aeb8846ced5ca63c  windows.h
-48d6ecccf38aaede3479b8265555ba2b  x.c
+529dbe96c81e5df3dd1f407af1e17b50  user.doc
+944aa3b08bf0328880c846b9d8e86228  windows.h
+415e8134d63f7408b15eee815cc46821  x.c
+8dc8c2566429f164390b82d7e0a2771a  xprops.c
+9980cb3597c76ffba1b23dcdf6c4dbed  FreeBSD/mailname.c
+6d9d3378a390c4470b5abf302d1b51eb  FreeBSD/parsedate.c
 457e198140bd9f58a5a1659e2ad92bea  linux/COPYRIGHT
 73f975341a88a1b02d81af7ffaa2c26c  linux/clibrary.h
 9b52f0a74b0660995a13593c53089162  linux/configdata.h
 0204aff9ed49df341823b369bb273cc6  linux/gettime.c
+7fc0324006081f1b2c940b6aff4ea0eb  linux/gettime.o
 5d87349d8495ea6800696c622e78080c  linux/libinn.h
 acd44c77ce55e77d21a63f55f3dee91d  linux/macros.h
 bed893d6b3791ad09ddcfa8440799b58  linux/parsedate.c
+63b19b0da1a3721015885a26c71a7911  linux/parsedate.o
 
 -----BEGIN PGP SIGNATURE-----
-Version: 2.6
+Version: 2.6.3i
+Charset: noconv
 
-iQEVAgUBMFXozFVvaTo9kEQVAQGJlAgAmdVGCo/+ND2ba8c9tPNnlFyiRPRCE/Ys
-hBOPSPSUXFGR9zFwtNtJ8WBRaL3ETc5UYfN9cSnRT/CObQo6FjxJEfD66yU9CrPL
-Q6anrlNZnZpuAjnadmgaYq5FLGfYQQa8b0N2yg44ysg6kk/vKq6RSeMgTIdLEDlQ
-5LpBNaTHnorka5lw1Tspdk/TKEr9yd7qgsGThzgyww54ttIIPMYQDREDAhQ9oGGi
-0vhHve237bfP8Uj2UAyXW038RjIQr5HDtbMHd2WBcaaNsAPvjqY72dnLZhQ60v/9
-QgcppTH2onXGZzZUUPpC7142LZEz64e6s0xCp+ai2o6G1tDuaXNetA==
-=f2li
+iQEVAwUBMqd9M1VvaTo9kEQVAQHLWAf9Gh6/aEOnTW9mNj4zmbVzQoZSkkNxdRnZ
+7J+8aB7RAtKZ6txqp8V8Ktxr8tFAqVkyyNmQwrR/uLdQ10C110aONtWAa9ftz3iw
+BhENXEY3INssj0n3oJRJEedkY+hPCLb+r8YjxbiLM+1nElnMiawoTA7dzPCyo0hJ
+FlXvdbM3q9LXe6IG/K18PiDv3FWMOYqiGC2N4KmfJ15isp+GjH/D68xmN9OCVwjP
+ZDLNKjSVQTlQUUtQzonIx0jzj32q/hyYBtuTRplw70WGU61c/otabcT9v6IB1Vfw
+iMc3khtAfElC+/tf+4ulHEgR4LnmWvuNadJkK/NQDqcLMaWK+Xo50A==
+=G8Wm
 -----END PGP SIGNATURE-----

@@ -178,7 +178,7 @@ compose_windows_open()
 
 /*----------------------------------------------------------------------*/
 
-void
+DISPLAY_WINDOW *
 create_display_window()
 {
 #if 0
@@ -261,12 +261,11 @@ delete_message_proc()
     }
     /* Move current selected message pointer if neccesary */
 
-    XmListSelectPos(mailslist_, message_number + 1, 1);
-
     if (last_message_read) {
 	last_message_read->flags |= MESS_SELECTED;
 	display_message_description (last_message_read);
 	display_message(last_message_read);
+	sync_list();
     }
     update_message_list();
 }
@@ -500,10 +499,17 @@ void
 setup_ui(int level, int argc, char **argv)
 {
     Widget	control_;
+    char	*title;
 
     toplevel_ = XtVaOpenApplication(&app_context_, "Privtool", NULL, 0,
 				    &argc, argv, NULL,
 				    applicationShellWidgetClass, 0);
+
+    title = (char *)malloc(strlen(prog_name) + strlen(prog_ver) + 5);
+    strcpy(title, prog_name);
+    strcat(title, " - ");
+    strcat(title, prog_ver);
+    XtVaSetValues(toplevel_, XmNtitle, title, NULL);
 
     /* Add editres protocol support */
     XtAddEventHandler(toplevel_, 0, True, _XEditResCheckMessages, NULL);
@@ -518,7 +524,7 @@ setup_ui(int level, int argc, char **argv)
     create_msgarea(control_);
 
     display_message(last_message_read = messages.start);
-    XmListSelectPos(mailslist_, 1, 0);
+    sync_list();
     update_message_list();
     
     XSetIOErrorHandler(xioerror_handler);
@@ -820,10 +826,12 @@ create_workarea(Widget parent)
     XtVaSetValues(mailslist_, XmNrenderTable, render_list, 0);
     XtAddCallback(mailslist_, XmNdefaultActionCallback,
 		  (XtCallbackProc)show_message, NULL);
+#if 0
     XtAddCallback(mailslist_, XmNsingleSelectionCallback,
 		  (XtCallbackProc)select_message, NULL);
     XtAddCallback(mailslist_, XmNbrowseSelectionCallback,
 		  (XtCallbackProc)select_message, NULL);
+#endif
     XtManageChild (mailslist_);
 
     text_ = XmCreateScrolledText(pwin, "msgtext", NULL, 0);
@@ -891,8 +899,8 @@ show_message(Widget w, XtPointer none, XmListCallbackStruct *cbs)
     if(cbs->reason == XmCR_DEFAULT_ACTION){
 	while (m) {
 	    if(m->list_pos == cbs->item_position){
-		last_message_read = m;
-		display_message(m);
+		select_message_proc(m);
+		sync_list();
 		break;
 	    }
 	    m = m->next;
@@ -922,11 +930,45 @@ select_message(Widget w, XtPointer none, XmListCallbackStruct *cbs)
 
 /*----------------------------------------------------------------------*/
 
+/* Make sure the right list item is the one being shown, and that it is
+   visible in the list.
+ */
+void
+sync_list()
+{
+    XmString	new_string;
+    int		topItem, numVisible;
+
+    if(last_message_read == NULL)
+	return;
+
+    new_string = XmStringGenerate(last_message_read->description, NULL,
+				  XmCHARSET_TEXT,
+				  (XmStringTag)"LIST_B");
+
+    XmListReplaceItemsPos(mailslist_, &new_string, 1,
+			  last_message_read->list_pos);
+    XmStringFree(new_string);
+    XmListSelectPos(mailslist_, last_message_read->list_pos, 0);
+
+    XtVaGetValues(mailslist_, XmNtopItemPosition, &topItem,
+		  XmNvisibleItemCount, &numVisible, NULL);
+    if(last_message_read->list_pos < topItem){
+	XtVaSetValues(mailslist_, XmNtopItemPosition,
+		      last_message_read->list_pos, NULL);
+    }else if((last_message_read->list_pos + 1) > topItem + numVisible){
+	XtVaSetValues(mailslist_, XmNtopItemPosition,
+		      last_message_read->list_pos - numVisible + 1, NULL);
+    }
+} /* sync_list */
+
+/*----------------------------------------------------------------------*/
+
 static void
 next_messageCB(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     next_message_proc();
-    XmListSelectPos(mailslist_, last_message_read->list_pos, 0);
+    sync_list();
 } /* next_messageCB */
 
 /*----------------------------------------------------------------------*/
@@ -935,7 +977,7 @@ static void
 prev_messageCB(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     prev_message_proc();
-    XmListSelectPos(mailslist_, last_message_read->list_pos, 0);
+    sync_list();
 } /* prev_messageCB */
 
 /*----------------------------------------------------------------------*/
@@ -952,9 +994,10 @@ create_rendertables(Widget parent)
     rarray[4] = XmRenditionCreate(parent, (XmStringTag)"BLUE", NULL, 0);
     rlist[0] = XmRenditionCreate(parent, (XmStringTag)"LIST", NULL, 0);
     rlist[1] = XmRenditionCreate(parent, (XmStringTag)"LIST_ST", NULL, 0);
+    rlist[2] = XmRenditionCreate(parent, (XmStringTag)"LIST_B", NULL, 0);
 
     render_header = XmRenderTableAddRenditions(NULL, rarray, 5, XmREPLACE);
-    render_list = XmRenderTableAddRenditions(NULL, rlist, 2, XmREPLACE);
+    render_list = XmRenderTableAddRenditions(NULL, rlist, 3, XmREPLACE);
 } /* create_rendertables */
 
 /*----------------------------------------------------------------------*/

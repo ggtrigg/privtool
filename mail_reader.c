@@ -1,6 +1,6 @@
 
 /*
- *	@(#)mail_reader.c	1.44 9/9/95
+ *	@(#)mail_reader.c	1.47 6/11/96
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -27,6 +27,14 @@
  *	Fix access time when saving changes
  *		- Richard Huveneers (richard@hekkihek.hacom.nl)
  *			9th September 1995
+ *
+ *	Pushpins added to display windows
+ *		- Gregory Margo (gmargo@newton.vip.best.com) 5th Oct 1995
+ *
+ *      Fixed lines to read 'Content-Length:' headers; Don't erase filename
+ *              when saving or iconifying
+ *              - Scott Cannon Jr. (scottjr@silver.cal.sdl.usu.edu)
+ *                30 May 1996
  */
 
 #include <stdio.h>
@@ -36,7 +44,11 @@
 #include <sys/file.h>
 #include <unistd.h>
 #include <string.h>
+#ifdef __FreeBSD__
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
 #include <time.h>
 #include <sys/param.h>
 #include <errno.h>
@@ -177,6 +189,31 @@ int	n;
 
 MESSAGE_LIST	messages;
 MESSAGE_LIST	deleted;
+
+/* Return message structure, given message number */
+
+MESSAGE	*message_from_number(number)
+
+int	number;
+
+{
+	MESSAGE	*m = messages.start;
+
+	while (m) {
+		if (number == m->number)
+			return(m);
+		m = m->next;
+	}
+
+	m = deleted.start;
+
+	while (m) {
+		if (number == m->number)
+			return(m);
+		m = m->next;
+	}
+	return(NULL);
+}
 
 /* Add a message to the deleted list */
 
@@ -406,6 +443,15 @@ MESSAGE	*m;
 		m->to = header_strdup(temp);
 	}
 
+        /* Check for Cc: */ 
+        
+        else if (!strncasecmp(line,"Cc:",3)) {
+                if (m->cc)
+                        free_string(m->cc);
+                copy_and_join(line+4,temp);
+                m->cc = header_strdup(temp); 
+        }
+                                                                                                
 	/* Check for Reply-To: */
 
 	if (!strncasecmp(line,"Reply-To:",9)) {
@@ -476,14 +522,14 @@ MESSAGE	*m;
 
 	/* Check for Content-Length */
 
-	else if (!strncasecmp(line,"Content-Length:",16)) {
-		copy_and_join(line+17,temp);
+	else if (!strncasecmp(line,"Content-Length:",15)) {
+		copy_and_join(line+16,temp);
 		m->size = atoi(temp);
 	}
 
 	/* Check for Encrypted: PGP */
 
-	else if (!strncasecmp(line,"Encrypted: PGP",15)) {
+	else if (!strncasecmp(line,"Encrypted: PGP",14)) {
 		m->flags |= MESS_ENCRYPTED;
 	}
 }
@@ -493,6 +539,9 @@ static	time_t	get_time (m)
 MESSAGE	*m;
 
 {
+#ifdef __FreeBSD__
+	struct	tm	*t;
+#else
 #ifndef SYSV
 	struct	tm	t;
 #else
@@ -501,10 +550,16 @@ MESSAGE	*m;
 #endif
 	struct	tm	*t;
 #endif
+#endif
 
 	bzero (&t, sizeof (t));
 
 	/* These are the only two common time formats I've come across */
+#ifdef __FreeBSD__
+	parsedate(m->header_date, &t);
+	/* Until a parsedate function gets written, return 0 */
+	return(0);
+#else
 
 #ifndef SYSV
 	if (*(m->date) > '9') {
@@ -526,7 +581,7 @@ MESSAGE	*m;
 #else
 #ifdef linux
 #define getdate(x) (parsedate((x),NULL))
-	tmp = getdate (m->date);
+	tmp = getdate (m->header_date);
 	t = localtime (&tmp);
 #else
 	t = (struct tm *)getdate (m->date);
@@ -535,6 +590,7 @@ MESSAGE	*m;
 		return mktime (t);
 	else
 		return 0;
+#endif
 #endif
 #endif
 }
@@ -997,7 +1053,7 @@ close_mail_file ()
 		fclose (mail_fp);
 		mail_fp = NULL;
 
-		bzero (last_file, MAXPATHLEN);
+		/*bzero (last_file, MAXPATHLEN);*/
 	}
 }
 

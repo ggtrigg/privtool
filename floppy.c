@@ -16,7 +16,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#ifndef linux
 #include <sun/dkio.h>
+#endif
 
 #include "floppy.h"
 
@@ -26,7 +28,7 @@ FILE	*get_flop_file ()
 
 {
 	if (!flop_file) {
-		flop_file = fopen ("/dev/fd0", "rb");
+		flop_file = fopen (FLOP_FILE, "rb");
 	}
 
 	return flop_file;
@@ -41,6 +43,7 @@ close_floppy ()
 	}
 }
 
+#ifdef AUTO_EJECT
 void	eject_floppy()
 
 {
@@ -50,4 +53,5 @@ void	eject_floppy()
 		close_floppy ();
 	}
 }
+#endif
 

@@ -1,6 +1,6 @@
 
 /*
- *	@(#)message.h	1.23 8/10/95
+ *	@(#)message.h	1.24 10/31/95
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -52,6 +52,7 @@ typedef struct _message {
 	char	*message_id;
 	char	*header_date;
 	char	*to;
+	char    *cc;
 	char	*reply_to;
 
 	/* Flags */
@@ -103,3 +104,4 @@ typedef struct {
 
 extern	MESSAGE	*message_from_message();
 extern	BUFFER	*message_contents();
+extern	MESSAGE	*message_from_number();
