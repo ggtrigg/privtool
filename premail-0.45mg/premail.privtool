@@ -1,0 +1,6390 @@
+#!/usr/bin/perl
+#
+# premail, an e-mail privacy package
+#
+
+$version = '0.449';
+
+# Copyright 1996 Raph Levien <raph@c2.net>
+# All rights reserved.
+# 
+# This program is free for commercial and non-commercial use as long as
+# the following conditions are adhered to.
+# 
+# Copyright remains Raph Levien's, and as such any Copyright notices in
+# the code are not to be removed. If this package is used in a product,
+# Raph Levien should be given attribution as the author of the parts of
+# the program used. This can be in the form of a textual message at
+# program startup or in documentation (online or textual) provided with
+# the package.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# 
+# 1. Redistributions of source code must retain the copyright notice,
+#    this list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+# 
+# 3. All advertising materials mentioning features or use of this
+#    software must display the following acknowledgement: This product
+#    includes software developed by Raph Levien <raph@c2.net>. If more
+#    than one author is so cited, the list may be combined into one
+#    sentence.
+# 
+# 4. Use and adaptation of small, specific components of this software
+#    is actively encouraged, and is exempt from the requirements above.
+# 
+# This software is provided by Raph Levien ``as is'' and any express or
+# implied warranties, including, but not limited to, the implied
+# warranties of merchantability and fitness for a particular purpose are
+# disclaimed. In no event shall the author or contributors be liable for
+# any direct, indirect, incidental, special, exemplary, or consequential
+# damages (including, but not limited to, procurement of substitute
+# goods or services; loss of use, data, or profits; or business
+# interruption) however caused and on any theory of liability, whether
+# in contract, strict liability, or tort (including negligence or
+# otherwise) arising in any way out of the use of this software, even if
+# advised of the possibility of such damage.
+# 
+# The license and distribution terms for any publically available
+# version or derivative of this code cannot be changed. i.e. this code
+# cannot simply be copied and put under another distribution license
+# [including the GNU Public License.]
+# 
+# The reason behind this being stated in this direct manner is (Eric
+# Young's) past experience in code simply being copied and the
+# attribution removed from it and then being distributed as part of
+# other packages. This implementation was a non-trivial and unpaid
+# effort.
+
+# default configuration options
+
+$config{'pgp'} = 'pgp';
+$config{'mixmaster'} = 'mixmaster';
+$config{'movemail'} = 'movemail';
+$config{'ripem'} = 'ripem';
+#$config{'getmailers'} = 'finger remailer-list@kiwi.cs.berkeley.edu';
+#$config{'geturl'} = 'lynx -source';
+
+#$config{'premailrc'} = '~/.premailrc';
+#$config{'remailers'} = '~/.remailers';
+$config{'preferences'} =         '~/.premail/preferences';
+$config{'addresses'} =           '~/.premail/addresses';
+$config{'rlist'} =               '~/.premail/rlist';
+$config{'pubring'} =             '~/.premail/pubring.pgp';
+$config{'premail-secrets-pgp'} = '~/.premail/secrets.pgp';
+$config{'dead-letter'} =         '~/dead.letter';
+$config{'premail-secrets'} =     '/tmp/.premail-secrets.$<';
+$config{'tmpdir'} =              '/tmp';
+
+$config{'rlist-valid'} = 300;
+
+$config{'rlist-url'} = 'http://kiwi.cs.berkeley.edu/rlist';
+$config{'pubring-url'} = 'http://kiwi.cs.berkeley.edu/pubring.pgp';
+$config{'type2-list-url'} = 'http://www.jpunix.com/type2.html';
+$config{'pubring-mix-url'} = 'http://www.jpunix.com/pubring.html';
+
+$config{'charset'} = 'iso-8859-1';
+
+$config{'encrypt'} = 'yes';
+
+# the following config options are for testing only!
+#$config{'debug'} = 'chvy';
+
+# Global state
+
+%cmdline_configs = ();		# config options set from command line
+
+$post = 0;			# masquerading as MH post?
+@cmdline_recips = ();		# command line recipients
+$dasht = 0;			# -t on cmd line
+@post_args = ();		# args passed through to MH post
+@sendmail_args = ();		# args passed through to sendmail
+
+$dashbs = 0;			# invoked in smtp mode
+$edit = 0;			# invoked in edit mode
+$editfile = '';			# name of file to edit
+$dashoi = 0;			# -oi on cmd line
+$more_input = 1;
+$header_sep = '';
+$in_body = '';			# the filename of the input message body
+$prezilla = 0;			# special mode for Netscape Navigator 2.1
+@in_headers = ();		# the headers of the input message, verbatim
+$resent = 0;			# treat message as resent?
+@recips = ();			# all recipients, full addresses
+%alias = ();			# alias table, from addresses
+%ealias = ();			# expanded aliases, keys are stripped
+
+@send_headers = ();		# headers to send with message
+%which_header = ();		# which header each recipient "came from"
+%header_premail_com = ();	# premail commands from headers
+
+@groups = ();			# all groups
+%group_recips = ();		# recipients in each group
+%recip_group = ();		# group for each recipient, keys are stripped
+
+@deliver_headers = ();		# headers used to deliver message
+
+@anon_headers = ();		# headers to add to anon messages only
+
+@links = ();			# linkage groups of remailers
+
+$tmpfile_count = 0;
+@open_tmpfiles = ();
+%tmpfile_refcnt = ();
+
+$pgp_tmpdir = '';
+
+$interactive = 0;
+$error_mode = 'p';		# m = mail, d = display, s = smtp, g = gist
+                                # p = print, and write dead.letter
+
+# main
+{
+#    &set_configs ();
+#    while (<STDIN>) {
+#	chop;
+#	print (join (':', &strip_caret ($_))."\n");
+#    }
+#    exit 0;
+
+#    &set_configs ();
+#    &get_remailer_pubring ();
+#    while (<STDIN>) {
+#	chop;
+#	if (&open_web ($_)) {
+#	    while (<WWW>) {
+#		print;
+#	    }
+#	    close (WWW);
+#	}
+#    }
+#    exit 0;
+
+#    ($base, @params) = &split_mime_params ($ARGV[0]);
+#    print "$base ".join (' ', @params)."\n";
+#    ($val, $present) = &get_mime_param ('charset', @params);
+#    if ($present) {
+#	print $val."\n";
+#    }
+#    exit 1;
+    &bail_sendmail ();
+    umask 077;
+    srand;
+    &parse_command_line (@ARGV);
+    &set_configs ();
+#   &getfile_from_web ("test", "http://kiwi.cs.berkeley.edu/~raph/remailer-list.html");
+    if ($config{'debug'} =~ /c/) { &pdebug (join (' ', $0, @ARGV)."\n"); }
+    while ($more_input) {
+	$more_input = 0;
+	if (&open_input ()) {
+	    &get_header ('-', '', 1);
+#	    foreach $field (@in_headers) {
+#		print "--- [\n";
+#		print $field;
+#		print "] ---\n";
+#	    }
+	    &clear_alias ();
+	    &find_recips ();
+	    &pdv (&format_header ("Recipients", @recips));
+	    &prepare_send_header ();
+#	    print "\n";
+#	    print @send_headers;
+	    foreach $recip (@recips) {
+		$stripped = &strip_address ($recip);
+#		print &format_header ("Header of $recip is",
+#				      $which_header{$stripped});
+	    }
+	    &compute_groups ();
+	    if ($#groups >= 1 || $error_mode =~ /^[mp]$/) {
+		if ($edit && !$prezilla) {
+		    &error ("Edit mode can only handle one group\n");
+		}
+		$n = $#groups + 1;
+		if ($error_mode =~ /^[mp]$/) { $n++; } # In case of error
+		$in_body = &prepare_for_n_passes ($in_body, $n);
+	    }
+	    foreach $group (@groups) {
+		&pdv ("Group: $group\n");
+		&pdv (&format_header (" recipients",
+				      &split_commas ($group_recips{$group})));
+		&send_group ($group);
+	    }
+	    &close_input ();
+	}
+    }
+    &delete_open_tmpfiles ();
+}
+
+sub bin_sendmail {
+# Return the name of the real sendmail executable
+    if (!defined $config{'sendmail'} || $config{'sendmail'} eq '') {
+	# Standard place
+	(-x '/usr/lib/sendmail') && return '/usr/lib/sendmail';
+	# Newer BSD-based systems
+	(-x '/usr/sbin/sendmail') && return '/usr/sbin/sendmail';
+	# Okay, I give up
+	&error ("can't find path to sendmail\n");
+    } else {
+	return &tilde_expand ($config{'sendmail'});
+    }
+}
+
+sub bail_sendmail {
+# Bail to sendmail if we are being invoked as one of the sendmail aliases
+
+    if ($0 =~ /(mailq|newaliases|smptd)$/) {
+	# out of our league, let the real sendmail take over
+	exec (&bin_sendmail (), @_);
+    }
+}
+
+sub parse_command_line {
+# &parse_command_line (@argv)
+# Parse the command line, placing results in global state.
+
+    if ($0 =~ /post$/) {
+	$post = 1;
+    } elsif ($0 =~ /edit$/) {
+	$edit = 1;
+	if ($#_ < 0) { &error ("edit needs an argument\n"); }
+	$editfile = shift;
+    } elsif ($0 =~ /zilla$/) {
+	$edit = 1;
+	$prezilla = 1;
+	$error_mode = 'd';
+	if ($#_ < 0) { &error ("prezilla needs an argument\n"); }
+	$editfile = shift;
+	&add_terminating_newline ($editfile);
+    } elsif ($0 =~ /move$/) {
+	&move (@_);
+    } elsif ($0 =~ /decode$/) {
+	&decode (@_);
+    } elsif ($0 =~ /decodebody$/) {
+	&decode ('-body', @_);
+    } elsif ($#_ == -1) {
+	&usage ();
+    }
+    # handle special commands
+    while ($#_ >= 0) {
+	$_ = shift;
+	if (/^\-post$/) { $post = 1; }
+	elsif ($post && (/^\-(alias|filter|library|width|idanno|deliver)$/
+	       || /^\-(client|server|fill\-in$|partno)/)) {
+	    # list of keywords obtained from MH 6.8.3 post.c
+	    # parsing of MH options requires more fullness. For example:
+	    #   -library <pathname> sets mail folder to <pathname>
+	    push (@post_args, $_);
+	    if ($#_ < 0) { &error ("$_ option needs an argument\n"); }
+	    push (@post_args, shift);
+	} elsif ($post && (/^\-(check|nocheck|debug|dist|encrypt|noencrypt)$/
+		 || /^-(nofilter|format|noformat|mime|nomime|msgid|nomsgid)$/
+		 || /^-(verbose|noverbose|watch|nowatch|whom|mail|saml|send)$/
+		 || /^-(soml|snoop|fill\-up|queued)$/)) {
+	    # list of keywords obtained from MH 6.8.3 post.c
+	    push (@post_args, $_);
+	} elsif ($post && /^-help/) {
+	    print "This is premail, masquerading as post. It takes the same\n";
+	    print "options as post, but performs encryption and remailer".
+		" chaining as well.\n";
+	    if ($config{"post"}) {
+		print "For help on MH post, type $config{'post'} -help\n";
+	    } else {
+		print "For help on MH post, type /usr/lib/mh/post -help\n";
+	    }
+	    exit 0;
+	} elsif (/^\-edit$/) {
+	    $edit = 1;
+	    if ($#_ < 0) { &error ("$_ option needs an argument\n"); }
+	    $editfile = shift;
+	} elsif (/^\-oe(.)$/) {
+	    $error_mode = $1;
+	    if ($1 =~ /^[mwpqe]$/) { push (@sendmail_args, $_); }
+	} elsif (/^\-od(.)$/) {
+	    push (@sendmail_args, $_);
+        } elsif (/^\-f$/) {
+	    if ($#_ < 0) { &error ("$_ option needs an argument\n"); }
+	    shift;		# discard
+	} elsif (/^\-t$/) { $dasht = 1; }
+	elsif (/^\-oi$/) { $dashoi = 1; }
+	elsif (/^\-b(.+)$/) {
+	    if ($1 eq "s") {
+		$dashbs = 1;
+		$error_mode = "s";
+		print "220 premail ready to accept message, whoever you are\n";
+	    } elsif ($1 ne "m") {
+		exec (&bin_sendmail (), @_);
+	    }
+	} elsif (/^\-[im]$/) { # ignore - from SunOS Mail
+	} elsif (/^\-decode$/) {
+	    &decode (@_);
+	} elsif (/^\-makenym$/) {
+	    &makenym (@_);
+	} elsif (/^\-importnym$/) {
+	    $importnym = 1;
+	    &makenym (@_);
+	} elsif (/^\-exportnym$/) {
+	    &exportnym (@_);
+	} elsif (/^\-characterize$/) {
+	    &characterize (@_);
+	} elsif (/^\-login$/) {
+	    &login (@_);
+	} elsif (/^\-logout$/) {
+	    &logout (@_);
+	} elsif (/^\-setpass$/) {
+	    &setpass (@_);
+	} elsif (/^\-ripemkey$/) {
+	    &ripemkey (@_);
+	} elsif (/^\-gist$/) {
+	    &gist (@_);
+        } elsif (/^\+([\w\-]+)\=(.*)$/) { $cmdline_configs{$1} = $2; }
+	elsif ($post && /^([^\-].*)$/) {
+	    if ($editfile eq '') { $editfile = $_; }
+	    else { &error ("premail post: only one message at a time!\n"); }
+	} elsif (/^([^\-].*)$/) { push (@cmdline_recips, $_); }
+	else { &error ("unknown option $_ . Please send mail to"
+		       ." raph\@c2\.org with details\n"); }
+    }
+
+    if (!$dasht && !$dashbs && !$edit && !$post && $#cmdline_recips < 0) {
+	&error ("No recipients specified\n");
+    }
+}
+
+sub set_configs {
+    my ($preferences, $addresses, $recip);
+
+    &apply_cmdline_configs ();
+    if ($config{'preferences'}) {
+	$preferences = &tilde_expand ($config{'preferences'});
+	open (PREF, $preferences);
+	while (<PREF>) {
+	    if (/^\s*\$config\{\"([^\"]+)\"\}\s*\=\s*\"([^\"]*)\"/
+		|| /^\s*\$config\{\'([^\']+)\'\}\s*\=\s*\'([^\']*)\'/) {
+		$config{$1} = $2;
+	    }
+	}
+	close (PREF);
+    }
+    &apply_cmdline_configs ();
+    if ($config{'addresses'}) {
+	open (ADDR, &tilde_expand ($config{'addresses'}));
+	while (<ADDR>) {
+	    if (/^([\w\-\_\+\.\@\!]+)\:\s*(.*)$/) {
+		$recip = &strip_address ($1);
+		$alias{$recip} = $2;
+	    }
+	}
+	close (ADDR);
+    }
+    if ($config{'logfile'}) {
+	open (LOG, '>>'.&tilde_expand_mkdir ($config{'logfile'}));
+    }
+    foreach (keys %config) {
+	&pdv ("\$config\{\'$_\'\} = \'$config{$_}\'\;\n");
+    }
+#   foreach (keys %alias) {
+#	print "\$alias\{\'$_\'\} = \'$alias{$_}\'\;\n";
+#   }
+}
+
+sub apply_cmdline_configs {
+# Apply the command line configs (as determined by parse_command_line)
+# to the global configs.
+    foreach $entry (keys %cmdline_configs) {
+	$config{$entry} = $cmdline_configs{$entry};
+    }
+}
+
+sub open_input {
+# $nonempty = &open_input ()
+# Open the input mail stream. If smtp mode, place recipient in
+# cmdline_recips.
+
+    $header_sep = '';
+    $in_body = '-';
+    if ($edit || $post) {
+	if (!open (IN, $editfile)) {
+	    &error ("cannot open edit file $editfile\n");
+	}
+	return 1;
+    } elsif ($dashbs) {
+	# do simple SMTP
+	$_ = <STDIN>;
+	if ($_ =~ /^quit/i) {
+	    print "221 premail closing connection\n";
+	    return 0;
+	}
+	if ($_ =~ /^helo\s(.+)$/i) {
+	    print "250 Hello $1, or whoever you really are\n";
+	    $_ = <STDIN>;
+	}
+	if ($_ =~ /^mail from\:\s*(.*)$/i) {
+	    print "250 Sender ok\n";
+	    $_ = <STDIN>;
+	}
+	while ($_ =~ /^rcpt to\:\s*(.*)$/i) {
+	    push (@cmdline_recips, $1);
+	    print "250 Recipient ok\n";
+	    $_ = <STDIN>;
+	}
+	if ($_ =~ /^data/i) {
+	    print "354 Enter mail, end with \".\" on a line by itself\n";
+	    return 1;
+	} else {
+            print "521 Unknown error, closing connection\n";
+            exit 1;
+	}
+     } else {
+	 # input message on stdin, normal mode
+	 return 1;
+     }
+}
+
+sub get_header {
+# &get_header ($body, $handle_from, $lax);
+# Get the header from the input mail stream, store in @in_headers. Also,
+# store the header separator line in $header_sep.
+#
+# If a second optional argument is given, handle a "From " line
+# gracefully, returning it if present, or nothing if it's actually RFC
+# 822.
+#
+# If a third optional argument is given, then be lax. Specifically, ignore
+# an initial "From " (for elm forwarding) and don't require a blank line.
+    my ($body, $handle_from, $lax) = @_;
+    my ($line, $lineno);
+
+    @in_headers = ();
+    for ($lineno = 0;;$lineno++) {
+	$line = &get_line_body ($body);
+	if ($handle_from && $lineno == 0 && $line =~ /^From /) {
+	    return $line;
+	}
+	if ($line =~ /^([!-9\;-\177]+)\:\s*(.*)$/) {
+	    push (@in_headers, $line);
+	} elsif ($#in_headers >= 0 && $line =~ /^\s(.*)\n/) {
+	    $line = pop (@in_headers) . $line;
+	    push (@in_headers, $line);
+	} elsif ($line eq '' || $line eq "\n"
+		 || (($post || $edit) && $line eq "--------\n")) {
+	    $header_sep = $line;
+	    last;
+	} elsif ($lax && $lineno == 0 && $line =~ /^From /) {
+	} elsif ($lax) {
+	    $header_sep = "\n";
+	    $pushline{$body} = $line;
+	    last;
+	} else {
+	    &error ("premail: bad header line:\n$line");
+	}
+    }
+    if ($config{'debug'} =~ /h/) { &pdebug (@in_headers); }
+    return;
+}
+
+sub get_line {
+# $line = &get_line ()
+# Get a line from the input mail stream. Return undef on EOF.
+    my $line;
+
+    if ($edit || $post) {
+	$line = <IN>;
+    } elsif ($dashbs) {
+	$line = <STDIN>;
+	if ($line eq ".\n") { return undef; }
+	$line =~ s/^\.\./\./;
+    } else {
+	$line = <STDIN>;
+	if (!defined $line || !$dashoi && $line eq ".\n") { return undef; }
+    }
+    $line =~ s/\r$//;
+    return $line;
+}
+
+sub close_input {
+# Close input mail stream
+
+#   if ($in_body ne '-') {
+#	&delete_tmpfile ($in_body);
+#   }
+    if ($edit || $post) {
+	close (IN);
+    } elsif ($dashbs) {
+	print "250 Message accepted for delivery\n";
+	$more_input = 1;
+    }
+}
+
+sub prepare_for_n_passes {
+# $new_body = &prepare_for_n_passes ($body, $n)
+# Prepare for multiple passes over input body
+    my ($body, $n) = @_;
+    my ($new_body, $line);
+
+    if ($body eq '-' && $n > 1) {
+	$new_body = &tmp_filename ();
+	open (TMP, '>'.$new_body);
+	&open_body ($body);
+	while ($line = &get_line_body ($body)) {
+	    print TMP $line;
+	}
+	&close_body ($body);
+	if ($body eq $in_body) {
+	    $in_body = $new_body;
+	}
+	close (TMP);
+    } else {
+	$new_body = $body;
+    }
+    &refcnt_bump ($new_body, $n - 1);
+    return $new_body;
+}
+
+sub open_body {
+# &open_body ($in_body)
+# Open a pass through the message body.
+    my ($body) = @_;
+
+    if ($body ne '-') {
+	open (BODY, $body);
+    }
+}
+
+sub get_line_body {
+# $line = &get_body_line ($in_body)
+# Get a line from the message body. Return undef on EOF.
+    my ($body) = @_;
+    my ($line);
+
+    if (defined $pushline{$body}) {
+	return delete $pushline{$body};
+    } elsif ($body ne '-') {
+        $line = <BODY>; # Need to store in scalar to avoid Perl 5.000 bug
+        return $line;
+    } else {
+        return &get_line ();
+    }
+}
+
+sub close_body {
+# &close_body ($in_body)
+# Close a pass through the message body.
+    my ($body) = @_;
+
+    if ($body ne '-') {
+	close (BODY);
+	&refcnt_bump ($body, -1);
+    }
+}
+
+sub find_recips {
+# Find all the recipients (from command line & header) and store in @recips.
+# Also, set the value of $resent.
+    my ($key, $val);
+
+    $resent = 0;
+    foreach (@in_headers) {
+	($key, $val) = &parse_field ($_);
+	if ($key =~		# source: sendmail 8.6.8 conf.c
+	    /^resent\-(sender|from|reply\-to|to|cc|bcc|message\-id|date)$/i) {
+	    $resent = 1;
+	}
+    }
+
+    # suppress cmdline remailers in -t mode; sendmail 8.6.8 manpage '-t'
+    if ($dasht) {
+	foreach (@cmdline_recips) {
+#	    print ":".&strip_address($_).":\n";
+	    $ealias{&strip_address($_)} = '';
+	}
+    }
+
+    @recips = ();
+    if (!$dasht && !$edit && !$post || $dashbs) {
+	@recips = &expand_alias (@cmdline_recips);
+    } else {
+	foreach (@in_headers) {
+	    ($key, $val) = &parse_field ($_);
+#	    print "key = $key, val = $val\n";
+	    if ($resent && $key =~ /^resent\-(to|cc|bcc)$/i
+		|| !$resent && $key =~ /^(to|cc|bcc)$/i) {
+		# follows sendmail 8.6.8 conf.c except for 'apparently-to'
+#		print &format_header ("split", &split_commas ($val));
+		push (@recips, &expand_alias (&split_commas ($val)));
+	    }
+	}
+    }
+
+    if ($#recips < 0) {
+	&error ("No recipients specified, not even in the header\n");
+    }
+}
+
+sub prepare_send_header {
+# Prepare @send_headers from @in_headers. Expands aliases and removes
+# caret commands. Removes premail-specific headers, placing them into
+# %header_premail_com. The @send_headers are not final, in that they may
+# be twiddled with more, but at least they represent a common denominator
+# among the groups. Places "Anon-X" headers in @anon_headers.
+#
+# Also computes the %which_header map, which tells which header each
+# recipient "came from." This map is used to compute the "bcc" groups
+# later.
+#
+# A note: this function doesn't care whether the -t option was used. The
+# theory is that, even if -t is used, the headers probably match the
+# command line anyway, so it is good to keep premail garbage from the
+# recipients. This assumption is valid for the only -t mailer I know,
+# which is elm. The worst that could possibly happen is that an alias
+# gets wrongly expanded.
+#
+# Another note: this function will reformat the recipient lines nicely,
+# according to the format_header rules. If you don't like it, tough. I
+# did want to mention it, though, because it's the only way that premail
+# will change the message if no premail options are specified.
+    my ($key, $val);
+    my (@my_recips, @expanded);
+
+    @anon_headers = ();
+    @send_headers = ();
+    %header_premail_com = ();
+    foreach (@in_headers) {
+	($key, $val) = &parse_field ($_);
+	if ($resent && $key =~ /^resent\-(to|cc|bcc)$/i
+	    || !$resent && $key =~ /^(to|cc|bcc)$/i) {
+	    # follows sendmail 8.6.8 conf.c except for 'apparently-to'
+	    # why bother rewriting bcc's? just in case...
+	    @my_recips = ();
+#	    print &format_header ("Val", $val);
+	    foreach (&split_commas ($val)) {
+#		print &format_header ("Stripped", &strip_address ($_));
+		@expanded = &split_commas ($ealias{&strip_address ($_)});
+#		print &format_header ("Expanded", @expanded);
+		if ($#expanded >= 0) {
+		    foreach (@expanded) {
+			($nocaret, $caret) = &strip_caret ($_);
+			$stripped = &strip_address ($nocaret);
+#			print "\$which_header\{'$stripped'} \= '$key'\;\n";
+			$which_header{&strip_address ($nocaret)} = $key;
+			push (@my_recips, $nocaret);
+		    }
+		} else {
+		    ($nocaret, $caret) = &strip_caret ($_);
+		    @my_recips = ($nocaret);
+		}
+	    }
+	    push (@send_headers, &format_header ($key, @my_recips));
+	} elsif ($key =~ /^(key|encrypt\-(to|key))$/i) {
+	    $header_premail_com{'encrypt-key'} = $val;
+	} elsif ($key =~ /^(mkey|encrypt\-mkey)$/i) {
+	    $header_premail_com{'encrypt-mkey'} = $val;
+#	} elsif ($key =~ /^(skey|encrypt\-skey)$/i) {
+#	    $header_premail_com{'encrypt-skey'} = $val;
+	} elsif ($key =~ /^(path|chain)$/i) {
+	    $header_premail_com{'chain'} = $val;
+	} elsif ($key =~ /^sign$/i) {
+	    $header_premail_com{'sign'} = $val;
+	} elsif ($key =~ /^msign$/i) {
+	    $header_premail_com{'msign'} = $val;
+	} elsif ($key =~ /^ssign$/i) {
+	    $header_premail_com{'ssign'} = $val;
+	} elsif ($key =~ /^no\-reply$/i) {
+	    $header_premail_com{'no-reply'} = $val;
+	} elsif ($key =~ /^anon\-/i) {
+	    s/^anon\-//i;
+	    push (@anon_headers, $_);
+	} else {
+	    push (@send_headers, $_);
+	}
+    }
+}
+
+sub compute_groups {
+# Assign each recipient to a group, storing the results in %recip_group
+# (forward map), and %group_recips (inverse image). Store the list of
+# groups in @groups.
+    my ($group);
+
+    @groups = ();
+    %recip_group = ();
+    %group_recips = ();
+#   &pdv ("Group recips: ".join ('.', @recips)."\n");
+    foreach $addr (@recips) {
+	$group = &group_of ($addr);
+	$recip_group{&strip_address ($addr)} = $group;
+	if (defined $group_recips{$group}) {
+	    $group_recips{$group} .= ','.$addr;
+	} else {
+	    push (@groups, $group);
+	    $group_recips{$group} = $addr;
+	}	    
+    }
+#   print &format_header ("Groups", @groups);
+}
+
+sub group_of {
+# $group = &group_of ($full_addr)
+# The rule is this: if two recipients are assigned the same group, then
+# they can be sent with the same sendmail process. Within that constraint,
+# try to make groups as large as possible.
+#
+# This might need a bit more work to support newsgroups as recipients.
+    my ($addr) = @_;
+    my ($key_type, $key, $sign_type, $sign, $chain_type, $chain);
+    my ($group, $strip);
+    my ($id_recip);
+
+    ($key_type, $key) = &key_of ($addr);
+    ($chain_type, $chain, $sign_type, $sign) = &sender_info ($addr);
+    $group = 'norm';
+    $strip = &strip_address ($addr);
+    $id_recip = 0;
+    if ($key_type ne '' && $which_header{$strip} =~ /bcc$/i) {
+	$group = 'bcc';
+	$id_recip = 1;
+    }
+    if ($key_type ne '') {
+	$group .= '^'.$key_type;
+    }
+    if ($sign_type ne '') {
+	$group .= '^'.$sign_type.'='.$sign;
+    }
+    if ($chain_type ne '') {
+	if ($chain_type eq 'newnym') {
+	    $group .= "^newnym.$chain";
+	}
+	else {
+	    $group .= '^chain';
+	    $id_recip = 1;
+	}
+    }
+    if ($id_recip) {
+	$group .= '^to='.$strip;
+    }
+    return $group;
+}
+
+sub chain_info {
+# ($chain_type, $nsign_type, $nsign) = &chain_info ($chain)
+    my ($chain) = @_;
+    return '' unless $chain;
+    if ($chain =~ /(.*;)?([\w-]+)=\s*([^\s\;\^]+)\s*$/) {
+	my ($remailer, $nymid) = ($2, "$2=$3");
+	&get_remailers ();
+	if ($options{$remailer} =~ /\bnewnym\b/) {
+	    &load_secrets ();
+	    my $nym = &find_nym ($nymid);
+	    if ($nym{$nym} =~ /(\^|^)signsend\=([^\^]*)(\^|\Z)/) {
+		return ('newnym', 'ring', $nymid)
+		    if $2 eq 'p';
+		return ('newnym', 'header', 'Nym-Commands: +signsend')
+		    if $2 eq 'r';
+		return ('newnym', 'error', "Nym $nymid not configured for "
+			. "signing.");
+	    }
+	}
+    }
+    return ('chain', undef, undef);
+}
+
+sub sender_info {
+# ($chain_type, $chain, $sign_type, $sign) = &sender_info ($addr);
+#
+# Chain_of and sign_of are merged here, for some nyms have PGP keys.
+#
+    my ($addr) = @_;
+    my ($strip, $caret) = &strip_caret ($addr);
+    my ($chain_type, $chain, $sign_type, $sign);
+    my ($nsign_type, $nsign);
+
+    if ($caret =~ /\^chain\s*(\=([^\^]*))?(\^|$)/) {
+	$chain = $2 ? $2 : '';
+    } elsif (defined $header_premail_com{'chain'}) {
+	$chain = $header_premail_com{'chain'};
+    } elsif (defined $config{'defaultpath'}) {
+	$chain = $config{'defaultpath'};
+    }
+    if (defined $chain) {
+	$chain =~ s/^\s+//;
+	$chain =~ s/\s+$//;
+	$chain = '3' unless $chain;
+	$chain = '' if $chain eq ';';
+	($chain_type, $nsign_type, $nsign) = &chain_info ($chain);
+    }
+    else {
+	$chain = $chain_type = '';
+    }
+
+    $sign_type = $sign = '';
+    if ($caret =~ /\^(\w?sign)\s*(\=\s*([^\^]*?)\s*)?(\^|$)/) {
+	$sign_type = $1;
+	$sign = $3;
+	if (!defined $sign) {
+	    if ($sign_type eq 'msign') {
+		$sign = 'me';
+	    } elsif ($sign_type eq 'sign' && $nsign_type) {
+		$sign_type = $nsign_type;
+		$sign = $nsign;
+	    } elsif ($sign_type eq 'ssign' && defined $ripemuser) {
+		$sign = $ripemuser;
+	    } elsif (defined $config{'signuser'}) {
+		$sign = $config{'signuser'};
+	    } else {
+		$sign = '';
+	    }
+	}
+    } elsif (defined $header_premail_com{'sign'}) {
+	$sign_type = 'sign';
+	$sign = $header_premail_com{'sign'};
+	if ($nsign_type && $sign !~ /\S/) {
+	    $sign_type = $nsign_type;
+	    $sign = $nsign;
+	}
+    } elsif (defined $header_premail_com{'msign'}) {
+	$sign_type = 'msign';
+	$sign = $header_premail_com{'msign'};
+    } elsif (defined $header_premail_com{'ssign'}) {
+	$sign_type = 'ssign';
+	$sign = $header_premail_com{'ssign'};
+    }
+
+    return ($chain_type, $chain, $sign_type, $sign);
+}
+
+sub chain_of {
+# ($chain_type, $chain) = &chain_of ($full_addr)
+# $chain_type will be one of {'', 'chain'}
+    return (&sender_info)[0,1];
+}
+
+sub sign_of {
+# ($sign_type, $sign) = &sign_of ($full_addr)
+# $sign_type will be one of {'', 'sign', msign', 'ssign'}
+    return (&sender_info)[2,3];
+}
+
+sub key_of {
+# ($key_type, $key) = &key_of ($full_addr)
+# $key_type will be one of {'', 'key', 'mkey', 'encrypt{,-des,-rc2}'}
+    my ($addr) = @_;
+    my ($strip, $caret, $key_type, $key);
+
+    $key_type = '';
+    $key = '';
+    ($strip, $caret) = &strip_caret ($addr);
+    if ($caret =~ /\^(\w?key|encrypt|encrypt\-\w+)\s*(\=[^\^]*)?(\^|$)/) {
+	$key_type = $1;
+	if ($key_type eq 'encrypt-pgp') { $key_type = 'key'; }
+	$key = $2;
+	if (!defined $key) {
+	    $key = &strip_address ($strip, 1);
+	} else {
+	    $key =~ s/^\=\s*//;
+	}
+	if ($key eq '') { $key_type = ''; }
+    } elsif (defined $header_premail_com{'encrypt-key'}) {
+	$key_type = 'key';
+	$key = $header_premail_com{'encrypt-key'};
+    } elsif (defined $header_premail_com{'encrypt-mkey'}) {
+	$key_type = 'mkey';
+	$key = $header_premail_com{'encrypt-mkey'};
+    } elsif (defined $header_premail_com{'encrypt-skey'}) {
+	$key_type = 'skey';
+	$key = $header_premail_com{'encrypt-skey'};
+    }
+    return ($key_type, $key);
+}
+
+sub send_group {
+# &send_group ($group)
+# Send the message in (@send_headers, $header_sep, $in_body) to all
+# recipients in the group.
+    my ($group) = @_;
+    my (@the_recips);
+    my ($key_type, $key, $sign_type, $sign, $chain_type, $chain, $body);
+    my ($log, $subj, $subj_present);
+
+#   print "\n";
+#   print @send_headers;
+#   print $header_sep;
+#   &open_body ($in_body);
+#   while (defined ($_ = &get_line_body ($in_body))) {
+#	print;
+#   }
+#   &close_body ($in_body);
+
+    @the_recips = &split_commas ($group_recips{$group});
+#   &pdv ("the_recips".join (', ', @the_recips)."\n");
+    &pdv (&format_header ("Recipients", @the_recips));
+    @deliver_headers = @send_headers;
+    $body = $in_body;
+
+    ($key_type, $key) = &key_of ($the_recips[0]);
+    ($chain_type, $chain, $sign_type, $sign) = &sender_info ($the_recips[0]);
+    if ($chain_type) {
+	&sanitize_deliver_headers ();
+    }
+    if ($sign_type || $key_type eq 'mkey' || $key_type =~ /^encrypt/) {
+	$body = &purify_mime ($body, 'sign');
+    } elsif ($config{'purify-mime'}) {
+	$body = &purify_mime ($body, '');
+    }
+    if ($key_type || $sign_type) {
+	$body = &transform_crypt ($body, @the_recips);
+    }
+    if ($chain_type) {
+	&get_remailers ();
+	$chain = &choose_chain ($chain);
+	if ($config{'debug'} =~ /r/) {
+	    &pdebug ("Chose chain $chain\n");
+	}
+	&pdv ("$chain_type $chain\n");
+	&deliver_chain ($body, '', $chain, @the_recips);
+    } else {
+	&deliver ($body, '', @the_recips);
+    }
+    if ($config{'debug'} =~ /l/) {
+	$log = '!Sent '.join (', ', @the_recips);
+	if ($chain_type) { $log .= '['.$chain.']'; }
+	($subj, $subj_present) = &lookup_val ('subject', @send_headers);
+	if ($subj_present) { $log .= ': '. $subj; }
+	print LOG ($log."\n");
+	print LOG (&time (gmtime (time))."\n");
+    }
+}
+
+sub transform_crypt {
+# $new_body = &transform_crypt ($body, @the_recips)
+# Transform the messge in (@deliver_headers, $body) according to the
+# key and sign parameters of the recipients.
+#
+# This function just does the dispatch to the individual crypt
+# transformations. For now, there is just PGP and MOSS. Hopefully,
+# S/MIME and, maybe, perl/RSA  will follow shortly.
+    my ($body, @the_recips) = @_;
+    my ($key_type, $key, $sign_type, $sign);
+
+    ($key_type, $key) = &key_of ($the_recips[0]);
+    ($sign_type, $sign) = &sign_of ($the_recips[0]);
+    if ($sign_type eq 'error') {
+	&error ($sign);
+    }
+    if ($sign_type eq 'header') {
+	push @deliver_headers, "$sign\n";
+	return $body unless $key_type;
+	$sign_type = $sign = '';
+    }
+    if ($key_type eq 'mkey' || $sign_type eq 'msign') {
+	if ($sign_type eq 'msign') {
+	    $body = &transform_moss_sign ($body, @the_recips);
+	}
+	if ($key_type eq 'mkey') {
+	    $body = &transform_moss_encrypt ($body, @the_recips);
+	}
+	return $body;
+    } elsif ($key_type =~ /^encrypt/ || $sign_type eq 'ssign') {
+	if ($sign_type eq 'ssign') {
+	    $body = &transform_ripem_sign ($body, @the_recips);
+	}
+	if ($key_type =~ /^encrypt/) {
+	    $body = &transform_ripem_encrypt ($body, @the_recips);
+	}
+	return $body;
+    } elsif ($key_type eq 'key') {
+	return &transform_pgp_encrypt ($body, @the_recips);
+    } elsif ($key_type eq '') {
+	if ($sign_type eq 'sign' || $sign_type eq 'ring') {
+	    return &transform_pgp_sign ($body, @the_recips);
+	} else {
+	    &error ("Unknown sign type: $sign_type\n");
+	}
+    } else {
+	&error ("Unknown key type: $key_type\n");
+    }
+}
+
+sub transform_pgp_encrypt {
+# $new_body = &transform_pgp_encrypt ($body, @the_recips)
+# Transform the messge in (@deliver_headers, $body) according to the
+# key and sign parameters of the recipients. In this case, that means
+# PGP encryption and signing.
+    my ($body, @the_recips) = @_;
+    my ($key_type, $key);
+    my (@keys);
+    my ($new_body, $err, $line);
+    my (@mime_fields, $pgpmime, $prefix, $boundary);
+    my ($sign_type, $sign);
+
+    @keys = ();
+    ($sign_type, $sign) = &sign_of ($the_recips[0]);
+    foreach $recip (@the_recips) {
+	($key_type, $key) = &key_of ($recip);
+	push (@keys, $key);
+    }
+    $prefix = '';
+    $pgpmime = 0;
+    (@mime_fields) = &extract_mime_fields ();
+    $pgpmime = ($config{'pgpmime'} || $#mime_fields >= 0);
+    if ($pgpmime) {
+	$prefix = join ('', @mime_fields)."\n";
+    }
+    ($new_body, $err) = &pgp_encrypt($body, $prefix, $sign_type, $sign, '',
+				     @keys);
+    if ($pgpmime) {
+	$boundary = '+';
+	push (@deliver_headers,
+	      'MIME-Version: 1.0'."\n",
+	      'Content-Type: multipart/encrypted; boundary="'.$boundary.'";'
+	      ."\n   ".'protocol="application/pgp-encrypted"'."\n");
+	$body = $new_body;
+	$new_body = &tmp_filename ();
+	open (NEW, '>'.$new_body);
+	print NEW "This message is in PGP/MIME format, according to the"
+	    ." Internet Draft\n";
+	print NEW "draft-elkins-pem-pgp-04.txt. For more information, see:\n";
+	print NEW "http://www.c2.net/~raph/pgpmime.html\n";
+	print NEW "\n";
+	print NEW "--$boundary\n";
+	print NEW "Content-Type: application/pgp-encrypted\n";
+	print NEW "\n";
+	print NEW "Version: 1\n";
+	print NEW "\n";
+	print NEW "--$boundary\n";
+	print NEW "Content-Type: application/octet-stream\n";
+	print NEW "\n";
+	&open_body ($body);
+	while (defined ($line = &get_line_body ($body))) {
+	    print NEW $line;
+	}
+	&close_body ($body);
+	print NEW "\n";
+	print NEW "--$boundary--\n";
+	close (NEW);
+    }
+    return $new_body;
+}
+
+sub transform_pgp_sign {
+# $new_body = &transform_pgp_sign ($body, @the_recips)
+# Transform the messge in (@deliver_headers, $body) according to the
+# sign parameter of the recipients. In this case, that means PGP signing.
+    my ($body, @the_recips) = @_;
+    my ($new_body, $err, $line);
+    my (@mime_fields, $pgpmime, $prefix, $boundary);
+    my ($sign_type, $sign);
+
+    ($sign_type, $sign) = &sign_of ($the_recips[0]);
+    $prefix = '';
+    $pgpmime = 0;
+    (@mime_fields) = &extract_mime_fields ();
+    $pgpmime = ($config{'pgpmime'} || $#mime_fields >= 0);
+    if (!$pgpmime) {
+	($new_body, $err) = &pgp_clearsign ($body, $prefix, $sign, $sign_type);
+    } else {
+	$prefix = join ('', @mime_fields)."\n";
+	($new_body, $err, $boundary)
+	    = &pgp_mime_sign ($body, $prefix, $sign, $sign_type);
+	push (@deliver_headers,
+	      'MIME-Version: 1.0'."\n",
+	      'Content-Type: multipart/signed; boundary="'.$boundary.'";'
+	      ."\n   ".'protocol="application/pgp-signature"; micalg=pgp-md5'
+	      ."\n");
+    }
+    return $new_body;
+}
+
+sub extract_mime_fields {
+# (@mime_fields) = &extract_mime_fields ();
+# Extract the MIME fields from @deliver_headers, returning them.
+    my (@mime_fields);
+    my ($key);
+
+    @mime_fields = &get_mime_fields (@deliver_headers);
+    foreach $key ('mime-version', 'content-type',
+		  'content-transfer-encoding', 'content-length',
+		  'content-md5') {
+	@deliver_headers = &delete_field ($key, @deliver_headers);
+    }
+    return (@mime_fields);
+}
+
+sub transform_moss_encrypt {
+# $new_body = &transform_moss_encrypt ($body, @the_recips)
+# Transform the messge in (@deliver_headers, $body) according to the
+# mkey parameter of the recipients. In this case, that means MOSS
+# encryption.
+    my ($body, @the_recips) = @_;
+    my ($key_type, $key);
+    my ($new_body, $enc_body, $hdr_body, $errfile, $err, $line);
+    my (@mime_fields, $prefix, $boundary);
+    my ($invoc);
+
+    (@mime_fields) = &extract_mime_fields ();
+    $prefix = join ('', @mime_fields)."\n";
+    $invoc = &mossbin ('encrypt');
+    foreach $recip (@the_recips) {
+	($key_type, $key) = &key_of ($recip);
+	$invoc .= ' alias '.&shell_quote ($key);
+    }
+    $enc_body = &tmp_filename ();
+    $invoc .= ' data-out '.$enc_body;
+    $hdr_body = &tmp_filename ();
+    $invoc .= ' header-out '.$hdr_body;
+    $errfile = &tmp_filename ();
+    $invoc .= ' > '.$errfile.' 2>&1';
+    if (!open (MOSS, "|$invoc")) {
+	&error ("Error invoking MOSS\n");
+    }
+    print MOSS $prefix;
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print MOSS $line;
+    }
+    close (MOSS);
+    $status = $?;
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("MOSS error\n$err"); }
+    $boundary = '+';
+    push (@deliver_headers,
+	  'MIME-Version: 1.0'."\n",
+	  'Content-Type: multipart/encrypted; boundary="'.$boundary.'";'
+	  ."\n   ".'protocol="application/moss-keys"'."\n");
+    $new_body = &tmp_filename ();
+    open (NEW, '>'.$new_body);
+    print NEW "--$boundary\n";
+    print NEW "Content-Type: application/moss-keys\n";
+    print NEW "Content-Transfer-Encoding: quoted-printable\n";
+    print NEW "\n";
+    &open_body ($hdr_body);
+    while (defined ($line = &get_line_body ($hdr_body))) {
+	print NEW &encode_qp ($line, 'sign');
+    }
+    &close_body ($hdr_body);
+    print NEW "\n";
+    print NEW "--$boundary\n";
+    print NEW "Content-Type: application/octet-stream\n";
+    print NEW "Content-Transfer-Encoding: base64\n";
+    print NEW "\n";
+    open (B64, &mossbin('mossencode').' -b64 < '.$enc_body.' |');
+    &open_body ($enc_body);
+    while (defined ($line = <B64>)) {
+	print NEW $line;
+    }
+    close (B64);
+    &delete_tmpfile ($enc_body);
+    print NEW "\n";
+    print NEW "--$boundary--\n";
+    close (NEW);
+    return $new_body;
+}
+
+sub transform_moss_sign {
+# $new_body = &transform_moss_sign ($body, @the_recips)
+# Transform the messge in (@deliver_headers, $body) according to the
+# msign parameter of the recipients. In this case, that means MOSS
+# signing.
+    my ($body, @the_recips) = @_;
+    my ($key_type, $key);
+    my ($new_body, $hdr_body, $errfile, $err, $line);
+    my (@mime_fields, $prefix, $boundary);
+    my ($invoc);
+    my ($sign_type, $sign);
+
+    ($sign_type, $sign) = &sign_of ($the_recips[0]);
+    $prefix = '';
+    (@mime_fields) = &extract_mime_fields ();
+    $prefix = join ('', @mime_fields)."\n";
+    $invoc = &mossbin ('sign');
+    $invoc .= ' sig-alias '.&shell_quote ($sign);
+    $hdr_body = &tmp_filename ();
+    $invoc .= ' header-out '.$hdr_body;
+    $errfile = &tmp_filename ();
+    $invoc .= ' > '.$errfile.' 2>&1';
+    open (MOSS, "|$invoc");
+    $new_body = &tmp_filename ();
+    open (NEW, '>'.$new_body);
+    $boundary = &random (80);
+    push (@deliver_headers,
+	  'MIME-Version: 1.0'."\n",
+	  'Content-Type: multipart/signed;'
+	  .' protocol="application/moss-signature";'
+	  ."\n   ".'micalg=rsa-md5; boundary="'.$boundary.'"'."\n");
+    print NEW "--$boundary\n";
+    print NEW $prefix;
+    print MOSS &canonicalize_line_moss ($prefix);
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print NEW $line;
+	print MOSS &canonicalize_line_moss ($line);
+    }
+    close (MOSS);
+    $status = $?;
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("MOSS error\n$err"); }
+    print NEW "\n";
+    print NEW "--$boundary\n";
+    print NEW "Content-Type: application/moss-signature\n";
+    print NEW "Content-Transfer-Encoding: quoted-printable\n";
+    print NEW "\n";
+    &open_body ($hdr_body);
+    while (defined ($line = &get_line_body ($hdr_body))) {
+	print NEW &encode_qp ($line, 'sign');
+    }
+    &close_body ($hdr_body);
+    print NEW "\n";
+    print NEW "--$boundary--\n";
+    close (NEW);
+    return $new_body;
+}
+
+sub mossbin {
+# $full_path = &mossbin ($progname)
+# Return the full path of a MOSS program, given the program's name.
+# Generate an error if the program is not executable.
+#
+# If optional second argument is given, then fail more softly.
+    my ($progname, $fail_soft) = @_;
+    my ($dir, $fn);
+
+    $dir = $config{'mossbin'};
+    if ($dir =~ /[^\/]$/) { $dir .= '/'; }
+    $fn = $dir.$progname;
+    if (! -x $fn) {
+	if ($fail_soft) { return ''; }
+	&error ("Cannot find MOSS program $progname (full path $fn)\n");
+    }
+    return $fn;
+}
+
+sub transform_ripem_sign {
+# This routine does the multipart/signed message format.
+    my ($body, @the_recips) = @_;
+    my ($key_type, $key);
+    my (@keys);
+    my ($new_body, $err, $line);
+    my (@mime_fields, $prefix, $boundary);
+    my ($sign_type, $sign);
+    my ($invoc, $errfile);
+    my ($in_body, $sig_body, $new_body);
+    my ($user);
+
+    @keys = ();
+    ($sign_type, $sign) = &sign_of ($the_recips[0]);
+    foreach $recip (@the_recips) {
+	($key_type, $key) = &key_of ($recip);
+	if ($key_type eq 'skey') { push (@keys, $key); }
+    }
+    &load_secrets ();
+    if ($sign_type eq 'ssign' && $sign ne '') {
+	$user = $sign;
+    } elsif (defined $ripemuser) {
+	$user = $ripemuser;
+    } else {
+	&error ("Must specify \$ripempass{'<user>'} = '<pass>'; in secrets file\n");
+    }
+    if (!defined $ripempass{$user}) {
+#	&error ("Must specify \$ripempass{'$user'} = '<pass>'; in secrets file\n");
+	return;
+    }
+    (@mime_fields) = &extract_mime_fields ();
+    $prefix = join ('', @mime_fields)."\n";
+    # Here's where we actually invoke ripem
+    $invoc = &tilde_expand ($config{'ripem'});
+    $invoc .= ' -e -M pkcs -k - -u '.$user;
+    $invoc .= ' -m mic-only';
+    $in_body = &canonicalize_body ($prefix, $body);
+    $invoc .= ' -x '.$in_body;
+    $sig_body = &tmp_filename ();
+    $invoc .= ' -o '.$sig_body;
+    $errfile = &tmp_filename ();
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking RIPEM as $invoc\n");
+    if (!open (RIPEM, "|$invoc")) {
+	&error ("Error invoking RIPEM\n");
+    }
+    print RIPEM ($ripempass{$user}."\n");
+    close (RIPEM);
+    $status = $?;
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("RIPEM error\n$err"); }
+    &pdv ($err);
+    $new_body = &tmp_filename ();
+    open (NEW, '>'.$new_body);
+    $boundary = &random (80);
+    push (@deliver_headers,
+	  'MIME-Version: 1.0'."\n",
+	  'Content-Type: multipart/signed;'
+	  .' protocol="application/x-pkcs7-signature";'
+	  ."\n   ".'micalg=rsa-md5; boundary="'.$boundary.'"'."\n");
+    print NEW "--$boundary\n";
+    &open_body ($in_body);
+    while (defined ($line = &get_line_body ($in_body))) {
+	print NEW $line;
+    }
+    &close_body ($in_body);
+    print NEW "\n";
+    print NEW "--$boundary\n";
+    print NEW ('Content-Type: application/x-pkcs7-signature'."\n");
+    print NEW ('Content-Transfer-Encoding: base64'."\n");
+    print NEW "\n";
+    &open_body ($sig_body);
+    while (defined ($line = &get_line_body ($sig_body))) {
+	print NEW $line;
+    }
+    &close_body ($sig_body);
+    print NEW "\n";
+    print NEW "--$boundary--\n";
+    close (NEW);
+    return $new_body;
+}
+
+sub transform_ripem_encrypt {
+# $new_body = &transform_ripem_encrypt ($body, @the_recips)
+# Transform the messge in (@deliver_headers, $body) according to the
+# key and sign parameters of the recipients. In this case, that means
+# S/MIME encryption and/or signing using RIPEM.
+#
+# Actually, RIPEM 3.0 can't do encrypt-only - it always needs to sign.
+    my ($body, @the_recips) = @_;
+    my ($key_type, $key);
+    my (@keys);
+    my ($new_body, $err, $line);
+    my (@mime_fields, $prefix);
+    my ($sign_type, $sign);
+    my ($invoc, $errfile);
+    my ($in_body, $new_body);
+    my ($user);
+
+    @keys = ();
+    # Enable the following to make this routine do PKCS signing
+#   ($sign_type, $sign) = &sign_of ($the_recips[0]);
+    foreach $recip (@the_recips) {
+	($key_type, $key) = &key_of ($recip);
+	if ($key_type =~ /^encrypt/) { push (@keys, $key); }
+    }
+    &load_secrets ();
+    if ($sign_type eq 'ssign' && $sign ne '') {
+	$user = $sign;
+    } elsif (defined $ripemuser) {
+	$user = $ripemuser;
+    } else {
+#	&error ("Must specify \$ripempass{'<user>'} = '<pass>'; in secrets file\n");
+	return;
+    }
+    if (!defined $ripempass{$user}) {
+#	&error ("Must specify \$ripempass{'$user'} = '<pass>'; in secrets file\n");
+	return;
+    }
+    (@mime_fields) = &extract_mime_fields ();
+    $prefix = join ('', @mime_fields)."\n";
+    # Here's where we actually invoke ripem
+    $invoc = &tilde_expand ($config{'ripem'});
+    $invoc .= ' -e -M pkcs -k - -u '.$user;
+    if ($#keys < 0) {
+	$invoc .= ' -m mic-only';
+    } else {
+	if ($sign_type ne 'ssign') {
+	    $invoc .= ' -m enveloped-only';
+	}
+	if ($key_type eq 'encrypt') { $invoc .= ' -A des-ede-cbc'; }
+	elsif ($key_type ne 'encrypt-des') {
+	    &error ("Unsupported encryption algorithm $key_type\n");
+	}
+	$invoc .= ' -Ta';
+	foreach $k (@keys) {
+	    $invoc .= ' -r '.&shell_quote ($k);
+	}
+    }
+    $in_body = &canonicalize_body ($prefix, $body);
+    $invoc .= ' -i '.$in_body;
+    $new_body = &tmp_filename ();
+    $invoc .= ' -o '.$new_body;
+    $errfile = &tmp_filename ();
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking RIPEM as $invoc\n");
+    if (!open (RIPEM, "|$invoc")) {
+	&error ("Error invoking RIPEM\n");
+    }
+    print RIPEM ($ripempass{$user}."\n");
+    close (RIPEM);
+    $status = $?;
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("RIPEM error\n$err"); }
+    &pdv ($err);
+    push (@deliver_headers,
+	  'MIME-Version: 1.0'."\n",
+	  'Content-Type: application/x-pkcs7-mime'."\n",
+	  'Content-Transfer-Encoding: base64'."\n");
+    return $new_body;
+}
+
+sub canonicalize_body {
+# $new_body = &canonicalize_body ($prefix, $body)
+# Force the body into a file, and canonicalize it.
+#
+# With RIPEM 3.0b1, must canonicalize to LF line ends.
+    my ($prefix, $body) = @_;
+    my ($new_body);
+
+    $new_body = &tmp_filename ();
+    open (FORCE, '>'.$new_body);
+    print FORCE &canonicalize_line_enc ($prefix);
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print FORCE &canonicalize_line_enc ($line);
+    }
+    close (FORCE);
+    return ($new_body);
+}
+
+sub force_file_body {
+# $new_body = &force_file_body ($body)
+# Force the body into a file.
+    my ($body) = @_;
+    my ($new_body);
+
+    if ($body ne '-') { return $body; }
+    $new_body = &tmp_filename ();
+    open (FORCE, '>'.$new_body);
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print FORCE $line;
+    }
+    close (FORCE);
+    return ($new_body);
+}
+
+# Routines for dealing with anonymous remailer chains follow.
+
+sub sanitize_deliver_headers {
+# &sanitize_deliver_headers ()
+# Remove any potentially identity-revealing information in the delivery
+# headers.
+#
+# Not right yet. Empty for now.
+}
+
+sub choose_chain {
+# $chosen_chain = &choose_chain ($chain_spec, $erb)
+# Choose a chain, filling in any random subchains specified by integers.
+# If an optional second argument is given, then the chain will be
+# optimized for encrypted reply blocks rather than one-time mail.
+# Not right yet - still need to verify the keys of PGP mailers.
+    my ($chain, $erb) = @_;
+    my (@chain, $i);
+    my (@new_chain, $best, $best_mailer, $score);
+    my (@options, $numshuf);
+    my (@link_group);
+    my (%link);
+
+    @chain = reverse (&split_chain ($chain)); # choose in reverse order
+    if ($config{"numshuf"}) {
+	$num_shuf = $config{"numshuf"};
+    } else {
+	$num_shuf = 3;
+    }
+    foreach $hop (@chain) {
+	if ($hop =~ /^\d+$/) {
+	    for ($i = 0; $i < $hop; $i++) {
+		$best = -1000;
+		$bestmailer = '';
+		foreach $remailer (keys %reliability) {
+		    @options = split (/ /, $options{$remailer});
+		    if (!(&member ('cpunk', @options)
+			  || &member ('eric', @options))) {
+			next;
+		    }
+		    $score = $reliability{$remailer};
+		    $score -= $latency{$remailer} * 1e-5;
+		    if ($config{'encrypt'} &&
+			(&member ('pgp', @options)
+			 || &member ('pgp.', @options))) {
+			$score += 10;
+			if ($erb && &member ('ek', @options)) {
+			    $score += 5;
+			}
+		    } elsif ($config{'pgp-only'}
+			     || &member ('pgponly', @options)) { next; }
+		    if ($config{'no-middle'}
+			&& &member ('middle', @options)) { next; }
+		    if (&member ('reord', @options)) { $score += 0.1; }
+		    if (&member ('filter', @options)) { $score -= 10; }
+		    if (&member ('mon', @options)) { $score -= 10; }
+		    if ($#new_chain < 0 && !$erb
+			&& !(&member ('hash', @options) ||
+			     &member ('special', @options))) {
+			# Might look at header, only need to do this if
+			# either there are funky headers, or if the mailer
+			# is nsub.
+			next;
+		    }
+		    if (($#chain >= 1 || $hop > 1)
+			&& &member ('?', @options)) { next; }
+		    if ($link{$remailer}) { $score -= $link{$remailer}; }
+		    $score += $num_shuf * rand () * 0.1;
+		    if ($score > $best) {
+			$best = $score;
+			$bestmailer = $remailer;
+		    }
+		}
+		if ($bestmailer eq '') {
+		    &error ("Can't find remailers!\n");
+		}
+		push (@new_chain, $bestmailer);
+		foreach (keys %link) {
+		    $link{$_} *= 0.75;
+		}
+		$link{$bestmailer} = 100;
+		foreach $link_group (@links) {
+		    @link_group = split (/ /, $link_group);
+		    if (&member ($bestmailer, @link_group)) {
+			foreach $linked (@link_group) {
+			    $link{$linked} += 1;
+			}
+		    }
+		}
+#		foreach (keys %link) {
+#		    print "$_ $link{$_}\n";
+#		}
+#		print "\n";
+	    }
+	} else {
+	    push (@new_chain, $hop);
+	}
+    }
+    return join (';', reverse (@new_chain));
+}
+
+sub split_chain {
+# @split = &split_chain ($chain)
+# Split a chain into hops. Each mixmaster subchain counts as one hop.
+# Not right yet (need to handle mix subchains & strip whitespace).
+    my (@raw_chain, @chain, $mix);
+
+    @raw_chain = split (/\s*\;\s*/, $_[0]);
+    @chain = ();
+    $mix = '';
+    foreach (@raw_chain) {
+	if (/^\(/) { $mix = $_; }
+	elsif ($mix) { $mix .= ';'.$_; }
+	else { push (@chain, $_); }
+	if ($mix && /\)$/) { push (@chain, $mix); $mix = ''; }
+    }
+    return @chain;
+}
+
+sub get_remailers {
+# Get the remailer-list. For each remailer, store an entry into
+# %address, %options, %latency (in seconds), %reliability (in
+# percent), and @links.
+    my ($remailers_file, $state);
+    my ($remailer, $latency);
+
+    if ($got_remailers) { return; }
+    $got_remailers = 1;
+    $remailers_file = &tilde_expand_mkdir ($config{'rlist'});
+    if (&is_stale ($remailers_file, $config{'rlist-valid'})
+	&& $config{'rlist-url'}) {
+	&getfile_from_web_html ($remailers_file, $config{'rlist-url'});
+	&getfile_from_web_html (&tilde_expand_mkdir ($config{'pubring'}),
+				$config{'pubring-url'});
+    }
+    open (REMAILERS, $remailers_file);
+    while (<REMAILERS>) {
+	if (/^\s*\$remailer\{\"([^\"]+)\"\}\s*\=\s*\"([^\"]*)\"/
+	    || /^\s*\$remailer\{\'([^\']+)\'\}\s*\=\s*\'([^\']*)\'/) {
+	    $remailer = $1;
+	    if ($2 =~ /\<([^\>]+)\>\s(.*)$/) {
+		$address{$remailer} = $1;
+		$options{$remailer} = $2;
+	    }
+	} elsif (/^\((.*)\)$/) {
+	    push (@links, $1);
+	}
+	if (/--------/) {
+	    $state = 1;
+	}
+	if ($state && $_ eq "\n") {
+	    $state = 0;
+	}
+	if ($state &&
+	    /^([\w\-]+).*[^\d\:](\d+\:\d+\:\d+|\d*\:\d+)\s+([\d\.]+)\%/) {
+	    $remailer = $1;
+	    $latency = $2;
+	    $reliability{$remailer} = $3;
+	    if ($latency =~ /^(\d+)\:(\d+)\:(\d+)$/) {
+		$latency = 3600 * $1 + 60 * $2 + $3;
+	    } elsif ($latency =~ /^(\d+)\:(\d+)$/) {
+		$latency = 60 * $1 + $2;
+	    } elsif ($latency =~ /^\:(\d+)$/) {
+		$latency = $1;
+	    }
+	    $latency{$remailer} = $latency;
+	}
+    }
+    close (REMAILERS);
+}
+
+sub getfile_from_web {
+# &getfile_from_web ($file, $url)
+# Get the file from the url.
+    my ($file, $url) = @_;
+
+    if (&open_web ($url)) {
+	open (PUT, '>'.$file);
+	while (<WWW>) {
+	    print PUT;
+	}
+	close (WWW);
+	close (PUT);
+    }
+}
+
+sub getfile_from_web_html {
+# &getfile_from_html ($file, $url)
+# Get the file from the url.
+#
+# Only actually update the file if it is five lines or more.
+#
+# If a <pre> tag is present within the first five lines, extract
+# information between <pre> and </pre> tags, discarding the rest.
+    my ($file, $url) = @_;
+    my (@window, $yup, $inpre, $put_open);
+
+#   print "getfile_from_web_html: $file, $url\n";
+    $inpre = 0;
+    $yup = 0;
+    $put_open = 0;
+    if (&open_web ($url)) {
+	while (<WWW>) {
+	    if (!$yup && !$inpre && /^\s*\<pre\>\s*$/i) {
+		open (PUT, '>'.$file);
+		$put_open = 1;
+		$inpre = 1;
+	    } elsif ($inpre && /^\s*\<\/pre\>\s*$/i) {
+		$inpre = 0;
+	    } else {
+		if ($inpre) {
+		    s/\&lt\;/\</g;
+		    s/\&gt\;/\>/g;
+		    s/\&amp\;/\&/g;
+		}
+		if ($inpre || $yup) {
+		    print PUT;
+		} else {
+		    push (@window, $_);
+		    if ($#window + 1 == 5) {
+			open (PUT, '>'.$file);
+			$put_open = 1;
+			print PUT @window;
+			$yup = 1;
+		    }
+		}
+	    }
+	}
+	if ($put_open) { close (PUT); }
+	close (GET);
+    }
+}
+
+sub get_mixmasters {
+# Get the mixmaster information. Store in $mix_dir, $mix_type2_list,
+# %mix_addr, and %mix_num.
+    my ($mix, $num);
+
+    if ($got_mixmasters) { return; }
+    $got_mixmasters = 1;
+    $mix = &tilde_expand ($config{'mixmaster'});
+    if (!open (MIX, "$mix -P|")) {
+	&error ("Cannot execute $mix\n");
+    }
+    $mix_dir = <MIX>;
+    $mix_type2_list = <MIX>;
+    close (MIX);
+    if (!defined $mix_dir || $mix_dir eq '') {
+	&error (
+     "Cannot get information from mixmaster - need version 2.0.2 or better\n");
+    }
+    chop $mix_dir;
+    chop $mix_type2_list;
+    $type2_list = $mix_dir.'/'.$mix_type2_list;
+    if (!-e $type2_list) {
+	&error ("Cannot find type2.list; not at $type2_list\n");
+    }
+    open (LIST, "$type2_list");
+    $num = 0;
+    while (<LIST>) {
+	if (/^(\S+)\s+(\S+)\s/) {
+	    $num++;
+	    $mix_num{$1} = $num;
+	    $mix_addr{$1} = $2;
+	}
+    }
+    close (LIST);
+    if ($num == 0) {
+	&error ("No mixmasters in list $type2_list\n");
+    }
+}
+
+sub deliver_chain {
+# &deliver_chain ($body, $prefix, $chain, @the_recips)
+# Deliver the message composed of (@deliver_headers, $header_sep, $prefix,
+# $body) to @the_recips (usually singular, but may be plural if we fiddle
+# delivery to newsgroups), through chain $chain.
+#
+# This routine may mutate @deliver_headers. It is recursive so that each
+# packet of a Mixmaster message may be delivered separately.
+    my ($body, $prefix, $chain, @the_recips) = @_;
+    my (@chain, $full_hop, $hop, $recip, $new_to);
+
+    &pdv ("deliver_chain $chain ".join (',', @the_recips)."\n");
+    @chain = &split_chain ($chain);
+    if ($#chain < 0) {
+	&deliver ($body, $prefix, @the_recips);
+	return;
+    }
+    # We know chain is at least one element - process last hop
+    $full_hop = pop (@chain);
+    $hop = $full_hop;
+    $hop =~ s/^([\w\-]+).*$/$1/;
+    $chain = join (';', @chain);
+    if ($hop =~ /^\(.*\)$/) {
+	&deliver_chain_mix ($body, $prefix, $chain, $hop, @the_recips);
+	return;
+    }
+    if (!defined $options{$hop}) {
+	&error ("Unknown remailer $hop\n");
+    }
+    @options = split (/ /, $options{$hop});
+    if (&member ('cpunk', @options) || &member ('eric', @options)
+	|| &member ('penet', @options)) {
+	&deliver_chain_cpunk ($body, $prefix, $chain, $full_hop, @the_recips);
+    } elsif (&member ('newnym', @options)) {
+	&deliver_chain_newnym ($body, $prefix, $chain, $full_hop, @the_recips);
+    } elsif (&member ('alpha', @options)) {
+	&deliver_chain_alpha ($body, $prefix, $chain, $full_hop, @the_recips);
+    } else {
+	&error ("Don't know how to prepare messages for remailer $hop\n");
+    }
+}
+
+sub deliver_chain_cpunk {
+# &deliver_chain ($body, $prefix, $chain, $hop, @the_recips)
+# Deliver the message composed of (@deliver_headers, $header_sep, $prefix,
+# $body) to @the_recips (usually singular, but may be plural if we fiddle
+# delivery to newsgroups), through chain ($chain, $hop), where we know
+# that the last hop is a cypherpunks variant remailer (cpunks, eric,
+# penet).
+#
+# This thing is a bloody mess.
+    my ($body, $prefix, $chain, $hop, @the_recips) = @_;
+    my ($recip, $new_to, $hash, $encrypt, $key, $err, $req);
+    my ($subj, $subj_present);
+    my (@hash_headers);
+    my ($addl);
+
+    if ($hop =~ /^([\w\-]*)(\..*)$/) {
+	$hop = $1;
+	$addl = $2;
+    }
+    @options = split (/ /, $options{$hop});
+    $encrypt = ((&member ('pgp', @options) || &member ('pgp.', @options))
+		&& $config{'encrypt'});
+    $recip = &strip_and_join (@the_recips);
+    $new_to = $address{$hop};
+    ($subj, $subj_present) = &lookup_val ('subject', @deliver_headers);
+    $hash = '';
+    if (&member ('hash', @options) || &member ('special', @options)) {
+	@hash_headers = &get_anon_headers ();
+	if (($encrypt || &member ('ksub', @options))
+	    && !&member ('eric', @options) && !&member ('nsub', @options)) {
+	    if ($subj_present) { push (@hash_headers, "Subject: $subj\n"); }
+	} elsif (!&member ('eric', @options)) {
+	    if ($subj_present) { push (@deliver_headers, "Subject: $subj\n"); }
+	}
+	$hash = join ('', @hash_headers);
+	if (!&member ('special', @options) && $#hash_headers >= 0) {
+	    $hash = "\n\#\#\n".$hash;
+	}
+    } else {
+	@deliver_headers = ();
+	if ($subj_present && !&member ('eric', @options)) {
+	    push (@deliver_headers, "Subject: $subj\n");
+	}
+    }
+    push (@deliver_headers, "To\: $new_to\n");
+    if ($addl =~ /\.(encrypt\-key\:\s*[^\.]+)(\.|$)/i) {
+	$hash = "$1\n".$hash;
+	$body = &cat_tail ($body, "\*\*\n");
+    }
+    if (&member ('eric', @options)) {
+	$req = 'Anon-Send-To';
+	if ($subj_present) { $hash = "Subject: $subj\n".$hash; }
+    } else {
+	$req = 'Request-Remailing-To';
+    }
+    if (&member ('penet', @options)) {
+	push (@deliver_headers, 'X-Anon-To: '.$recip."\n");
+	if ($chain eq '') {
+	    &load_secrets ();
+	    if (defined $penetpass) {
+		push (@deliver_headers, 'X-Anon-Password: '.$penetpass."\n");
+	    }
+	}
+    } else {
+	$prefix = '::'."\n"
+	    .$req.': '.$recip."\n"
+	    .$hash
+	    ."\n"
+	    .$prefix;
+    }
+    if ($encrypt) {
+	if (&member ('pgp', @options)) {
+	    $key = $new_to;
+	} else {
+	    $key = $hop;
+	}
+	($body, $err) = &pgp_encrypt
+	    ($body, $prefix, '', '', &tilde_expand ($config{'pubring'}), $key);
+	if (&member ('special', @options)) {
+	    $prefix = '';
+	} else {
+	    $prefix = "\:\:\nEncrypted\: PGP\n\n";
+	}
+    } elsif (&member ('special', @options)) {
+	&error ("Remailer $hop requires encryption\n");
+    }
+    &deliver_chain ($body, $prefix, $chain, $new_to);
+}
+
+sub cat_tail {
+# Append $postfix at end of $body. Return new file.
+    my ($body, $postfix) = @_;
+    my ($outfile, $line);
+
+    $outfile = &tmp_filename ();
+    open (OUT, '>'.$outfile);
+    open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print OUT $line;
+    }
+    &close_body ($body);
+    print OUT $postfix;
+    close (OUT);
+    return ($outfile);
+}
+
+sub deliver_chain_alpha {
+# &deliver_chain ($body, $prefix, $chain, $hop, @the_recips)
+# Deliver the message composed of (@deliver_headers, $header_sep, $prefix,
+# $body) to @the_recips (usually singular, but may be plural if we fiddle
+# delivery to newsgroups), through chain ($chain, $hop), where we know
+# that the last hop is an alpha remailer.
+#
+# Safe delivery of MIME messages has not been tested and probably doesn't
+# work.
+    my ($body, $prefix, $chain, $full_hop, @the_recips) = @_;
+    my ($recip, $new_to, $hash, $key, $err, $req);
+    my ($subj, $subj_present);
+    my (@anon_headers);
+    my ($hop, $nym, $short_nym, $pass, $addrtail, $from);
+
+    &load_secrets ();
+    ($subj, $subj_present) = &lookup_val ('subject', @deliver_headers);
+    @anon_headers = &get_anon_headers ();
+    if ($full_hop =~ /^([\w\-]*)\=(.*)$/) {
+	$hop = $1;
+	$short_nym = $2;
+    } else {
+	$hop = $full_hop;
+	($val, $present) = &lookup_val ('from', @anon_headers);
+	if ($present) {
+	    $nym = &strip_address ($val);
+	    if ($nym =~ /^([^\@]+)\@(.*)$/) {
+		$short_nym = $1;
+		$full_hop = $hop.'='.$short_nym;
+	    } else {
+		&error ("Need to specify full nym address in Anon-From:"
+			." field\n");
+	    }
+	} else {
+	    &error ("Alpha remailers require nym argument, in alpha=nym"
+		    ." format\n");
+	}
+    }
+    $nym = &find_nym ($full_hop);
+    if ($nym eq '') {
+	&error ("Nym $full_hop not found\n");
+    }
+    @options = split (/ /, $options{$hop});
+    if ($nym{$nym} =~ /(\^|^)pass\=([^\^]*)(\^|$ )/) {
+	$pass = $2;
+    } else {
+	&error ("Password not set for nym $full_hop\n");
+    }
+    $recip = &strip_and_join (@the_recips);
+    $new_to = $address{$hop};
+    @deliver_headers = ("To\: $new_to\n");
+    $from = $short_nym.'@'.$address{$hop};
+    ($val, $present) = &lookup_val ('from', @anon_headers);
+    if ($present) {
+	$from = $val;
+	@anon_headers = &delete_field ("from", @anon_headers);
+    }
+    $addrtail = $address{$hop};
+    $addrtail =~ s/^([^\@]+)\@//;
+    $prefix = 'From: '.$from."\n";
+    $prefix .= 'Password: '.$pass."\n";
+    $prefix .= 'Subject: '.$subj."\n" if $subj_present;
+    $prefix .= 'Ack: no'."\n" unless $config{'ack'};
+    $prefix .= 'To: '.$recip."\n";
+    $prefix .= join ('', @anon_headers)."\n";
+    if (&member ('pgp', @options)) {
+	$key = $new_to;
+    } else {
+	$key = $hop;
+    }
+    ($body, $err) = &pgp_encrypt
+	($body, $prefix, '', '', &tilde_expand ($config{'pubring'}), $key);
+    $prefix = '';
+    &deliver_chain ($body, $prefix, $chain, $new_to);
+}
+
+sub deliver_chain_newnym {
+# &deliver_chain ($body, $prefix, $chain, $hop, @the_recips)
+# Deliver the message composed of (@deliver_headers, $header_sep, $prefix,
+# $body) to @the_recips (usually singular, but may be plural if we fiddle
+# delivery to newsgroups), through chain ($chain, $hop), where we know
+# that the last hop is an alpha remailer.
+#
+# Safe delivery of MIME messages has not been tested and probably doesn't
+# work.
+    my ($body, $prefix, $chain, $full_hop, @the_recips) = @_;
+    my ($recip, $new_to, $hash, $key, $err, $req);
+    my ($subj, $subj_present);
+    my (@anon_headers);
+    my ($hop, $nym, $short_nym, $addrtail, $from);
+
+    &load_secrets ();
+    ($subj, $subj_present) = &lookup_val ('subject', @deliver_headers);
+    @anon_headers = &get_anon_headers (1, 1);
+    if ($full_hop =~ /^([\w\-]*)\=(.*)$/) {
+	$hop = $1;
+	$short_nym = $2;
+    } else {
+	$hop = $full_hop;
+	($val, $present) = &lookup_val ('from', @anon_headers);
+	if ($present) {
+	    $nym = &strip_address ($val);
+	    if ($nym =~ /^([^\@]+)\@(.*)$/) {
+		$short_nym = $1;
+		$full_hop = $hop.'='.$short_nym;
+	    } else {
+		&error ("Need to specify full nym address in Anon-From:"
+			." field\n");
+	    }
+	} else {
+	    &error ("Newnym remailers require nym argument, in nym=yournym"
+		    ." format\n");
+	}
+    }
+    $nym = &find_nym ($full_hop);
+    if ($nym eq '') {
+	&error ("Nym $full_hop not found\n");
+    }
+    @options = split (/ /, $options{$hop});
+    &error ("No RSA key for nym $full_hop\n")
+	unless ($pgpring{$full_hop});
+    $recip = &strip_and_join (@the_recips);
+    $new_to = $address{$hop};
+    $new_to =~ s/^config\@(.*)/send\@$1/;
+    @deliver_headers = ("To\: $new_to\n");
+    $from = $address{$hop};
+    $from =~ s/^[^\@]*/$short_nym/;
+    ($val, $present) = &lookup_val ('from', @anon_headers);
+    if ($present) {
+	$from = $val;
+	@anon_headers = &delete_field ("from", @anon_headers);
+    }
+    $addrtail = $address{$hop};
+    $addrtail =~ s/^([^\@]+)\@//;
+    $prefix = 'From: '.$from."\n";
+    $prefix .= 'Subject: '.$subj."\n" if $subj_present;
+    $prefix .= 'Hidden-To: '.$recip."\n";
+    $prefix .= join ('', @anon_headers)."\n";
+    if (&member ('pgp', @options)) {
+	$key = $new_to;
+    } else {
+	$key = $hop;
+    }
+    # The following invocation adds the remailer's key twice: once
+    # from the public key part of $pgpring{$full_hop}, and once from
+    # $key. That's ok, but not really necessary.
+    ($body, $err) = &pgp_encrypt ($body, $prefix, 'ring', $full_hop,
+				  &tilde_expand ($config{'pubring'}), $key);
+    $prefix = '';
+    &deliver_chain ($body, $prefix, $chain, $new_to);
+}
+
+sub deliver_chain_mix {
+# &deliver_chain ($body, $prefix, $chain, $hop, @the_recips)
+# Deliver the message composed of (@deliver_headers, $header_sep, $prefix,
+# $body) to @the_recips (usually singular, but may be plural if we fiddle
+# delivery to newsgroups), through chain ($chain, $hop), where we know
+# that the last hop is a Mixmaster subchain.
+    my ($body, $prefix, $chain, $hop, @the_recips) = @_;
+    my ($invoc, $mixfn, $line, $new_to, $i);
+    my (@hop);
+    my ($subj, $subj_present);
+
+    &get_mix_keys ();
+    &get_mixmasters ();
+    ($subj, $subj_present) = &lookup_val ('subject', @deliver_headers);
+    $mixfn = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'mixmaster'}).' -f -o '.$mixfn.' -l';
+    $hop =~ s/\((.*)\)/$1/;
+    @hop = split (/;/, $hop);
+    foreach (@hop) {
+	if (!$mix_num{$_}) {
+	    &error ("Mixmaster remailer $_ unknown\n");
+	}
+	$invoc .= ' '.$mix_num{$_};
+    }
+    $new_to = $mix_addr{$hop[0]};
+    if (!open (MIX, "|".$invoc)) {
+	&error ("Error invoking mixmaster, command line is:\n$invoc\n");
+    }
+    foreach (@the_recips) {
+	print MIX &strip_address ($_, 1)."\n";
+    }
+    print MIX "\n";
+    if ($subj_present) { &pdv ("Subject: $subj\n"); print MIX "Subject: $subj\n"; }
+    @deliver_headers = &get_anon_headers ();
+    foreach (@deliver_headers) {
+	print MIX;
+    }
+    print MIX "\n";
+    print MIX $prefix;
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print MIX $line;
+    }
+    &close_body ($body);
+    close MIX;
+    if ($?) { &error ("Mixmaster error\n"); } # should we capture stderr?
+    if (-e $mixfn) {
+	@deliver_headers = ("To: $new_to\n");
+	&deliver_chain ($mixfn, '', $chain, $new_to);
+    } elsif (-e $mixfn.'.1') {
+	for ($i = 1; -e $mixfn.'.'.$i; $i++) {
+	    push (@open_tmpfiles, $mixfn.'.'.$i);
+	    $tmpfile_refcnt{$mixfn.'.'.$i} = 1;
+	    @deliver_headers = ("To: $new_to\n");
+	    &deliver_chain ($mixfn.'.'.$i, '', $chain, $new_to);
+	}
+    } else {
+	&error ("Mixmaster did not generate any files to send\n");
+    }
+}
+
+sub get_anon_headers {
+# @headers = &get_anon_headers ($keeprecip);
+# Get all the headers to send anonymously, from @deliver_headers and
+# @anon_headers. Kills both @deliver_headers and @anon_headers.
+# Does not get subject header, as that must be handled specially.
+# Keeps To, Cc, and Resent- headers if $keeprecip is true.
+    my ($keeprecip, $nymcommands) = @_;
+    my (@headers);
+    my ($key, $val, $present);
+
+    @headers = @anon_headers;
+    @anon_headers = ();
+    foreach $field (@deliver_headers) {
+	($key, $val) = &parse_field ($field);
+	if ($key =~ /^(mime\-version|content\-type|newsgroups|x\-anon\-to)$/i
+	    || $key =~ /^(content\-transfer\-encoding|in\-\reply\-to)$/i
+	    || $key =~ /^(references)$/i
+	    || $keeprecip && $key =~ /^(resent-)?(to|cc)$/i
+	    || $nymcommands && $key =~ /^nym-commands?/i) {
+	    push (@headers, $field);
+	}
+    }
+    @deliver_headers = ();
+    if ($config{'default-reply-to'}) {
+	($val, $present) = &lookup_val ('reply-to', @headers);
+	if (!$present) {
+	    push (@headers, "Reply-To: $val\n");
+	}
+    }
+    return @headers;
+}
+
+# End of routines for dealing with anonymous remailer chains.
+
+sub deliver {
+# &deliver ($body, $prefix, @the_recips)
+# Deliver the message composed of (@deliver_headers, $header_sep, $prefix,
+# $body) to the @the_recips.
+    my ($body, $prefix, @the_recips) = @_;
+    my ($invoc, $line, $lineno);
+    my (%mark, %mark2);
+    my ($d_resent, $strip_recip);
+    my (@field_recips, $any_recips, $new_field);
+    my ($tmpfile);
+    my (@old_deliver_headers);
+
+    $deliver_debug = 0;
+    if ($post || $edit && !$prezilla) {
+	foreach $recip (@the_recips) {
+	    $mark{&strip_address ($recip)} = 1;
+	    &pdv ("Marked $recip\n");
+	}
+	$d_resent = 0;
+	foreach (@deliver_headers) {
+	    ($key, $val) = &parse_field ($_);
+	    if ($key =~		# source: sendmail 8.6.8 conf.c
+	     /^resent\-(sender|from|reply\-to|to|cc|bcc|message\-id|date)$/i) {
+		$d_resent = 1;
+	    }
+	}
+	$any_recips = 0;
+	if ($d_resent) {
+	    @deliver_headers = &delete_field ("resent-bcc", @deliver_headers);
+	} else {
+	    @deliver_headers = &delete_field ("bcc", @deliver_headers);
+	}
+	@old_deliver_headers = @deliver_headers;
+	foreach (@old_deliver_headers) {
+	    ($key, $val) = &parse_field ($_);
+	    @field_recips = ();
+	    if ($d_resent && $key =~ /^resent\-(to|cc)$/i
+		|| !$d_resent && $key =~ /^(to|cc)$/i) {
+		# follows sendmail 8.6.8 conf.c except for 'apparently-to'
+		&pdv ("key = $key, val = $val\n");
+		foreach $recip (&split_commas ($val)) {
+		    &pdv ("Scanned $recip\n");
+		    $strip_recip = &strip_address ($recip);
+		    if ($mark{$strip_recip}) {
+			push (@field_recips, $recip);
+		    }
+		    $mark2{$strip_recip} = 1;
+		}
+		if ($#field_recips >= 0) {
+		    @deliver_headers = &replace_field (&format_header
+						       ($key, @field_recips),
+						       @deliver_headers);
+		    $any_recips = 1;
+		} else {
+		    @deliver_headers = &delete_field ($key, @deliver_headers);
+		}
+	    }
+	}
+	# Construct the difference set - recipients not in headers.
+	@field_recips = ();
+	foreach $recip (@the_recips) {
+	    if (!$mark2{&strip_address ($recip)}) {
+		push (@field_recips, &strip_address ($recip, 1));
+	    }
+	}
+	if ($#field_recips >= 0) {
+	    if ($any_recips) {
+		$new_field = 'Bcc';
+	    } else {
+		$new_field = 'To';
+	    }
+	    if ($d_resent) {
+		$new_field = 'Resent-'.$new_field;
+	    }
+	    push (@deliver_headers, &format_header ($new_field,
+							@field_recips));
+	}
+	&pdv (@deliver_headers);
+	# Note: could do more checking here. However, consistent with usage.
+	if ($post) {
+	    $tmpfile = 'premail.tmp'.$$;
+	} else {
+	    $tmpfile = &tmp_filename ();
+	}
+	open (DELIVER, '>'.$tmpfile);
+    } else {
+	# we know it's sendmail
+	$invoc = &bin_sendmail ();
+	if ($#sendmail_args >= 0) {
+	    $invoc .= ' '.join (' ', $sendmail_args);
+	}
+	$invoc .= ' -oi';
+	foreach $recip (@the_recips) {
+	    $recip = &shell_quote (&strip_address ($recip, 1));
+	    $invoc .= ' '.$recip;
+	}
+	$deliver_debug = ($config{'debug'} =~ /[yp]/);
+	if ($deliver_debug || $config{'storefile'}) {
+	    $invoc .= ' << -eof-';
+	    if (!$deliver_debug) {
+		open (DELIVER, '>>'
+		      .&tilde_expand_mkdir ($config{'storefile'}));
+	    }
+	    &deliver_line ($invoc."\n");
+	} else {
+	    open (DELIVER, '|'.$invoc);
+	}
+    }
+    foreach (@deliver_headers) {
+	&deliver_line ($_);
+    }
+    if ($header_sep) {
+	&deliver_line ($header_sep);
+    }
+    &deliver_line ($prefix);
+    &open_body ($body);
+    $lineno = 0;
+    while (defined ($line = &get_line_body ($body))) {
+	if ($lineno == 0 && $config{'extrablank'} && $line =~ /^\:/) {
+	    &deliver_line ("\n");
+	}
+	&deliver_line ($line);
+	$lineno++;
+    }
+    &close_body ($body);
+    if ($post) {
+	close (DELIVER);
+	$post = &tilde_expand ($config{'post'});
+	if ($post eq '') {
+	    $post = "/usr/lib/mh/post";
+	}
+	system ($post, @post_args, $tmpfile);
+	unlink $tmpfile;
+    } elsif ($edit && !$prezilla) {
+	close (DELIVER);
+	if ($editfile eq '-') {
+	    open (CAT, $tmpfile);
+	    while (<CAT>) { print; }
+	    close (CAT);
+	    &delete_tmpfile ($tmpfile);
+	} else {
+	    rename ($editfile, $editfile.'~');
+	    rename ($tmpfile, $editfile);
+	}
+    } elsif ($deliver_debug || $config{'storefile'}) {
+	&deliver_line ('-eof-'."\n");
+	if (!$deliver_debug) { close (DELIVER); }
+    } else {
+	close (DELIVER);
+	if ($? && $error_mode =~ /^[mpdew]$/) {
+	    $error_mode = 'd';
+	    &error ("");
+	}
+    }
+}
+
+sub deliver_line {
+# &deliver_line ($line)
+# Deliver a line. Implements output multiplexing to debug or DELIVER. The
+# "line" may actually be multiple lines with no problem.
+    if (!$post && !$edit && $deliver_debug) {
+	&pdebug (@_);
+    } else {
+	print DELIVER @_;
+    }
+}
+
+##########################################
+# parsing of e-mail addresses & aliases
+
+sub parse_address {
+# @tokens = &parse_address ($addr)
+# Parse the address into e-mail addresses, items in parentheses, items in
+# angle brackets, quoted items. Whitespace and commas get their own tokens.
+#
+# Based on RFC 822.
+    my ($addr) = @_;
+    my (@tokens);
+    my ($paren, $brack, $quote, $backslash);
+    my ($token);
+
+    @tokens = ();
+    $paren = 0;
+    $brack = 0;
+    $quote = 0;
+    $backslash = 0;
+    $token = '';
+    foreach $char (split (//, $addr)) {
+	if (!$paren && !$brack && !$backslash && !$quote && $char ne ' '
+	    && $token =~ /^ +$/) {
+	    push (@tokens, $token); $token = '';
+	}
+	if ($backslash) { $token .= $char; $backslash = 0; }
+	elsif ($char eq '\\') { $token .= $char; $backslash = 1; }
+	elsif ($char eq '"') {
+	    if (!$quote && !$paren && !$brack && $token ne '') {
+		push (@tokens, $token); $token = '';
+	    }
+	    $token .= $char;
+	    $quote = !$quote;
+	    if (!$quote && !$paren && !$brack) {
+		push (@tokens, $token); $token = '';
+	    }
+	}
+	elsif ($quote) { $token .= $char; }
+	elsif ($char eq '<' || $char eq '(') {
+	    if (!$paren && !$brack && $token ne '') {
+		push (@tokens, $token); $token = '';
+	    }
+	    $token .= $char;
+	    $brack++ if $char eq '<';
+	    $paren++ if $char eq '(';
+	}
+	elsif ($char eq '>' || $char eq ')') {
+	    $token .= $char;
+	    $brack-- if $char eq '>';
+	    $paren-- if $char eq ')';
+	    if (!$paren && !$brack) {
+		push (@tokens, $token); $token = '';
+	    }
+	}
+	elsif (!$paren && !$brack && $char eq ',') {
+	    if ($token ne '') { push (@tokens, $token); }
+	    push (@tokens, $char);
+	    $token = '';
+	}
+	elsif (!$paren && !$brack && $char eq ' ') {
+	    if ($token !~ /^ *$/) { push (@tokens, $token); $token = ''; }
+	    $token .= $char;
+	}
+	else { $token .= $char; }
+    }
+    push (@tokens, $token) if $token ne '';
+    if ($paren) {
+	&error ("Address $addr left a parenthesis open\n");
+    } elsif ($brack) {
+	&error ("Address $addr left an angle bracket open\n");
+    } elsif ($quote) {
+	&error ("Address $addr left a quote mark open\n");
+    } elsif ($backslash) {
+	&error ("Address $addr left a backslash open\n");
+    }
+    return (@tokens);
+}
+
+sub split_commas {
+# @addrs = &split_commas ($items)
+    my ($items) = @_;
+    my (@tokens);
+    my ($addr);
+    my (@addrs);
+
+    @tokens = &parse_address ($items);
+    @addrs = ();
+    foreach $token (@tokens) {
+	if ($token eq ',') {
+	    $addr =~ s/^\s+//s;
+	    $addr =~ s/\s+$//s;
+	    if ($addr ne '') { push (@addrs, $addr); }
+	    $addr = '';
+	}
+	else { $addr .= $token; }
+    }
+    $addr =~ s/^\s+//s;
+    $addr =~ s/\s+$//s;
+    if ($addr ne '') { push (@addrs, $addr); }
+    return (@addrs);
+}
+
+sub strip_caret {
+# ($strip, $caret) = &strip_caret ($raw)
+# Strip the carets off the address, no other processing.
+#
+# A new feature (as of 0.44) is to allow comma-separated caret commands
+# inside double parentheses.
+#
+# The second through fourth cases are to undo Netscape's helpful-seeming
+# conversion into more RFC-822-like syntax.
+    my ($items) = @_;
+    my (@tokens);
+    my ($addr);
+    my (@addrs);
+    my ($strip, $caret);
+    my ($strip_rec, $caret_rec);
+    my ($caretmode);
+
+    @tokens = &parse_address ($items);
+    $strip = '';
+    $caret = '';
+    foreach $token (@tokens) {
+	if ($caretmode) {
+	    $caret .= $token;
+	} elsif ($token =~ /^\(\((.+)\)\)$/) {
+	    $caret .= '^'.join ('^', &split_commas ($1));
+	} elsif ($token =~ /^\"\(\^?(.+)\)\"$/) {
+	    $caret .= '^'.join ('^', &split_commas ($1));
+	} elsif ($token =~ /^\"(\(\(.*|.*\)\))\"$/) {
+	    ($strip_rec, $caret_rec) = &strip_caret ($1);
+	    if ($strip_rec ne '') { $strip .= '"'.$strip_rec.'"'; }
+	    $caret .= $caret_rec;
+	} elsif ($token =~ /^\<\"(.*\S)\s*\(\((.+)\)\)\"\>$/) {
+	    $strip .= '<"'.$1.'">';
+	    $caret .= '^'.join ('^', &split_commas ($2));
+	} elsif ($token =~ /^\<([^\^]*)(\^.*)\>$/) {
+	    $strip .= '<'.$1.'>';
+	    $caret .= $2;
+	} elsif ($token =~ /^([^\^]*)(\^.*)$/) {
+	    $strip .= $1;
+	    $caret .= $2;
+	    $caretmode = 1;
+	} else {
+	    $strip .= $token;
+	}
+    }
+    $strip =~ s/^\s+//s;
+    $strip =~ s/\s+$//s;
+    return ($strip, $caret);
+}
+
+sub strip_address {
+# $stripped_addr = &strip_address ($full_addr)
+# Strips off comments, names, and caret commands. Based on RFC 822
+# conversion of mailbox to [route] addr-spec. Also converts to lower
+# case, the idea being that it is ok to compare stripped addresses
+# as strings.
+#
+# This is not perfect wrt RFC 822 spec, but should do fine in practice.
+#
+# If an optional second argument is given, then the lowercase conversion
+# is not performed.
+    my ($addr) = @_;
+    my ($nocaret, $carets, $result);
+
+    ($nocaret, $carets) = &strip_caret ($addr);
+    $inside = '';
+    $outside = '';
+    foreach $token (&parse_address ($nocaret)) {
+	if ($token =~ /^\<(.+)\>$/) {
+	    $inside .= $1;
+	} elsif ($token !~ /^\(.*\)$/ && $token !~ /^\".*\"$/
+		 && $token !~ /^ +$/) {
+	    $outside .= $token;
+	}
+    }
+    if ($inside ne '') { $result = $inside; }
+    else { $result = $outside; }
+    if ($#_ < 1) { $result = lc $result; }
+    return $result;
+}
+
+sub strip_and_join {
+# $join = &strip_and_join (@addresses)
+# Strip each address (preserving case), and join with commas
+    my (@in) = @_;
+    my (@out);
+
+    @out = ();
+    foreach (@in) {
+	push (@out, &strip_address ($_, 1));
+    }
+    return join (',', @out);
+}
+
+# A note on aliases. Expanded aliases should never have commas in them,
+# therefore the use of split and join is completely ok. At the moment,
+# there is no checking for commas (say, in comment fields, etc.). More
+# bulletproofing might be added later.
+#
+# A different approach would have been to use perl5 anonymous arrays,
+# but I decided against that in case I had to make a perl4 version.
+
+sub clear_alias {
+# Reset all alias expansion data structures.
+    %ealias = ();
+}
+
+sub expand_alias {
+# (@expansion) = &expand_alias (@raw)
+# Expand aliases of @raw. Only call this function once for each recipient
+# without calling clear_alias in between - otherwise the duplication
+# checking code will kick in and you will get a null expansion.
+    my ($stripped, $caret, @expand, @result);
+    my ($eaddr, $ecaret);
+
+    @result = ();
+#   print ("enter args = (".join (', ', @_).")\n");
+    foreach $raw (@_) {
+	($stripped, $caret) = &strip_caret ($raw);
+	$stripped = &strip_address ($stripped);
+#	print "/".$stripped.'/ {'.$ealias{$stripped}."}\n";
+#	print " \$alias\{$stripped\} = $alias{$stripped}\n";
+	if (defined $ealias{$stripped}) { @expand = (); } # already seen it
+	elsif ($alias{$stripped}) {
+	    @expand = ();
+	    foreach $exp (&split_commas ($alias{$stripped})) {
+		($eaddr, $ecaret) = &strip_caret ($exp);
+#		print " split: $_\n";
+		if ($eaddr eq '') {
+		    push (@expand,
+			  &compose_carets ($stripped.$ecaret, $caret));
+		} else {
+		    $ealias{$stripped} = "-";
+		    push (@expand,
+			  (&expand_alias
+			   (&compose_carets ($exp, $caret))));
+		}
+	    }
+	    $ealias{$stripped} = join (',', @expand);
+	} else {			# not in alias table
+	    @expand = ($raw);
+	    $ealias{$stripped} = $raw;
+	}
+#	print &format_header ("exp_alias expanded", @expand);
+	push (@result, @expand);
+    }
+#   print ("exit result = (".join (', ', @result).")\n");
+    return @result;
+}
+
+sub compose_carets {
+# $new_addr = &compose_carets ($addr, $carets)
+# Add the carets to the addr. When there is a conflict, the new carets take
+# precedence.
+#
+# Note: rewrites to "caret canonical form" with actual carets. We may
+# choose to change this to preserve double paren syntax or whatever, so
+# that the logs represent what the user asked for.
+    my ($addr, $caret2) = @_;
+    my ($strip, $caret1);
+    my (%caret2);
+
+#    print "composing $addr with $caret2\n";
+    ($strip, $caret1) = &strip_caret ($addr);
+#   print ("$addr, $caret2\n");
+    %caret2 = ();
+    foreach (split (/\^/, &split_caret ($caret2))) {
+#	print ">$_\n";
+	if (/^([\w]+)(\-\w+|)(\=.*|)$/) {
+#	    print "$1 $2 $3\n";
+	    $caret2{$1} = $3;
+	}
+    }
+    # deal with synonyms
+    if (defined $caret2{'encrypt'}) {
+	$caret2{'key'} = $caret2{'encrypt'};
+    } elsif (defined $caret2{'key'}) {
+	$caret2{'encrypt'} = $caret2{'key'};
+    }
+    foreach (split (/\^/, $caret1)) {
+	if (/^([\w]+)(\-\w+|)(\=.*|)$/) {
+	    if (!defined $caret2{$1}) {
+		$strip .= '^'.$_;
+	    }
+	}
+    }
+    return $strip.$caret2;
+}
+
+sub split_caret {
+# $carets = &split_caret ($caret)
+# Convert a caret item into canonical form (i.e. caret separated). The name
+# of this routine is a bit of a misnomer.
+    my ($dummy, $caret) = &strip_caret ($_[0]);
+
+    return $caret;
+}
+
+sub format_header {
+# $field = &format_header ($key, @vals)
+# Format key and vals (as comma separated list) nicely as per RFC 822. The
+# specific rules are: space between comma and next element, three spaces
+# on continuing line, no more than 70 columns unless item won't fit,
+# compress all whitespace to one space.
+#
+# I should probably rewrite this in terms of wordwrap.
+    my ($key, $line, $val, $toobig, $result);
+
+    $result = ''; 
+    $key = shift;
+    $line = $key.':';
+    $toobig = 0;
+    while ($#_ >= 0) {
+	$val = ' '.shift;
+	$val =~ s/\s+/ /sg;
+	if ($#_ >= 0) { $val .= ','; }
+	if ((length $line) + (length $val) > 70) {
+	    $result .= $line."\n";
+	    $line = '  '.$val;
+	} else {
+	    $line .= $val;
+	}
+    }
+    return $result .= $line."\n";
+}
+
+##########################################
+# error handling
+
+sub error {
+# &error ($error_string)
+#
+# In error mode "m", this routine will try to mail back the original
+# message, but it doesn't always succeed, because the message might not
+# be around any more.
+    my ($error_msg) = @_;
+    my ($new_body, $line);
+    my ($dead_letter);
+
+    if ($error_mode eq 'm') {
+	@deliver_headers = ("To: $ENV{'USER'}\n",
+			    "Subject: premail error: undelivered mail\n",
+			    "Mime-Version: 1.0\n",
+			    "Content-Type: multipart/mixed; boundary=\"_\"\n");
+	$new_body = &tmp_filename ();
+	open (NEW, '>'.$new_body);
+	print NEW "--_\n";
+	print NEW "\n";
+	print NEW $error_msg;
+	print NEW "\n";
+	print "in_body = $in_body.\n";
+	print NEW "--_\n";
+	print NEW "Content-Type: message/rfc822\n";
+	print NEW "\n";
+	foreach $line (@in_headers) {
+	    print NEW $line;
+	}
+	if ($header_sep) {
+	    print NEW "\n";
+	    &open_body ($in_body);
+	    while (defined ($line = &get_line_body ($in_body))) {
+		print NEW $line;
+	    }
+	    &close_body ($in_body);
+	}
+	print NEW "\n";
+	print NEW "--_--\n";
+	close (NEW);
+	$post = 0;
+	$edit = 0;
+	delete $config{'storefile'};
+	&deliver ($new_body, '', $ENV{'USER'});
+    } elsif ($error_mode eq 'p') {
+	print STDERR $error_msg;
+	$dead_letter = &tilde_expand ($config{'dead-letter'});
+	print STDERR "Saving message in $dead_letter\n";
+	open (DEAD, '>>'.$dead_letter);
+	print DEAD (("From $ENV{'USER'}  ".localtime)."\n");
+	foreach $line (@in_headers) {
+	    print DEAD $line;
+	}
+	if ($header_sep) {
+	    print DEAD "\n";
+	    &open_body ($in_body);
+	    while (defined ($line = &get_line_body ($in_body))) {
+		print DEAD $line;
+	    }
+	    &close_body ($in_body);
+	}
+	print DEAD "\n";
+	close (DEAD);
+    } elsif ($error_mode eq 's') {
+	$error_msg =~ s/^([^\n]*)\n/$1/s;
+	print "521 $error_msg, closing connection\n";
+    } elsif ($error_mode eq 'g') {
+	$error_msg =~ s/\n$//s;
+	$error_msg = "\n".$error_msg;
+	$error_msg =~ s/\n/\n500 /s;
+	$error_msg =~ s/^\n//s;
+	$error_msg .= "\n";
+	print STDERR $error_msg;
+    } else {
+	print STDERR $error_msg;
+    }
+    &delete_open_tmpfiles ();
+    exit 1;
+}
+
+# debug output and logging
+
+sub pdebug {
+# &pdebug ($msg)
+    if ($config{'debug'} =~ /l/) {
+	print LOG @_;
+    } else {
+	print STDERR @_;
+    }
+}
+
+sub pdv {
+# &pdv ($msg)
+# Only print debug if verbose is set. Returns undef to allow return &pdv (msg)
+# idiom.
+    if ($config{'debug'} =~ /v/) {
+	&pdebug (@_);
+    }
+    return undef;
+}
+
+sub pdi {
+# &pdi ($msg)
+# Prints or logs the message if verbose or interactive.
+    my ($msg) = @_;
+
+    if ($interactive) {
+	print STDERR ($msg);
+    }
+    if ($config{'debug'} =~ /v/ && ($config{'debug'} =~ /l/ || !$interactive)){
+	&pdebug ($msg);
+    }
+}
+
+sub pfi {
+# &pfi ($msg)
+# Prints or logs the message if verbose or interactive. Word-wraps the
+# message.
+    my ($msg) = @_;
+
+    &pdi (&wordwrap ($msg, 71, ' '));
+}
+
+sub wordwrap {
+# $newmsg = &wordwrap ($msg, $len, $prefix)
+    my ($msg, $len, $prefix) = @_;
+    my ($newmsg, $msgline);
+
+    $newmsg = '';
+    $msgline = '';
+    $msg =~ s/\s*$//;
+    foreach $word (split (/\s/, $msg)) {
+	if ((length $msgline) + 1 + (length $word) <= $len) {
+	    if ($msgline ne '') { $msgline .= ' '; }
+	    $msgline .= $word;
+	} else {
+	    if ($msgline ne '') { $newmsg .= $msgline."\n"; }
+	    $msgline = $prefix.$word;
+	}
+    }
+    return $newmsg.$msgline."\n";
+}
+
+##########################################
+# utility functions
+
+# functions for manipulating dict forms
+# Dict form is a Perl array in which each element represents an RFC 822
+#  field, except that LF is used in place of CRLF.
+
+sub lookup_val {
+# ($val, $present) = &lookup_val ($key, @dict)
+# Look up the key in the dict
+# Return ($val, 1) if found, ("", 0) if not.
+    my ($key, @dict) = @_;
+    my ($field_key, $field_val);
+
+    foreach $field (@dict) {
+	($field_key, $field_val) = &parse_field ($field);
+	if (lc $field_key eq lc $key) {
+	    return ($field_val, 1);
+	}
+    }
+    return ("", 0);
+}
+
+sub parse_field {
+# ($key, $val) = &parse_field ($key)
+    if ($_[0] =~ /^([!-9\;-\177]+)\:\s*(.*)\n$/s) { # RFC 822 field
+	return ($1, $2);
+    } else {
+	&error ("premail internal error (parse_field): field is:\n$field");
+    }
+}
+
+sub delete_field {
+# (@new_dict) = &delete_field ($key, @dict)
+    my ($key, @dict) = @_;
+    my (@new_dict);
+
+    @new_dict = ();
+    foreach $field (@dict) {
+	($field_key, $field_val) = &parse_field ($field);
+	if (lc $field_key ne lc $key) {
+	    push (@new_dict, $field);
+	}
+    }
+    return (@new_dict);
+}
+
+sub replace_field {
+# (@new_dict) = &replace_field ($new_field, @dict)
+# Delete the field if it already exists, and append to the end.
+    my ($field, @dict) = @_;
+    my ($key, $val);
+
+    ($key, $val) = &parse_field ($field);
+    @dict = &delete_field ($key, @dict);
+    push (@dict, $field);
+    return (@dict);
+}
+
+#
+
+sub member {
+# $bool = &member ($el, @list)
+# Perform membership test of $el in @list.
+    my ($el, @list) = @_;
+    foreach (@list) {
+	if ($_ eq $el) { return 1; }
+    }
+    return 0;
+}
+
+#
+
+sub tilde_expand {
+# $file_name = &tilde_expand ($file_name)
+# Expand filenames of the form ~/file. Also expand $< sequence (uid).
+    my ($file_name) = @_;
+
+    if ($file_name =~ /^\~[^\/]/) {
+	&error ("premail can't handle ~user/ form in $file_name, use ~/ or\n".
+	    "full path name instead\n");
+    }
+    $file_name =~ s/^\~/$ENV{"HOME"}/;
+    $file_name =~ s/\$\</$</;
+    return $file_name;
+}
+
+sub tilde_expand_mkdir {
+# $file_name = &tilde_expand_mkdir ($file_name)
+# Expand filenames of the form ~/file. Also expand $< sequence (uid).
+# If directory does not exist, create it with 0700 permissions.
+    my ($file_name) = @_;
+    my ($dir);
+
+    $file_name = &tilde_expand ($file_name);
+    $dir = $file_name;
+    $dir =~ s/\/[^\/]+$//;
+    if (!-e $dir) {
+	&pdv ("Creating directory $dir\n");
+	mkdir ($dir, 0700);
+	if (!-e $dir) {
+	    &error ("Could not create directory for file $file_name\n");
+	}
+    }
+    return $file_name;
+}
+
+sub shell_quote {
+# $quoted_string = &shell_quote ($raw_string)
+    my ($raw) = @_;
+
+    if ($raw eq '') { return '""'; }
+    $raw =~ s/(\W)/\\$1/g;
+    return $raw;
+}
+
+sub is_stale {
+# $bool = &is_stale ($filename, $lifetime)
+# Determine whether the file is more recent than $lifetime seconds.
+    my ($filename, $lifetime) = @_;
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+	$atime,$mtime,$ctime,$blksize,$blocks);
+    my ($now);
+
+    ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+     $atime,$mtime,$ctime,$blksize,$blocks)
+	= stat($filename);
+    $now = time;
+    return ($mtime > $now || $mtime + $lifetime <= $now);
+}
+
+sub time {
+# $time = &time (gmttime (time))
+# Format an (already expanded time) nicely.
+    my (@time) = @_;
+    my $time;
+
+    $time = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")[$time[6]];
+    $time .= sprintf (', %02d ', $time[3]);
+    $time .= ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")[$time[4]];
+    $time .= " $time[5]";
+    $time .= sprintf (" %d:%02d:%02d", $time[2], $time[1], $time[0]);
+    $time .= ' GMT';
+    return $time;
+}
+
+sub tmp_filename {
+# $tmp_filename = &tmp_filename (suffix)
+# Return the name for a new temp file (and add to @open_tmpfiles).
+# Reference count is set to one.
+    my ($suffix) = @_;
+    my $fn;
+
+    $tmpfile_count++;
+    $fn = &tilde_expand ($config{'tmpdir'});
+    $fn =~ s/([^\/])$/$1\//;
+    $fn .= 'premail.'.$$.'.'.$tmpfile_count;
+    $fn .= $suffix if $suffix;
+# Dangerous: this next command assumes Unix file deletion semantics. It
+# was not present in 0.44 and, I believe, can be safely removed.
+    unlink ($fn);
+    push (@open_tmpfiles, $fn);
+    $tmpfile_refcnt{$fn} = 1;
+    return $fn;
+}
+
+sub refcnt_bump {
+# &refcnt_bump ($body, $n)
+# Add $n to the reference count of $body. Delete if reference count reaches
+# zero.
+    my ($body, $n) = @_;
+
+    &pdv ("refcnt_bump ($body, $n) $tmpfile_refcnt{$body}\n");
+    $tmpfile_refcnt{$body} += $n;
+    if ($tmpfile_refcnt{$body} < 1) {
+	&delete_tmpfile ($body);
+    }
+}
+
+sub delete_tmpfile {
+# &delete_tmpfile ($filename)
+    my ($fn) = @_;
+    my @new_open_tmpfiles;
+
+    foreach $tmpfile (@open_tmpfiles) {
+	if ($tmpfile eq $fn) { unlink $fn; }
+	else { push (@new_open_tmpfiles, $tmpfile); }
+    }
+    undef $tmpfile_refcnt{$fn};
+    @open_tmpfiles = @new_open_tmpfiles;
+}
+
+sub delete_open_tmpfiles {
+    foreach $tmpfile (@open_tmpfiles) {
+	&pdv ("Deleting $tmpfile\n");
+	unlink $tmpfile;
+    }
+    &pgp_alldone ();
+}
+
+sub read_and_delete {
+    my ($file) = @_;
+    my (@data);
+
+    $data = '';
+    if (open (ERRFILE, $file)) {
+	print $_;
+	while (<ERRFILE>) {
+	    $data .= $_;
+	}
+	close (ERRFILE);
+    }
+    &delete_tmpfile ($file);
+    return $data;
+}
+
+sub add_terminating_newline {
+# &add_terminating_newline ($file)
+# If $file does not end with a newline, add one. (This is a hack for early
+# Mozilla beta integration).
+    my ($file) = @_;
+    my ($c);
+
+    open (F, $file);
+    seek (F, (-s $file) - 1, 0);
+    sysread (F, $c, 1);
+    close (F);
+#   print "Trailing character is really ".unpack ('c', $c)."\n";
+    if ($c ne "\n") {
+	open (F, '>>'.$file);
+	print F "\n";
+	close F;
+    }
+}
+
+##########################################
+# invoking PGP
+
+# This section is not as clean or elegant as I might like, but it does
+# get the job done.
+
+sub pgp_encrypt {
+# ($out_body, $err) = &pgp_encrypt
+#                        ($body, $prefix, $sign, $signuser, $pubring, @keys)
+# Encrypt ($prefix, $body) with @keys. Optionally sign (if $sign) with
+# $signuser (the responsibility for obtaining the password lies below
+# this interface).
+#
+# $err is the string returned.
+    my ($body, $prefix, $sign, $signuser, $pubring, @keys) = @_;
+    my ($outfile, $errfile);
+    my ($invoc, $status, $line, $pass, $pr, $sr);
+
+    if ($config{'debug'} =~ /y/) {
+	return &fake_pgp_encrypt
+	    ($body, $prefix, $sign, $signuser, $pubring, @keys);
+    }
+    $outfile = &tmp_filename ();
+    $errfile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    if ($sign eq 'error') {
+	&error ("$signuser\n");
+    } elsif ($sign eq 'header') {
+	$sign = '';
+    } elsif ($sign eq 'ring') {
+	&error ("No keyring in $premail_secrets for $signuser\n")
+	    unless $pgpring{$signuser};
+	($pr, $sr) = &makerings ($pgpring{$signuser}, $pubring, @keys);
+	$invoc .= " +secring=$sr";
+	$signuser = '0x';
+	$pubring = $pr;
+	$pass = '';
+    }
+    if ($pubring) { $invoc .= ' +pubring='.&shell_quote ($pubring); }
+    $invoc .= ' +comment= -feat';
+    if ($sign) {
+	$invoc .= 's -u '.&shell_quote ($signuser);
+	&load_secrets ();
+	unless (defined $pass) {
+	    if (defined $pgppass{$signuser}) {
+		$pass = $pgppass{$signuser};
+	    } else {
+		&error ("No passphrase in $premail_secrets for"
+			." $signuser\n");
+	    }
+	}
+    }
+    foreach $key (@keys) {
+	$invoc .= ' '.&shell_quote ($key);
+    }
+    $invoc .= ' > '.$outfile;
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking PGP as $invoc\n");
+    $status = &open_pgp ($invoc, $pass, 'w');
+    if (!$status) { &error ("Error in PGP encryption!\n"); }
+    print PGP $prefix;
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print PGP $line;
+    }
+    close (PGP);
+    $status = $?;
+    $pr && &delete_tmpfile ($pr);
+    $sr && &delete_tmpfile ($sr);
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("PGP error\n$err"); }
+    &pdv ($err);
+    # defer close body 'til after error
+    &close_body ($body);
+    return ($outfile, $err);
+}
+
+sub fake_pgp_encrypt {
+    my ($body, $prefix, $sign, $signuser, $pubring, @keys) = @_;
+    my ($outfile, $keys, $line);
+
+    $outfile = &tmp_filename ();
+    open (OUT, '>'.$outfile);
+    if ($sign) {
+	$sign = " (sign $signuser)";
+    }
+    $keys = join (' ', @keys);
+#   if ($pubring) { print OUT "pubring\=$pubring\n"; }
+    print OUT "-----BEGIN PGP MESSAGE-----$sign $keys\n";
+    print OUT $prefix;
+    open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print OUT $line;
+    }
+    &close_body ($body);
+    print OUT "-----END PGP MESSAGE-----\n";
+    close (OUT);
+    return ($outfile, "fake!\n");
+}
+
+sub pgp_clearsign {
+# ($out_body, $err) = &pgp_clearsign ($body, $prefix, $signuser, $sign_type)
+# Encrypt ($prefix, $body) sign with user $signuser (the responsibility
+# for obtaining the password lies below this interface).
+#
+# $err is the string returned.
+    my ($body, $prefix, $signuser, $sign_type) = @_;
+    my ($outfile, $errfile);
+    my ($invoc, $status, $line, $pass, $pr, $sr);
+
+    $sign_type = 'sign' unless $sign_type;
+    $outfile = &tmp_filename ();
+    $errfile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    &error ("$signuser\n") if ($sign_type eq 'error');
+    &load_secrets ();
+    if ($sign_type eq 'ring') {
+	&error ("No keyring in $premail_secrets for $signuser\n")
+	    unless $pgpring{$signuser};
+# Clean: $pubring and @keys aren't defined, so should probably be blank.
+	($pr, $sr) = &makerings ($pgpring{$signuser}, $pubring, @keys);
+	$invoc .= " +secring=$sr +pubring=$pr";
+	$signuser = '0x';
+	$pass = '';
+    }
+    $invoc .= ' +comment= -fats +clearsig=on';
+    $invoc .= ' -u '.&shell_quote ($signuser);
+    unless (defined $pass) {
+	if (defined $pgppass{$signuser}) {
+	    $pass = $pgppass{$signuser};
+	} else {
+	    &error ("No passphrase in $premail_secrets for $signuser\n");
+	}
+    }
+    $invoc .= ' > '.$outfile;
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking PGP as $invoc\n");
+    $status = &open_pgp ($invoc, $pass, 'w');
+    if (!$status) { &error ("Error invoking PGP!\n"); }
+    print PGP $prefix;
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print PGP $line;
+    }
+    close (PGP);
+    $status = $?;
+    $pr && &delete_tmpfile ($pr);
+    $sr && &delete_tmpfile ($sr);
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("PGP error\n$err"); }
+    &pdv ($err);
+    &close_body ($body);
+    return ($outfile, $err);
+}
+
+sub pgp_mime_sign {
+# ($out_body, $err, $boundary) = &pgp_mime_sign ($body, $prefix, $signuser)
+# Encrypt ($prefix, $body) sign with user $signuser (the responsibility
+# for obtaining the password lies below this interface).
+#
+# $err is the string returned.
+    my ($body, $prefix, $signuser, $sign_type) = @_;
+    my ($outfile, $errfile, $mimefile);
+    my ($invoc, $status, $line, $pass, $boundary);
+
+    $boundary = &random (80);
+    $outfile = &tmp_filename ();
+    $errfile = &tmp_filename ();
+    $mimefile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    &error ("$signuser\n") if ($sign_type eq 'error');
+    &load_secrets ();
+    if ($sign_type eq 'ring') {
+	&error ("No keyring in $premail_secrets for $signuser\n")
+	    unless $pgpring{$signuser};
+# Clean: $pubring and @keys aren't defined, so should probably be blank.
+	($pr, $sr) = &makerings ($pgpring{$signuser}, $pubring, @keys);
+	$invoc .= " +secring=$sr +pubring=$pr";
+	$signuser = '0x';
+	$pass = '';
+    }
+    $invoc .= ' +comment= -fabst';
+    $invoc .= ' -u '.&shell_quote ($signuser);
+    unless (defined $pass) {
+	if (defined $pgppass{$signuser}) {
+	    $pass = $pgppass{$signuser};
+	} else {
+	    &error ("No passphrase in $premail_secrets for $signuser\n");
+	}
+    }
+    $invoc .= ' > '.$outfile;
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking PGP as $invoc\n");
+    $status = &open_pgp ($invoc, $pass, 'w');
+    if (!$status) { &error ("Error invoking PGP!\n"); }
+    &open_body ($body);
+    open (NEW, '>'.$mimefile);
+    print NEW "This message is in PGP/MIME format, according to the"
+	." Internet Draft\n";
+    print NEW "draft-elkins-pem-pgp-04.txt. For more information, see:\n";
+    print NEW "http://www.c2.net/~raph/pgpmime.html\n";
+    print NEW "\n";
+    print NEW "--$boundary\n";
+    $prefix = &canonicalize_line_enc ($prefix);
+    print NEW $prefix;
+    print PGP $prefix;
+    while (defined ($line = &get_line_body ($body))) {
+	$line = &canonicalize_line_enc ($line);
+	print NEW $line;
+	print PGP $line;
+    }
+    close (PGP);
+    $status = $?;
+    $pr && &delete_tmpfile ($pr);
+    $sr && &delete_tmpfile ($sr);
+    $err = &read_and_delete ($errfile);
+    if ($status) { &error ("PGP error\n$err"); }
+    &pdv ($err);
+    &close_body ($body);
+    print NEW "\n";
+    print NEW "--$boundary\n";
+    print NEW "Content-Type: application/pgp-signature\n";
+    print NEW "\n";
+    if (open (OUTFILE, $outfile)) {
+	while (<OUTFILE>) {
+	    s/PGP MESSAGE/PGP SIGNATURE/;
+	    print NEW $_;
+	}
+	close (OUTFILE);
+    }
+    print NEW "\n";
+    print NEW "--$boundary--\n";
+    close (NEW);
+    &delete_tmpfile ($outfile);
+    return ($mimefile, $err, $boundary);
+}
+
+my $PUBRING, $SECRING;
+sub pgp_decrypt {
+# ($out_body, $err) = &pgp_decrypt ($body, $pass)
+# Try to decrypt $body using passphrase $pass. $out_body is null on error.
+#
+# $err is the string returned.
+    my ($body, $pass) = @_;
+    my ($outfile, $errfile);
+    my ($invoc, $status, $line, $pr, $sr);
+
+    $outfile = &tmp_filename ();
+    $errfile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    $invoc .= ' +batchmode=on';
+    $invoc .= " +pubring=$PUBRING" if $PUBRING;
+    $invoc .= " +secring=$SECRING" if $SECRING;
+#    if ($pass =~ /^RING$;/) {
+#	($pr, $sr) = &makerings ($pass);
+#	$pass = '';
+#	$invoc .= " +pubring=$pr +secring=$sr";
+#    }
+    $invoc .= ' -f';
+    $invoc .= ' > '.$outfile;
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking PGP as $invoc\n");
+    $status = &open_pgp ($invoc, $pass, 'w');
+    if (!$status) { &error ("Error in PGP decryption!\n"); }
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print PGP $line;
+    }
+    close (PGP);
+    $status = $?;
+    $pr && &delete_tmpfile ($pr);
+    $sr && &delete_tmpfile ($sr);
+    &pdv ("Status returned from PGP decryption: $status\n");
+    $err = &read_and_delete ($errfile);
+    &pdv ($err);
+#   print STDERR $err;
+#   exit 0;
+    if ($status < 0 || $status >= 512) {
+	# status code 1 (<<8) means bad signature; do not reject
+	&delete_tmpfile ($outfile);
+	$outfile = '';
+    }
+    # defer close body 'til after error
+    &close_body ($body);
+    return ($outfile, $err);
+}
+
+sub pgp_verify {
+# ($err) = &pgp_verify ($signed_file, $pgp_file)
+# Try to verify signature of $signed_file (using signature in $pgp_file).
+#
+# $err is the string returned (or null on error).
+    my ($signed_file, $pgp_file) = @_;
+    my ($outfile, $errfile);
+    my ($invoc, $status, $line);
+
+    $errfile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    $invoc .= ' +batchmode=on ';
+    $invoc .= ' '.$pgp_file;
+    $invoc .= ' '.$signed_file;
+    $invoc .= ' > '.$errfile.' 2>&1';
+    &pdv ("Invoking PGP as $invoc\n");
+    $status = &open_pgp ($invoc, '', '');
+    $err = &read_and_delete ($errfile);
+    if (!$status) {
+	&error ("Error in PGP verification!\n$err");
+    }
+    &pdv ($err);
+    return ($err);
+}
+
+sub open_pgp {
+# $success = &open_pgp ($invoc, $pass, $mode)
+# Invoke PGP, opening it as file descriptor PGP, in either read or write
+# mode, depending on the value of $mode ('r' or 'w'). Also, convey the
+# passphrase. If $mode is '', then don't open it as a pipe, just invoke.
+#
+# The PGPPASSFD code makes the assumption that the PGP process will read
+# the passphrase at its first opportunity, i.e. before reading input. For
+# PGP 2.6.2, I've confirmed that the assumption is valid. If not, deadlock
+# is a possiblity, although I have a funny feeling that most Unix
+# implementations won't block on closing a pipe even if it's not empty.
+#
+# Instead of merely setting TMP to be $config{'tmpdir'}, we make a
+# special PGP temp subdirectory, on a per-process basis (this assumes
+# that each process invokes only one PGP at a time, which is safe given
+# the relentless file-file orientation of this version of premail).
+    my ($invoc, $pass, $mode) = @_;
+
+    if ($mode eq 'r') { $invoc = $invoc.'|'; }
+    else { $invoc = '|'.$invoc; }
+    if (!$pgp_tmpdir) {
+	$pgp_tmpdir = &tilde_expand ($config{'tmpdir'});
+	$pgp_tmpdir =~ s/([^\/])$/$1\//;
+	$pgp_tmpdir .= 'premail.'.$$.'.pgptmp';
+	if (!mkdir ($pgp_tmpdir, 0700)) {
+	    &error ("$! creating PGP temp directory");
+	}
+    }
+    $ENV{'TMP'} = $pgp_tmpdir;
+    if ($pass) {
+	pipe (READER, WRITER);
+	$ENV{'PGPPASSFD'} = fileno(READER);
+    }
+    $status = open (PGP, $invoc);
+    $ENV{'PGPPASSFD'} = '';
+    if ($status && $pass) {
+	syswrite (WRITER, $pass."\n", 1 + length $pass);
+    }
+    if ($mode eq '') {
+	close (PGP);
+	$status &&= !($? < 0 || $? >= 512);
+    }
+    if ($pass) {
+	# This leaves READER open, but we'll just let that slide.
+	# If we closed it now, there would be a race condition.
+	close (WRITER);
+    }
+    return $status;
+}
+
+sub pgp_alldone {
+# Call after the very last usage of PGP. Deletes PGP temp directory
+    if ($pgp_tmpdir) {
+	if (!rmdir ($pgp_tmpdir)) {
+	    &error ("$! removing PGP temp directory\n");
+	}
+    }
+    $pgp_tmpdir = '';
+}
+
+sub random {
+# $string = &random ($bits)
+# Return a string with $bits of entropy.
+#
+# This routine first calls PGP with the +makerandom option. If that fails,
+# then it uses PGP to encrypt some clock-derived pseudorandom numbers.
+# Only call when there is no body open, and no PGP open.
+    my ($bits) = @_;
+    my ($inf, $outf, $i, $chars_needed);
+    my (@window);
+    my ($status);
+
+    # Try makerandom
+    $outf = &tmp_filename ();
+    $chars_needed = 2 + sprintf ("%d", $bits / 8);
+    &pdv ($config{'pgp'}." +makerandom=$chars_needed $outf"
+	." >/dev/null 2>&1\n");
+    $status = system $config{'pgp'}." +makerandom=$chars_needed $outf"
+	." >/dev/null 2>&1";
+    &pdv ($status."\n");
+    if (!$status) {
+	open (RAND, $outf);
+	$randbytes = "";
+	if ($chars_needed == sysread (RAND, $randbytes, $chars_needed)) {
+	    close (RAND);
+	    &delete_tmpfile ($outf);
+	    $chars_needed = sprintf ("%d", ($bits + 5) / 6);
+	    return substr (&encode_base64 ($randbytes), 0, $chars_needed);
+	}
+	close (RAND);
+    }
+    &delete_tmpfile ($outf);
+
+    foreach $var (keys %ENV) {
+	&pdv ($var.": ".$ENV{$var}."\n");
+    }
+    # makerandom failed, try roundabout method instead
+    if (!$config{'signuser'}) {
+	&error ("Need to set \$config\{\'signuser\'\} to a valid user id in"
+		."order to\n"
+		."generate randomness!\n");
+    }
+    $inf = &tmp_filename ();
+    open (INF, '>'.$inf);
+    for ($i = 0; $i < 256; $i++) {
+	print INF (rand ())."\n";
+    }
+    close (INF);
+    ($outf, $err) = &pgp_encrypt
+	($inf, '', '', '', '', $config{'signuser'});
+    print "$outf\n";
+    &delete_tmpfile ($inf);
+    open (OUTF, $outf);
+    @window = ();
+    while (<OUTF>) {
+	if (/^[A-Za-z0-9\+\/]/) { push (@window, $_); }
+	if ($#window >= 3) { shift @window; }
+    }
+    close (OUTF);
+    &delete_tmpfile ($outf);
+    $chars_needed = sprintf ("%d", ($bits + 5) / 6);
+    if (length $window[0] < $chars_needed) {
+	&error ("Random: didn't get a long enough string back!\n");
+    }
+    return substr ($window[0], 0, $chars_needed);
+}
+
+##########################################
+# premail secrets
+
+sub load_secrets {
+# Load the premail secrets.
+#
+# This routine needs to do a lot more.
+#
+# Sets the global variables $secrets_loaded and $premail_secrets
+    my ($ps_pgp);
+
+    if (!defined $secrets_loaded) {
+	$premail_secrets = &tilde_expand ($config{'premail-secrets'});
+	$ps_pgp = &tilde_expand ($config{'premail-secrets-pgp'});
+	if (!-e $premail_secrets && -e $ps_pgp) {
+	    &do_login (!$interactive);
+	}
+	if (-e $premail_secrets) {
+	    open (SECRETS, $premail_secrets);
+	    while (<SECRETS>) {
+		if (/^\s*\$pgppass\{\'([^\']+)\'\}\s*\=\s*\'([^\']*)\'/) {
+		    $pgppass{$1} = $2;
+		} elsif (/^\s*\$pgpring\{\'([^\']+)\'\}\s*\=\s*\'([^\']*)\'/) {
+		    $pgpring{$1} = $2;
+		} elsif (/^\s*\$ripempass\{\'([^\']+)\'\}\s*\=\s*\'([^\']*)\'/) {
+		    $ripemuser = $1;
+		    $ripempass{$1} = $2;
+		} elsif (/\s*\$penetpass\s*\=\s*\'([^\']*)\'/) {
+		    $penetpass = $1;
+		} elsif (/^\s*\$nym\{\'([^\']+)\'\}\s*\=\s*\'([^\']*)\'/) {
+		    $nym{$1} = $2;
+		    push (@nym_list, $1);
+		} elsif (/\s*\$premail_pass\s*\=\s*\'([^\']*)\'/) {
+		    $premail_pass = $1;
+		}
+	    }
+	    close (SECRETS);
+	}
+	$secrets_loaded = 1;
+    }
+}
+
+sub add_secret {
+# &add_secret ($secret, $update)
+# Add secret to the premail secret file. Assumes secrets are already logged
+# in and loaded. If the second argument is given, treat the new secret as
+# an update (i.e. overwrite an existing, matching secret if it exists.
+#
+# One thing I'd like to see this routine do is safely lock the secrets
+# file when it's updating it.
+    my ($secret, $update) = @_;
+    my ($secret_backup);
+    my ($match);
+
+    if (!$secrets_loaded) {
+	&error ("Need to log in to access secrets\n");
+    }
+    if (!-e $premail_secrets) {
+	open (TOUCH, '>'.$premail_secrets);
+	&pfi ("Creating secrets file $premail_secrets\n");
+	close (TOUCH);
+    }
+    $secret_backup = $premail_secrets.'~';
+    rename ($premail_secrets, $secret_backup);
+    if (!open (SECRET_IN, $secret_backup)) {
+	&error ("Can't open secret file\n");
+    }
+    if (!open (SECRET_OUT, '>'.$premail_secrets)) {
+	&error ("Can't update secret file\n");
+    }
+    if ($secret =~ /^(\$\w+\s*\=)/ ||
+	$secret =~ /^(\$\w+\{\'([^\']+)\'\}\s*\=)/) {
+	$match = $1;
+    }
+    while (<SECRET_IN>) {
+	if ($update) {
+	    if (/^(\$\w+\s*\=)/ || /^(\$\w+\{\'([^\']+)\'\}\s*\=)/) {
+#		print "$match $1\n";
+		if ($match eq $1) {
+		    print SECRET_OUT $secret;
+		    $secret = '';
+		} else {
+		    print SECRET_OUT $_;
+		}
+	    } else {
+		print SECRET_OUT $_;
+	    }
+	} elsif (/^\$nym\{/ && $secret =~ /^\$nym\{/) {
+	    print SECRET_OUT $secret;
+	    $secret = '';
+	    print SECRET_OUT $_;
+	} else {
+	    print SECRET_OUT $_;
+	}
+    }
+    close (SECRET_IN);
+    if ($secret ne '') {
+	print SECRET_OUT $secret;
+    }
+    close (SECRET_OUT);
+    &save_secrets ();
+    unlink $secret_backup;
+}
+
+sub save_secrets {
+# Save secrets in encrypted secrets file.
+    my ($ps, $ps_pgp);
+
+    $ps = &tilde_expand ($config{'premail-secrets'});
+    $ps_pgp = &tilde_expand ($config{'premail-secrets-pgp'});
+    if ($premail_pass) {
+	&encrypt_secrets ($ps_pgp, $ps, $premail_pass);
+    }
+}
+
+sub do_login {
+# &do_login ($x)
+# Try to login. Fail through &error - login always succeeded on return.
+    my ($x) = @_;
+    my ($pass);
+    my ($ps, $ps_pgp);
+    my ($status);
+    my ($done, $triesleft);
+
+    $ps = &tilde_expand ($config{'premail-secrets'});
+    $ps_pgp = &tilde_expand ($config{'premail-secrets-pgp'});
+    if (-e $ps) {
+	&error ("Already logged in!\n");
+    }
+    if (!-e $ps_pgp) {
+	&error ("Can't find encrypted secrets file $ps_pgp\n");
+    }
+    for ($triesleft = 2; !$done && $triesleft; $triesleft--) {
+	$pass = &getpass ($x);
+	$status = &decrypt_secrets ($ps_pgp, $ps, $pass);
+	if (!-s $ps) { unlink $ps; }
+	$done = (!$status && -e $ps);
+    }
+    if (!$done) {
+	&error ("Error decrypting secrets file\n");
+    }
+}
+
+sub getpass {
+# $pass = &getpass ($x)
+# Get the premail passphrase, either from X or from stdin.
+    my ($x) = @_;
+    my ($pass);
+
+    if ($x) {
+	if ($ENV{'DISPLAY'}) {
+	    pipe (READER, WRITER);
+	    system 'xterm -geometry 42x4-5-5 -e perl -e \''
+		.'system "stty -echo";print "\n";'
+		.'print "   Remember to logout when done.\n";'
+		.'print "   Your premail passphrase, please: ";'
+		.'open (F, ">&'.fileno(WRITER).'");'
+                .'print F "".<STDIN>;\'';
+	    close (WRITER);
+	    $pass = <READER>;
+	    close (READER);
+	} else {
+	    &error ("Can't open X window to get passphrase because DISPLAY is"
+		    ."not set\n");
+	}
+    } else {
+	$interactive = 1;
+	system "stty -echo";
+	$| = 1;
+	print "Remember to logout when done.\n";
+	print "Your premail passphrase, please: ";
+	$pass = <STDIN>;
+	print "\n";
+	system "stty echo";
+    }
+    chop $pass;
+    return $pass;
+}
+
+sub decrypt_secrets {
+# $status = &decrypt_secrets ($ps_pgp, $ps, $pass)
+    my ($ps_pgp, $ps, $pass) = @_;
+    my ($invoc, $errfile);
+
+    $errfile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    $invoc .= ' +batchmode=on -f';
+    $invoc .= ' < '.$ps_pgp;
+    $invoc .= ' > '.$ps;
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking PGP as $invoc\n");
+    if(-e $ps) {
+	&error ("Premail secrets file already exists\n");
+    }
+    $status = &open_pgp ($invoc, $pass, '');
+    $err = &read_and_delete ($errfile);
+    &pdv ($err);
+    return !$status;
+}
+
+sub encrypt_secrets {
+# &encrypt_secrets ($ps_pgp, $ps, $pass)
+    my ($ps_pgp, $ps, $pass) = @_;
+    my ($invoc, $errfile);
+
+    $errfile = &tmp_filename ();
+    if (-e $ps_pgp) {
+	unlink $ps_pgp;
+    }
+    $invoc = &tilde_expand ($config{'pgp'});
+    $invoc .= ' +batchmode=on -cf';
+    $invoc .= ' < '.$ps;
+    $invoc .= ' > '.$ps_pgp;
+    $invoc .= ' 2> '.$errfile;
+    &pdv ("Invoking PGP as $invoc\n");
+    $status = &open_pgp ($invoc, $pass, '');
+    $err = &read_and_delete ($errfile);
+    &pdv ($err);
+    if (!$status) {
+	&error ("Error encrypting secrets file\n$err");
+    }
+}
+
+##########################################
+# MIME handling
+
+sub get_mime_fields {
+# (@mime_fields) = &get_mime_fields (@header)
+# Get the MIME fields (not including the MIME header). No distinction is
+# made between MIMEless headers containing the MIME-Version field and
+# all the default MIME fields - both return the empty list.
+#
+# If the field has a default value, does not put it in the header.
+#
+# This routine could perhaps use a little work.
+    my (@header) = @_;
+    my (@mime_fields);
+    my ($val, $present, $param_val);
+    my ($type_base, @type_params);
+
+    ($val, $present) = &lookup_val ("MIME-Version", @header);
+    if (!$present) { return (); }
+    @mime_fields = ();
+    ($val, $present) = &lookup_val ("Content-Type", @header);
+    if ($present) {
+	($type_base, @type_params) = &split_mime_params ($val);
+	if (lc $type_base eq 'text/plain') {
+	    ($param_val, $present) = &get_mime_param ('charset', @type_params);
+	    if ($present && lc $param_val ne 'us-ascii') {
+		push (@mime_fields, "Content-Type: $val\n");
+	    }
+	} else {
+	    push (@mime_fields, "Content-Type: $val\n");
+	}
+    }
+    ($val, $present) = &lookup_val ("Content-Transfer-Encoding", @header);
+    if ($present) {
+	if (lc $val ne '7bit') {
+	    push (@mime_fields, "Content-Transfer-Encoding: $val\n");
+	}
+    }
+    return (@mime_fields);
+}
+
+sub split_mime_params {
+# ($baseval, @mime_params) = &split_mime_params ($val)
+# Split the value portion of a MIME field into the base and the
+# parameters.
+#
+# Not quite right yet; doesn't cope with quoted semicolons.
+#
+# Source: definition of content in RFC 1521
+    my ($val) = @_;
+
+    return split (/\s*\;\s*/, $val);
+}
+
+sub get_mime_param {
+# ($val, $present) = &get_mime_param ($attribute, @mime_params)
+# Get the mime parameter if present. Removes quoting if present.
+#
+# Source: definition of parameter, attribute, value in RFC 1521
+    my ($attribute, @mime_params) = @_;
+    my ($val, $present);
+
+    foreach $param (@mime_params) {
+	if ($param =~ /^([^\000- \(\)\<\>\@\,\;\:\\\"\/\[\]\?\=]+)\s*\=(.*)$/){
+	    if (lc $attribute eq lc $1) {
+		$val = $2;
+		$val =~ s/^\s+//;
+		if ($val =~ /\"(.*)\"/) {
+		    $val = $1;
+		    $val =~ s/\\(.)/$1/g;
+		}
+		return ($val, 1);
+	    }
+	}
+    }
+    return ('', 0);
+}
+
+sub get_charset {
+# ($val, $present) = &get_charset (@header)
+# Get the content-type: charset parameter from the header. Return
+# ('', 1) if text/plain but no charset field is present.
+    my (@header) = @_;
+    my (@mime_fields);
+    my ($val, $present);
+    my ($type_base, @type_params);
+
+    ($val, $present) = &lookup_val ('mime-version', @header);
+    if (!$present) { return ('', 0); }
+    ($val, $present) = &lookup_val ('content-type', @header);
+    if (!$present) { return ('', 0); }
+    ($type_base, @type_params) = &split_mime_params ($val);
+    if (lc $type_base eq 'text/plain') {
+	($val, $present) = &get_mime_param ('charset', @type_params);
+	if ($present) {
+	    return ($val, 1);
+	} else {
+	    return ('', 1);
+	}
+    }
+    return ('', 0);
+}
+
+sub encode_base64 {
+# $encoded = &encode_base64 ($raw)
+# Convert raw binary string into MIME base64 encoding (RFC 1521).
+    my ($raw) = @_;
+    my ($encoded);
+
+    $encoded = pack ("u", $raw);
+    chop $encoded;
+    $encoded =~ s/^.//;
+    $encoded =~ tr/\`\!-\_/A-Za-z0-9\+\//;
+    if ((length $raw) % 3 == 1) { $encoded =~ s/..$/\=\=/; }
+    elsif ((length $raw) % 3 == 2) { $encoded =~ s/.$/\=/; }
+    return $encoded;
+}
+
+sub encode_qp_byte {
+# $encoded = &encode_qp_byte ($char)
+    return '='.uc sprintf ('%02x', unpack ('C', $_[0]));
+}
+
+sub encode_qp {
+# $encoded = &encode_qp ($line, $type)
+# Convert text line into MIME quoted-printable encoding (RFC 1521). Result
+# may be multiple lines. Argument must be one line.
+# $type argument should be one of the following:
+# 'sign' - quote "From ", tabs
+# otherwise minimal encoding needed to conform to spec.
+    my ($line, $type) = @_;
+    my ($before, $after);
+
+    chop $line;
+    if ($type eq 'sign') {
+	$line =~ s/([^ -\<\>-\~])/&encode_qp_byte($1)/eg;
+	$line =~ s/^From /\=46rom /;
+	$line =~ s/^\.$/\=2E/;
+    } else {
+	$line =~ s/([^\t -\<\>-\~])/&encode_qp_byte($1)/eg;
+    }
+    $line =~ s/([ \t])$/&encode_qp_byte($1)/e;
+    $before = '';
+    while (length $line > 76) {
+	$after = substr ($line, 75);
+	$line = substr ($line, 0, 75);
+	if ($line =~ /(\=.|\=)$/) {
+	    $after = substr ($line, 75 - length $1). $after;
+	    $line = substr ($line, 0, 75 - length $1);
+	}
+	$line = $line."\=\n";
+	$before .= $line;
+	$line = $after;
+    }
+    return $before.$line."\n";
+}
+
+sub purify_mime {
+# $new_body = &purify_mime ($body, $type)
+# Make the message in ($deliver_headers, $body) MIME compliant.
+# Modify @deliver_headers if necessary (charset promotion, demotion).
+#
+# General outline: first determine whether or not to qp encode the
+# body. If we decide to, then qp encode it.
+# Here are reasons why we might decide to qp encode:
+#
+# line contains characters other than '\t', '0'-'~' (also promote charset)
+# line begins with "From " ('sign' $type and pgpmime only)
+# line is "." ('sign' $type only)
+
+    my ($body, $type) = @_;
+    my ($catch_from, $line);
+    my ($non_ascii, $ctrl, $other);
+    my ($charset, $charset_present);
+    my ($new_body);
+    my ($val, $present);
+    my ($mv_val, $mv_present);
+    my ($ct_val, $ct_present);
+    my ($cte_val, $cte_present);
+    my ($type_base, @type_params);
+    my (@mime_fields);
+
+    # Check out the status of the existing MIME headers, if any
+    $ct_present = 0;
+    $cte_present = 0;
+    ($mv_val, $mv_present) = &lookup_val ("MIME-Version", @deliver_headers);
+    if ($mv_present) {
+	($ct_val, $ct_present) = &lookup_val("Content-Type", @deliver_headers);
+	($cte_val, $cte_present) = &lookup_val ("Content-Transfer-Encoding",
+						@deliver_headers);
+	if ($cte_present && (lc $cte_val eq 'quoted-printable'
+			     || lc $cte_val eq 'base64')) {
+	    # If it's already qp or base64 encoded, return.
+	    # Note: We could still have problems with "From" wedging and
+	    # other heebie-jeebies, but we're trusting the mailer to have
+	    # done a good job.
+	    return $body;
+	}
+    }
+    # Now, we know that it's one of the "raw" encodings (7bit, 8bit, binary).
+
+    $body = &prepare_for_n_passes ($body, 2);
+    (@mime_fields) = &get_mime_fields (@deliver_headers);
+    $catch_from = ($config{'pgpmime'} || $#mime_fields >= 0);
+    $non_ascii = 0;
+    $ctrl = 0;
+    $other = 0;
+    &open_body ($body);
+    if ($type eq 'sign') {
+	while (defined ($line = &get_line_body ($body))) {
+	    chop $line;
+	    $non_ascii ||= ($line =~ /[\200-\377]/);
+	    $ctrl ||= ($line =~ /[^\t -\377]/);
+	    $other ||= ($line eq '.'
+			|| $catch_from && $line =~ /^From /);
+	}
+    } else {
+	while (defined ($line = &get_line_body ($body))) {
+	    chop $line;
+	    $non_ascii ||= ($line =~ /[\200-\377]/);
+	    $ctrl ||= ($line =~ /[^\t -\377]/);
+	}
+    }
+    &close_body ($body);
+    &pdv ("purify_mime: \$non\_ascii\=$non_ascii \$ctrl\=$ctrl \$other\=$other\n");
+
+    if ($ct_present) {
+	($type_base, @type_params) = &split_mime_params ($ct_val);
+    }
+    if (!$ct_present || lc $type_base eq 'text/plain') {
+	if ($ct_present) {
+	    ($val, $present) = &get_mime_param ('charset', @type_params);
+	    if ($present) {
+		$charset = $val;
+	    } else {
+		$charset = 'us-ascii';
+	    }
+	} else {
+	    $charset = 'us-ascii';
+	}
+	&pdv ("purify_mime: \$charset\=$charset \$ct\_present\=$ct_present \$mv\_present\=$mv_present\n");
+	if (lc $charset eq 'us-ascii' && $non_ascii) {
+	    if (!$mv_present) {
+		push (@deliver_headers, 'MIME-Version: 1.0'."\n");
+		$mv_present = 1;
+	    }
+	    @deliver_headers =
+		&replace_field ('Content-Type: text/plain; charset='
+				.$config{'charset'}."\n",
+				@deliver_headers);
+	} elsif ($charset =~ /^iso-8859-\d$/i && !$non_ascii) {
+	    # Should we detect other charsets which are supersets of us-ascii?
+	    if (!$mv_present) {
+		push (@deliver_headers, 'MIME-Version: 1.0'."\n");
+		$mv_present = 1;
+	    }
+	    @deliver_headers =
+		&replace_field ('Content-Type: text/plain'."\n",
+				@deliver_headers);
+
+	}
+    }
+    # must deal with existing cte, charset, etc.
+    if ($non_ascii || $ctrl || $other) {
+	# Do the QP
+	&pdv ("Doing QP encoding!\n");
+	if (!$mv_present) {
+	    push (@deliver_headers, 'MIME-Version: 1.0'."\n");
+	}
+	@deliver_headers =
+	    &replace_field ('Content-Transfer-Encoding: quoted-printable'."\n",
+			    @deliver_headers);
+	$new_body = &tmp_filename ();
+	open (NEW, '>'.$new_body);
+	&open_body ($body);
+	while (defined ($line = &get_line_body ($body))) {
+	    print NEW &encode_qp ($line, $type);
+	}
+	&close_body ($body);
+	close (NEW);
+	$body = $new_body;
+    }
+    return $body;
+}
+
+sub canonicalize_line_enc {
+# $canonical_line = &canonicalize_line ($line)
+# Perform canonicalization according to PGP/MIME spec. Can handle "lines"
+# with multiple newlines.
+#
+# Spec is still in flux.
+#
+# This version of the routine generates newlines, which is the correct
+# format to give to PGP when using the "-t" option, at least on Unix
+# systems. If you are porting premail to a system with CRLF line ends,
+# then the /\n/ should probably become /\r\n/.
+    my ($line) = @_;
+
+    $line =~ s/\r?\n/\n/sg;
+    return $line;
+}
+
+sub canonicalize_line {
+# $canonical_line = &canonicalize_line ($line)
+# Perform canonicalization according to PGP/MIME spec. Can handle "lines"
+# with multiple CR's.
+#
+# Spec is still in flux.
+    my ($line) = @_;
+
+    $line =~ s/\r?\n/\r\n/sg;
+    return $line;
+}
+
+sub canonicalize_line_moss {
+# $canonical_line = &canonicalize_line_moss ($line)
+# Perform canonicalization according to MOSS spec. Can handle "lines"
+# with multiple CR's.
+#
+# Consistent with RFC 1848.
+    my ($line) = @_;
+
+    $line =~ s/\r?\n/\r\n/sg;
+    return $line;
+}
+
+sub mknonbin {
+# $newfile = &mknonbin ($infile)
+# Convert MIME object in $infile to non-binary representation, store in
+# $newfile, or just return $infile if it's already non-binary. Decrement
+# reference count of $infile if the conversion does happen.
+    my ($infile) = @_;
+    my ($newfile);
+    my ($buf, $inbuf, $outbuf, $blocksize, $state);
+    my (@sepstack);
+    my ($n, $i, $nlsize, $eof, $eob, $more);
+    my (@header, @mime_fields);
+    my ($val, $present, $param_val);
+    my ($type_base, @type_params);
+
+    open (MNBIN, $infile);
+    $newfile = '';
+    @sepstack = ();
+    $blocksize = 1024;
+    $state = 0; # 0 = waiting for header
+                # 1 = inside non-binary part
+                # 2 = inside binary part
+                # 3 = just before initial newline in binary part
+    $eof = 0;
+    sysread (MNBIN, $buf, $blocksize);
+    while (!$eof || $buf ne '') {
+#	print STDERR 'sepstack: '.join (', ', @sepstack).", ";
+#	print STDERR ("state $state; buf = ".&encode_qp (substr ($buf, 0, 20)."\n"));
+	$n = length $buf;
+	if (!$eof && ($more || $n < $blocksize)) {
+	    $n = sysread (MNBIN, $inbuf, $blocksize);
+#	    print "read $n\n";
+	    if ($n == 0) { $eof = 1; }
+	    $buf .= $inbuf;
+	}
+	$more = 0;
+	if ($state == 0) {
+	    # try to get header
+	    if ($buf =~ /^\r?\n/s) {
+		$i = 0;
+		$nlsize = 0;
+	    } else {
+		$i = index ($buf, "\n\n");
+		if ($i >= 0) {
+		    $nlsize = 1;
+		} else {
+		    $i = index ($buf, "\r\n\r\n");
+		    if ($i >= 0) {
+			$nlsize = 2;
+		    }
+		}
+	    }
+	    if ($i >= 0) {
+		# found the header, let's process
+		@header = &split_header (substr ($buf, 0, $i + $nlsize));
+		$buf = substr ($buf, $i + $nlsize);
+		@mime_fields = &get_mime_fields (@header);
+		$state = 1; # if not binary - override later if binary
+		# find out if it's a multipart
+		($val, $present) = &lookup_val ('Content-Type', @header);
+		if ($present) {
+		    ($type_base, @type_params) = &split_mime_params ($val);
+		    if ($type_base =~ /^multipart\//i) {
+			($val, $present) = &get_mime_param ('boundary',
+							    @type_params);
+			if ($present) {
+			    push (@sepstack, $val);
+#			    print 'sepstack: '.join (', ', @sepstack)."\n";
+			}
+		    }
+		}
+		# find out if it's binary
+		($val, $present) = &lookup_val ('Content-Transfer-Encoding',
+						@header);
+		if ($present) {
+		    ($type_base, @type_params) = &split_mime_params ($val);
+		    if (lc $type_base eq 'binary') {
+			$state = 3;
+			@header = &replace_field
+			    ('Content-Transfer-Encoding: base64'."\n",
+			     @header);
+		    }
+		}
+		if ($#sepstack < 0 && $state == 1) {
+		    return $infile;
+		} elsif ($newfile eq '') {
+		    $newfile = &tmp_filename ();
+#		    print STDERR "newfile = $newfile\n";
+		    open (MNBOUT, '>'.$newfile);
+		}
+		print MNBOUT (join ('', @header));
+	    } elsif ($eof) {
+		# didn't find a header - just dump to output
+		if ($#sepstack < 0) { return $infile; }
+		print MNBOUT $buf;
+		$buf = '';
+	    } else {
+		$more = 1;
+	    }
+	} else {
+	    # in body - first, check for boundary
+	    if ($#sepstack < 0) {
+		$eob = $eof;
+		$outbuf = $buf;
+		$buf = '';
+	    } else {
+		$n = 6 + length $sepstack[$#sepstack];
+		$i = index ($buf, "\r\n".'--'.$sepstack[$#sepstack]."\r\n");
+		if ($i < 0) {
+		    $n = 4 + length $sepstack[$#sepstack];
+		    $i = index ($buf, "\n".'--'.$sepstack[$#sepstack]."\n");
+		}
+		if ($i >= 0) {
+		    $eob = 1;
+		    if ($i == 0) {
+			print MNBOUT ("\n".'--'.$sepstack[$#sepstack]."\n");
+			$buf = substr ($buf, $n);
+			$outbuf = '';
+			$state = 0;
+		    } else {
+			$outbuf = substr ($buf, 0, $i);
+			$buf = substr ($buf, $i);
+		    }
+		} else {
+		    $n = 8 + length $sepstack[$#sepstack];
+		    $i = index ($buf, "\r\n".'--'.$sepstack[$#sepstack].'--'
+				."\r\n");
+		    if ($i < 0) {
+			$n = 6 + length $sepstack[$#sepstack];
+			$i = index ($buf, "\n".'--'.$sepstack[$#sepstack].'--'
+				    ."\n");
+		    }
+		    if ($i >= 0) {
+			$eob = 1;
+			if ($i == 0) {
+			    print MNBOUT ("\n".'--'.$sepstack[$#sepstack]
+					  .'--'."\n");
+			    $buf = substr ($buf, $n);
+			    $outbuf = '';
+			    pop (@sepstack);
+			    $state = 1;
+			} else {
+			    $outbuf = substr ($buf, 0, $i);
+			    $buf = substr ($buf, $i);
+			}
+		    } else {
+			$n = (length $buf);
+			if (!$eof) { $n -= 8 + length $sepstack[$#sepstack]; }
+			$outbuf = substr ($buf, 0, $n);
+			$buf = substr ($buf, $n);
+		    }
+		}
+	    }
+	    if ($outbuf ne '' && $state == 1) {
+		print MNBOUT $outbuf;
+		$outbuf = '';
+	    } elsif ($outbuf ne '' && $state == 2) {
+		if ($eob || length $outbuf >= 15 * 3) {
+		    print MNBOUT (&encode_base64 (substr ($outbuf, 0, 15 * 3))
+				  ."\n");
+		    $outbuf = substr ($outbuf, 15 * 3);
+		}
+	    } elsif ($outbuf ne '' && $state == 3) {
+		if ($outbuf =~ /^\n/s) {
+		    $outbuf = substr ($outbuf, 1);
+		    print MNBOUT "\n";
+		} elsif ($outbuf =~ /^\r\n/s) {
+		    $outbuf = substr ($outbuf, 2);
+		    print MNBOUT "\n";
+		}
+		$state = 2;
+	    }
+	    $buf = $outbuf.$buf;
+	} # if ($state == 0)
+    } # while (!($eof && length $buf == 0))
+    close (MNBIN);
+    &refcnt_bump ($infile, -1);
+    close (MNBOUT);
+    return $newfile;
+}
+
+sub split_header {
+# @header = &split_header ($header)
+# Convert header from a single string into premail dict style (i.e. one
+# key: value pair per list entry).
+# 
+# Canonicalize line ends to LF.
+    my ($header) = @_;
+    my (@header);
+
+    @header = ();
+    foreach $line (split (/\r?\n/, $header)) {
+	if ($line =~ /^\S/) {
+	    push (@header, $line."\n");
+	} elsif ($line =~ /^\s/) {
+	    push (@header, pop (@header).$line."\n");
+	}
+    }
+    return (@header);
+}
+
+##########################################
+# special commands
+
+sub usage {
+    print "Usage:\n";
+    print "  premail [-options]\n";
+    print "     Similar options as sendmail\n";
+    print "\n";
+    print "  premail -decode <optional messagefile>\n";
+    print "     Decode the message (stdin if omitted)\n";
+    print "  premail -decode -body <optional file>\n";
+    print "     Decode the message body (stdin if omitted)\n";
+    print "\n";
+    print "  premail -makenym nym\@server real\@email.address\n";
+    print "     Create an anonymous account\n";
+    print "\n";
+    print "  premail -login\n";
+    print "  premail -logout\n";
+    print "     Log in or log out secrets file\n";
+    print "  premail -setpass\n";
+    print "     Set passphrase for secrets file\n";
+    print "\n";
+    print "  premail -ripemkey\n";
+    print "     Generate S/MIME key\n"; 
+    print "\n";
+    print "Please see http://www.c2.net/~raph/premail/ for more info.\n";
+    exit 0;
+}
+
+sub get_remailer_pubring {
+    my ($pubring, $pubring_fn);
+
+    if (&open_web ($config{'pubring-pgp'})) {
+	$/ = '';
+	$pubring = <WWW>;
+	$/ = "\n";
+	close (WWW);
+	if ($pubring ne '') {
+	    $pubring_fn = &tilde_expand_mkdir ($config{'pubring'});
+	    open (PUB, '>'.$pubring_fn);
+	    print PUB $pubring;
+	    close (PUB);
+	}
+    }
+}
+
+sub get_mix_keys {
+    my ($mix);
+
+    if ($got_mix_keys) { return; }
+    $got_mix_keys = 1;
+    $mix = &tilde_expand ($config{'mixmaster'});
+    if (!open (MIX, "$mix -P|")) {
+	return;
+    }
+    $mix_dir = <MIX>;
+    $mix_type2_list = <MIX>;
+    close (MIX);
+    if (!defined $mix_dir || $mix_dir eq '') {
+	&error (
+     "Cannot get information from mixmaster - need version 2.0.2 or better\n");
+    }
+    chop $mix_dir;
+    chop $mix_type2_list;
+    if (&is_stale ($mix_dir.'/'.$mix_type2_list, 3600)
+	&& $config{'type2-list-url'}) {
+	&getfile_from_web_html ($mix_dir.'/'.$mix_type2_list,
+				$config{'type2-list-url'});
+	&getfile_from_web_html ($mix_dir.'/pubring.mix',
+				$config{'pubring-mix-url'});
+    }
+}
+
+##########################################
+# the decode pipeline
+
+sub decode {
+    my (@args) = @_;
+    my ($key, $val);
+    my (@new_headers);
+    my ($msg_body, $line);
+    my ($body_only);
+
+    $error_mode = 'd';
+    &set_configs ();
+    $body_only = 0;
+    # Set up in preparation for &open_input
+    if ($#args >= 0 && $args[0] eq '-body') {
+	$body_only = 1;
+	shift @args;
+    }
+    if ($#args >= 0) {
+	$edit = 1;
+	$editfile = $args[0];
+    } else {
+	$dashoi = 1;
+    }
+
+    &open_input ();
+    $line = &get_header ('-', 1) unless $body_only;
+    if ($line) {
+	# Decode a whole mailbox.
+	print $line;
+	$state = 0;
+	$msg_body = &tmp_filename ();
+	open (MSG, '>'.$msg_body);
+	while (defined ($line = &get_line ())) {
+	    if ($line =~ /^From / && $state == 1) {
+		close (MSG);
+		&decode_msg ($msg_body);
+		print "\n";
+		print $line;
+		push (@open_tmpfiles, $msg_body);
+		$tmpfile_refcnt{$msg_body} = 1;
+		open (MSG, '>'.$msg_body);
+		$state = 0;
+	    } elsif ($state == 0 && $line eq "\n") {
+		$state = 1;
+	    } else {
+		if ($state == 1) { print MSG "\n"; }
+		$state = ($line eq "\n");
+		print MSG $line unless $state;
+	    }
+	}
+	close (MSG);
+	&decode_msg ($msg_body);
+	print "\n";
+    } else {
+	foreach $field (@in_headers) {
+	    ($key, $val) = &parse_field ($field);
+	    if ($key =~ /^x\-premail\-auth$/i) {
+		push (@new_headers, "X\-Attempted\-Auth\-Forgery: $val\n");
+	    } elsif ($key =~ /^x\-attempted\-auth\-forgery$/i) {
+		push (@new_headers, 'X\-Meta-'.$field);
+	    } else {
+		push (@new_headers, $field);
+	    }
+	}
+	@deliver_headers = @new_headers;
+	&decode_body ($in_body, '', 0);
+    }
+#   &error ("error!\n");
+    if ($move_fn) {
+	close (MOVE_OUT);
+	rename ($move_work_fn, $move_fn);
+    }
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+sub decode_msg {
+# &decode_msg ($msg)
+# This is possibly the ugliest function in all of premail. Most of it is
+# taken up with working around the elaborate internal economy I've designed
+# for the rest of the program. Plus, it creates two temporary files. But
+# hey, it works.
+    my ($msg) = @_;
+    my ($line);
+    my ($key, $val);
+    my (@new_headers);
+    my ($save_in_body);
+    my ($msg_body, $new_msg, $save_select);
+
+    if ($msg ne '-') {
+	open (SAVE_BODY, "<&BODY");
+	&open_body ($msg);
+    }
+    &get_header ($msg);
+    $msg_body = &tmp_filename ();
+    open (MSG_BODY, '>'.$msg_body);
+    while (defined ($line = &get_line_body ($msg))) {
+	print MSG_BODY $line;
+    }
+    close (MSG_BODY);
+    foreach $field (@in_headers) {
+	($key, $val) = &parse_field ($field);
+	if ($key =~ /^x\-premail\-auth$/i) {
+	    push (@new_headers, "X\-Attempted\-Auth\-Forgery: $val\n");
+	} elsif ($key =~ /^x\-attempted\-auth\-forgery$/i) {
+	    push (@new_headers, 'X-Meta-'.$field);
+	} else {
+	    push (@new_headers, $field);
+	}
+    }
+    @deliver_headers = @new_headers;
+    $new_msg = &tmp_filename ();
+    open (NEW_MSG, '>'.$new_msg);
+    $save_select = select NEW_MSG;
+    select NEW_MSG;
+    &decode_body ($msg_body, '', 0);
+    close NEW_MSG;
+    select $save_select;
+    &open_body ($new_msg);
+    while (defined ($line = &get_line_body ($new_msg))) {
+	if ($line !~ /\n$/s) { $line .= "\n"; }
+	$line =~ s/^From /\>From /;        # re-wedge
+	print $line;
+    }
+    &close_body ($new_msg);
+    if ($msg ne '-') {
+	&close_body ($msg);
+	open (BODY, "<&SAVE_BODY");
+    }
+}
+
+sub decode_body {
+# &decode_body ($body, $nym, $nym_num)
+# Decode (@deliver_headers, $header_sep, $body) (recursively if
+# necessary), and send to standard out.
+#
+# I am unhappy with the "body" structure, as it writes plaintext to a
+# temp file. However, I'm not sure whether to change it or not.
+    my ($body, $nym, $nym_num) = @_;
+    my (@window, $state, $pgp_body, $new_body, $err);
+    my (@userlist, @typelist, $encrypted);
+    my (@mime_fields, $absorb);
+    my ($ct_val, $ct_present);
+    my ($type_base, @type_params);
+    my ($param_val, $present);
+    my ($protocol, $boundary, $multipart);
+    my ($body_open, $pass);
+    my ($doublestar, $num_nym2);
+
+    $encrypted = 0;
+    @mime_fields = &get_mime_fields (@deliver_headers);
+    ($ct_val, $ct_present) = &lookup_val ("Content-Type", @mime_fields);
+    if ($ct_present) {
+	($type_base, @type_params) = &split_mime_params ($ct_val);
+#	print $type_base.'; '.join ('; ', @type_params)."\n";
+	if (lc $type_base eq 'application/pgp'
+	    || lc $type_base eq 'application/x-pgp') {
+	    # Deal with obsolete application/pgp formats
+	    ($param_val, $present) = &get_mime_param ('format', @type_params);
+	    $absorb = ($present && lc $param_val eq 'mime');
+	} elsif (lc $type_base eq 'multipart/encrypted') {
+	    ($protocol, $present) = &get_mime_param ('protocol',
+						       @type_params);
+	    $protocol = lc $protocol;
+	    ($boundary, $present) = &get_mime_param ('boundary', @type_params);
+	    $encrypted = 1;
+	    $absorb = 1;
+	    $multipart = 1;
+	} elsif (lc $type_base eq 'multipart/signed') {
+	    ($protocol, $present) = &get_mime_param ('protocol',
+						       @type_params);
+	    $protocol = lc $protocol;
+	    ($boundary, $present) = &get_mime_param ('boundary', @type_params);
+	    $absorb = 1;
+	    $multipart = 1;
+	} elsif (lc $type_base eq 'application/x-pkcs7-mime'
+		 || lc $type_base eq 'application/pkcs7-mime') {
+	    &decode_smime ($body);
+	    return;
+	}
+    }
+
+    &open_body ($body);
+    @window = ();
+    $body_open = 0;
+    $doublestar = 0;
+    $state = 0;         # 0 = undecided, 1 = PGP, 2 = non-PGP
+    while (defined ($line = &get_line_body ($body))) {
+#	print STDERR $state.$line;
+	if ($state == 0 && ($line eq '-----BEGIN PGP MESSAGE-----'."\n"
+#		      || $line eq '-----BEGIN PGP SIGNED MESSAGE-----'."\n"
+		      || $multipart)) {
+	    if ($line eq '-----BEGIN PGP MESSAGE-----'."\n") {
+		$encrypted = 1;
+	    }
+	    $pgp_body = &tmp_filename ();
+	    open (DEC, '>'.$pgp_body);
+	    $body_open = 1;
+	    foreach $l (@window) {
+		print DEC $l;
+	    }
+	    @window = ();
+	    print DEC $line;
+	    $state = 1;
+	} elsif ($state == 0) {
+	    $doublestar ||= ($line eq "\*\*\n");
+	    push (@window, $line);
+	    if ($#window + 1 == 20) {
+		&fix_decode_header ();
+		foreach $l (@deliver_headers) {
+		    print $l;
+		}
+		print $header_sep;
+		foreach $l (@window) {
+		    print $l;
+		}
+		@window = ();
+		$state = 2;
+	    }
+	} elsif ($state == 1) {
+	    print DEC $line;
+	} elsif ($state == 2) {
+	    print $line;
+	}
+    }
+    &close_body ($body);
+    if ($body_open) { close (DEC); }
+    if ($state == 0) {
+	&fix_decode_header ();
+	foreach $line (@deliver_headers) {
+	    print $line;
+	}
+	print $header_sep;
+	foreach $line (@window) {
+	    print $line;
+	}
+	return;
+    } elsif ($state == 2) {
+	return;
+    }
+    # Now we know it's a PGP message, living in $body.
+    if ($encrypted &&
+	(!$multipart || $protocol eq 'application/pgp-encrypted')) {
+	&load_secrets ();
+	($PUBRING, $SECRING) = &makebigrings unless ($PUBRING || $SECRING);
+	@typelist = @userlist = ();
+	if (%pgpring) {
+	    push @typelist, 'hiddenpgp';
+	    push @userlist, '';
+	}
+	if (!$doublestar) {
+	    foreach $user (keys %pgppass) {
+		push (@typelist, 'user');
+		push (@userlist, $user);
+	    }
+	}
+    } else {
+	@typelist = ('sign');
+	@userlist = ('');
+    }
+    if ($encrypted && !$multipart) {
+	# Try the nyms as well
+	if ($nym) {
+	    @typelist = ('nym');
+	    @userlist = ($nym);
+	} else {
+	    foreach $nym2 (@nym_list) {
+		$num_nym2 = &nym_numpasses ($nym2);
+		if ($num_nym2 == 1 && !$doublestar
+		    || $num_nym2 > 1 && $doublestar) {
+		    push (@typelist, 'nym');
+		    push (@userlist, $nym2);
+		}
+	    }
+	}
+    }
+    for $i (0..$#userlist) {
+	# Try decrypting using $pgppass{$user}
+	if (!$nym && $typelist[$i] eq 'nym') {
+	    $nym_num = &nym_numpasses ($userlist[$i]) - 1;
+	}
+	$pass = &user_pass ($typelist[$i], $userlist[$i], $nym_num);
+#	print "$typelist[$i] $userlist[$i] $nym_num $pass\n";
+	$pgp_body = &prepare_for_n_passes ($pgp_body, 2);
+	if ($multipart) {
+	    ($new_body, $err) = &decode_multipart ($pgp_body, $pass,
+						   $boundary, $protocol);
+	} else {
+	    ($new_body, $err) = &pgp_decrypt ($pgp_body, $pass);
+	}
+	if ($new_body) {
+	    if (!$encrypted && $err =~ /(^|\n)\007?([^\n]* not found)/si
+		|| $err =~ /(^|\n)([^\n]* don\'t have MOSS installed)/) {
+		# Note: 1st match expression extremely specific to PGP 2.6.2
+		&premail_auth ($2);
+		&delete_tmpfile ($new_body);
+	    } else {
+		if ($typelist[$i] eq 'nym') {
+		    # Note: here we break the premail_auth abstraction
+		    if ($nym && $premail_auth[$#premail_auth] =~
+			/^partially decrypted/) {
+			pop (@premail_auth);
+		    }
+		    if ($nym_num && $userlist[$i] =~ /^(\d+),(.*)=(.*)$/) {
+			&premail_auth 
+			    ("partially decrypted nym $3\@$2, number $1"
+			     ." with $nym_num steps remaining");
+		    } elsif (!$nym_num && $userlist[$i] =~
+			     /^(\d+),(.*)=(.*)$/) {
+			&premail_auth
+			    ("decrypted nym $3\@$2, number $1");
+		    }
+		} elsif ($typelist[$i] eq 'user') {
+		    &premail_auth ("decrypted for $userlist[$i]");
+		} elsif ($typelist[$i] eq 'hiddenpgp') {
+		    if ($err =~ /^Key for user ID:\s*(\S+.*)$/m) {
+			&premail_auth ("decrypted for $1");
+		    } elsif ($err =~
+			     /^[0-9]+-bit key, Key ID ([0-9A-F]{8})/m) {
+			&premail_auth ("decrypted for key ID $1");
+		    } else {
+			print STDERR $err;
+			&premail_auth ("decrypted for unknown user");
+		    }
+		}
+		if ($err =~ /(^|\n)(\w+ signature[^\n]*)\n/si
+		    || $err =~ /(^|\n)\007?([^\n]* not found)/si) {
+		    # Note: match expression extremely specific to PGP 2.6.2
+		    &premail_auth ($2);
+		}
+		&delete_tmpfile ($pgp_body);
+		&extract_mime_fields ();
+		$absorb ||= ($typelist[$i] eq 'nym' && $nym_num == 0);
+		if ($absorb) {
+		    push (@deliver_headers, "MIME-Version: 1.0\n")
+			unless $typelist[$i] eq 'nym';
+		    $new_body = &absorb_mime_headers ($new_body);
+		}
+		if ($typelist[$i] eq 'nym') {
+		    $nym_num--;
+		    if ($nym_num >= 0) { $nym = $userlist[$i]; }
+		    else { $nym = ''; $nym_num = 0; }
+		}
+		&decode_body ($new_body, $nym, $nym_num);
+		return;
+	    }
+	}
+    }
+    &decode_nothing ($pgp_body);
+}
+
+sub decode_nothing {
+# &decode_nothing ($body)
+#
+# All attempts to decrypt failed; just output the file.
+    my ($body) = @_;
+
+    &fix_decode_header ();
+    foreach $line (@deliver_headers) {
+	print $line;
+    }
+    print $header_sep;
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+	print $line;
+    }
+    &close_body ($body);
+}
+
+sub premail_auth {
+
+    push (@premail_auth, @_);
+    &pdv ("premail_auth: $_[0]\n");
+}
+
+sub fix_decode_header {
+# Actually adds premail-auth to the header, and also fixes up the
+# $header_sep variable, if that needs to be done.
+    my ($msg);
+
+    if ($#premail_auth >= 0) {
+	if ($gist) {
+	    $msg = join ('; ', @premail_auth);
+	    print STDERR "200 $msg\n";
+	} else {
+	    $msg = &wordwrap ('X-Premail-Auth: '
+			      .join ('; ', @premail_auth), 71, '   ');
+	    push (@deliver_headers, $msg);
+	}
+	if ($header_sep eq '' && $#deliver_headers >= 0) {
+	    $header_sep = "\n";
+	}
+    }
+    @premail_auth = ();
+}
+
+sub user_pass {
+# $pass = &user_pass ($type, $user, $nym_num)
+# Extract the password, if there is one.
+#
+# The handling of nyms is a bit oversimplified. This only works on
+# reply blocks without encrypt-key. In the latter case, we would want
+# to get the last encrypt-key in the chain, if there was one. That's
+# a tricky regular expression, at best, especially if we allow chains
+# to have arbitrary other stuff in them, such as latency.
+    my ($type, $user, $nym_num) = @_;
+    my (@pass_list);
+
+#   print "$type $user $nym_num\n";
+    if ($type eq 'sign' || $type eq 'hiddenpgp') {
+	return '';
+    } elsif ($type eq 'user') {
+	return $pgppass{$user};
+    } elsif ($type eq 'nym') {
+	@pass_list = &nym_passlist ($user);
+	return $pass_list[$nym_num];
+    }
+    return '';
+}
+
+sub nym_type {
+    my ($nym) = @_;
+    &get_remailers;
+    if ($nym =~ /^\d+,(\w+)=/) {
+	local ($_) = ($options{$1});
+	/\balpha\b/ && return 'alpha';
+	/\bnewnym\b/ && return 'newnym';
+    }
+    return undef;
+}
+
+sub nym_passlist {
+# @pass_list = &nym_passlist ($nym)
+# Given a nym, return the list of passphrases, in order of the chain.
+    my ($nym) = @_;
+    my (@pass_list);
+    my $nymid = (split /,/, $nym)[1];
+
+    if ($nym{$nym} =~ /(\^|^)pass\=([^\^]*)(\^|$)/
+	|| $pgpring{$nymid}) {
+	if ($pgpring{$nymid}) {
+	    @pass_list = ('');
+	}
+	else {
+	    @pass_list = ($2);
+	}
+	if ($nym{$nym} =~ /(\^|^)chain\=([^\^]*)(\^|$)/) {
+	    foreach $hop (split (/\;/, $2)) {
+		if ($hop =~ /\.encrypt\-key\:\s*([^\s\.]+)(\.|$)/i) {
+		    push (@pass_list, $1);
+		}
+	    }
+	}
+    }
+    return @pass_list;
+}
+
+sub nym_numpasses {
+    my ($nym) = @_;
+    my (@pass_list);
+
+    @pass_list = &nym_passlist ($nym);
+    return $#pass_list + 1;
+}
+
+sub decode_multipart {
+# ($new_body, $err) = &decode_multipart ($body, $pass, $boundary, $protocol)
+#
+# Decode a message in MIME multipart format. On success, return a
+# $new_body, with the PGP-style return string in $err.
+#
+# One point: with the current structure, it will parse the multiparts
+# over again for each attempted passphrase. This is not a serious
+# performance problem now, but would be if the type-3 nymserver ever got
+# implemented.
+    my ($body, $pass, $boundary, $protocol) = @_;
+    my ($part, $body_open);
+    my (@body);
+    my (@window);
+    my ($state, $cte, $canon);
+    my ($new_body, $errfile, $new_err);
+
+    &pdv ("decode_multipart $body $boundary $protocol\n");
+    $part = 0;
+    $body_open = 0;
+    @window = ();
+    &open_body ($body);
+    while (defined ($line = &get_line_body ($body))) {
+#	print "$part$line";
+	if ($body_open && ($line eq '--'.$boundary."\n"
+			   || $line eq '--'.$boundary.'--'."\n")) {
+	    # Handle last line fragment (usually empty)
+	    $frag = shift @window;
+	    $frag =~ s/\r?\n$//;
+	    print NEW $frag;
+	    close (NEW);
+	    $body_open = 0;
+	}
+	if ($line eq '--'.$boundary."\n") {
+	    $part++;
+	    $state = 0;
+	    $cte = '';
+	    if ($part == 1 && ($protocol eq 'application/moss-signature'
+			       || $protocol eq 'application/pgp-signature'
+			       || $protocol eq 'application/x-pkcs7-signature'
+			       || $protocol eq 'application/pkcs7-signature')){
+		$body[$part] = &tmp_filename ();
+		open (NEW, '>'.$body[$part]);
+		$body_open = 1;
+		$state = 1;
+		$canon = ($protocol eq 'application/pgp-signature'
+			  || $protocol eq 'application/x-pkcs7-signature'
+			  || $protocol eq 'application/pkcs7-signature');
+	    }
+	} elsif ($state == 0 && $line eq "\n") {
+	    if ($protocol ne 'application/pgp-encrypted' && $part == 1
+		|| $part == 2) {
+		$body[$part] = &tmp_filename ();
+		if ($cte eq '' || &mossbin('mossdecode', 1) eq '') {
+		    open (NEW, '>'.$body[$part]);
+		} elsif ($cte eq 'quoted-printable') {
+		    open (NEW, '|'.&mossbin ('mossdecode')
+			  .' -qp > '.$body[$part]);
+		} elsif ($cte eq 'base64') {
+		    open (NEW, '|'.&mossbin ('mossdecode')
+			  .' -b64 > '.$body[$part]);
+		} else {
+		    &error ("Unknown Content-Transfer-Encoding: $cte\n");
+		}
+		$canon = ($part == 1
+			  && $protocol eq 'application/pgp-signature');
+		$body_open = 1;
+	    }
+	    $state = 1;
+	} elsif ($state == 0 && $line =~
+		 /^content\-transfer\-encoding\:\s+([\w\-]+)/i) {
+	    $cte = lc $1;
+	} elsif ($body_open && $line eq '--'.$boundary.'--'."\n") {
+	    last;
+	} elsif ($body_open) {
+	    print NEW @window;
+	    if ($canon) {
+		@window = (&canonicalize_line ($line));
+	    } else {
+		@window = ($line);
+	    }
+	}
+    }
+    if ($body_open) { close (NEW); }
+    &close_body ($body);
+    if ($part != 2 || $body_open) {
+	return ('', '')
+    }
+    if ($protocol eq 'application/pgp-encrypted') {
+	($new_body, $err) = &pgp_decrypt ($body[2], $pass);
+	$new_body = &mknonbin ($new_body) if $new_body;
+    } elsif ($protocol eq 'application/pgp-signature') {
+	($err) = &pgp_verify ($body[1], $body[2]);
+	&delete_tmpfile ($body[2]);
+	$new_body = $body[1];
+    } elsif ($protocol eq 'application/moss-keys') {
+	$new_body = &tmp_filename ();
+	$errfile = &tmp_filename;
+	system &mossbin('decrypt').' header-in '.$body[1].' data-in '.$body[2]
+	    .' data-out '.$new_body.' > '.$errfile.' 2>&1';
+	if ($?) {
+	    &delete_tmpfile ($new_body);
+	    $new_body = '';
+	}
+	$err = &read_and_delete ($errfile);
+	&delete_tmpfile ($body[1]);
+	&delete_tmpfile ($body[2]);
+    } elsif ($protocol eq 'application/moss-signature') {
+	$errfile = &tmp_filename;
+	if (&mossbin ('mossdecode', 1) eq '') {
+	    $new_body = $body[1];
+	    &delete_tmpfile ($body[2]);
+	    $err = "Can't check MOSS signature; don't have MOSS installed\n";
+	} else {
+	    system &mossbin('canon').' < '.$body[1].' | '.&mossbin('verify')
+		.' header-in '.$body[2].' > '.$errfile.' 2>&1';
+	    $new_body = $body[1];
+	    $err = &read_and_delete ($errfile);
+	    &pdv ($err);
+	    &delete_tmpfile ($body[2]);
+	    if ($err =~ /(^|\n)Originator user with (.*) is (.*) as follows/s) {
+		$new_err = "$3 $2";
+		if ($err =~ /(^|\n)Signature has been verified/s) {
+		    $err = "Good signature from $new_err\n";
+		} else {
+		    $err = "Bad signature from $new_err\n";
+		}
+	    }
+	    &pdv ($err);
+	}
+    } elsif ($protocol eq 'application/x-pkcs7-signature'
+	     || $protocol eq 'application/pkcs7-signature') {
+	&pdv ($body[1].":\n");
+	&pdv (`od -c $body[1]`);
+	&pdv ($body[2].":\n");
+	&pdv (`cat $body[2]`);
+	($err) = &verify_smime ($body[1], $body[2]);
+	&delete_tmpfile ($body[2]);
+	$new_body = $body[1];
+    }
+    return ($new_body, $err);
+}
+
+sub absorb_mime_headers {
+# $new_body = &absorb_mime_headers ($body)
+# Absorb the MIME headers from the MIME object in $body to @deliver_headers.
+    my ($body) = @_;
+    my ($new_body);
+    my (@header, $line, $state);
+    my ($key, $val);
+
+    $| = 1;
+    $new_body = &tmp_filename ();
+    open (NEW, '>'.$new_body);
+    &open_body ($body);
+    $state = 0;
+    while (defined ($line = &get_line_body ($body))) {
+	# Adapted from get_header
+	$line =~ s/\r\n/\n/;
+	@in_headers = (); # What the hell is this?
+	if ($state == 0 && $line =~ /^([!-9\;-\177]+)\:\s*(.*)$/) {
+	    push (@header, $line);
+	} elsif ($state == 0 && $#header >= 0 && $line =~ /^\s(.*)\n/) {
+	    $line = pop (@header) . $line;
+	    push (@header, $line);
+	} elsif ($state == 0 && ($line eq '' || $line eq "\n")) {
+	    $state = 1;
+	} else {
+	    print NEW $line;
+	    $state = 1;
+	}
+    }
+    foreach $field (@header) {
+	($key, $val) = &parse_field ($field);
+	if (lc $key eq 'received') {
+	    push (@deliver_headers, $field);
+	} else {
+	    @deliver_headers = &replace_field ($field, @deliver_headers);
+	}
+    }
+    &close_body ($body);
+    close (NEW);
+    return $new_body;
+}
+
+sub decode_smime {
+# &decode_smime ($body)
+# Decode (@deliver_headers, $header_sep, $body) (recursively if
+# necessary), and send to standard out. We now know it's an S/MIME message.
+    my ($body) = @_;
+    my ($cte, $cte_present);
+    my ($new_body, $errfile, $err);
+    my ($invoc);
+
+    &load_secrets ();
+    if (!defined $ripemuser) {
+#	&error ("Must specify \$ripempass{'<user>'} = '<pass>'; in secrets file\n");
+	&decode_nothing ($body);
+	return;
+    }
+    ($cte, $cte_present) = &lookup_val ("Content-Transfer-Encoding",
+					@deliver_headers);
+    if (!$cte_present || lc $cte ne 'base64') {
+	&error ("Can only handle base64 c-t-e in S/MIME messages\n");
+    }
+    $new_body = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'ripem'});
+    $invoc .= ' -d -B -M pkcs -k -';
+    if (defined $ripemuser) { $invoc .= ' -u '.$ripemuser; }
+    $body = &force_file_body ($body);
+    $invoc .= ' -i '.$body;
+    $invoc .= ' -o '.$new_body;
+    $errfile = &tmp_filename ();
+    $invoc .= ' > '.$errfile.' 2>&1';
+    &pdv ("Invoking RIPEM as $invoc\n");
+    if (!open (RIPEM, "|$invoc")) {
+	&error ("Error invoking RIPEM\n");
+    }
+    print RIPEM ($ripempass{$ripemuser}."\n");
+    close (RIPEM);
+    $status = $?;
+    $err = &read_and_delete ($errfile);
+    &pdv ($err);
+    # Since RIPEM status codes are not very informative, perhaps we
+    # want to check for the existence of the output file, instead.
+    if ($status >= 0 && $status < 512) {
+	&delete_tmpfile ($body);
+	&extract_mime_fields ();
+	$new_body = &mknonbin ($new_body);
+	push (@deliver_headers, "MIME-Version: 1.0\n");
+	$new_body = &absorb_mime_headers ($new_body);
+	&decode_smime_auth ($err);
+	&decode_body ($new_body, '', 0);
+    } else {
+	&pdv ("RIPEM exited with status $status\n");
+	&delete_tmpfile ($new_body);
+	&decode_smime_auth ($err);
+	&decode_nothing ($body);
+    }
+}
+
+sub verify_smime {
+# $err = &verify_smime ($signed_file, $signature, $mic)
+# Try to verify the signature of $signed file.
+#
+# Results are sent to premail auth mechanism.
+    my ($signed_file, $signature, $mic) = @_;
+    my ($new_body, $errfile, $err);
+    my ($invoc);
+
+    &load_secrets ();
+    if (!defined $ripemuser) {
+#	&error ("Must specify \$ripempass{'<user>'} = '<pass>'; in secrets file\n");
+	return;
+    }
+    $new_body = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'ripem'});
+    $invoc .= ' -d -M pkcs -B -k -';
+    if (defined $ripemuser) { $invoc .= ' -u '.$ripemuser; }
+    $body = &force_file_body ($body);
+    $invoc .= ' -x '.$signed_file;
+    $invoc .= ' -i '.$signature;
+    if (defined $mic && $mic != '') { $invoc .= ' -a '.$mic; }
+    $errfile = &tmp_filename ();
+    $invoc .= ' > '.$errfile.' 2>&1';
+    &pdv ("Invoking RIPEM as $invoc\n");
+    if (!open (RIPEM, "|$invoc")) {
+	&error ("Error invoking RIPEM\n");
+    }
+    print RIPEM ($ripempass{$ripemuser}."\n");
+    close (RIPEM);
+    $status = $?;
+    $err = &read_and_delete ($errfile);
+    &pdv ($err);
+    if ($status >= 0 && $status < 512) {
+	&decode_smime_auth ($err);
+    } else {
+	&pdv ("RIPEM exited with status $status\n");
+    }
+    return '';
+}
+
+sub decode_smime_auth {
+# &decode_smime_auth ($err)
+# Convert ripem's stderr output into a premail auth string, and add to the
+# premail auth.
+    my ($err) = @_;
+    my ($auth);
+
+    $auth = '';
+    if ($err =~ /\nSignature status\: ([^\.]+)\./s) {
+	$auth = $1.' signature';
+    }
+    if ($err =~ /\nReceived [^\n]* encrypted message/s) {
+	if ($auth) { $auth = 'Decrypted '.lc $auth; }
+	else { $auth = 'Decrypted'; }
+    } elsif ($err =~ /\nReceived enveloped-only message/s) {
+	$auth = 'S/MIME Decrypted';
+    } elsif ($err =~ /\nReceived certificates\-and\-CRLs\-only message/s) {
+	$auth = 'Received certificates and CRLs only';
+    } elsif ($err =~ /\nReceived CRL message/s) {
+	$auth = 'Received CRL only';
+    }
+    if ($auth && $err =~ /\nSender name\: ([^\n]+)\n/s) {
+	$auth .= ' from '.$1;
+    }
+    if ($auth) { &premail_auth ($auth); }
+    else { &premail_auth ('RIPEM: '.$err); } # cases we did't get!
+}
+
+##########################################
+# movemail masquerade
+
+sub move {
+    my ($in, $out) = @_;
+    my ($movemail);
+
+    &set_configs ();
+    $move_fn = $out;
+    $move_work_fn = $out.'.'.$$;
+    push (@open_tmpfiles, $move_work_fn);
+    $movemail = &tilde_expand ($config{'movemail'});
+    $status = system "$movemail $in $out";
+    if ($status) { exit $status >> 8; }
+    open (MOVE_OUT, '>'.$move_work_fn);
+    select MOVE_OUT;
+    &decode ($out);
+}
+
+##########################################
+# RSA with hidden keys
+
+sub catfile {
+# $contents = &catfile ($filename)
+    local (*F);
+    my $ret = "";
+    if (open F, "<" . $_[0]) {
+        while (<F>) {$ret .= $_;}
+        close (F);
+    }
+    else {
+	die "$_[0]: $!";
+    }
+    $ret;
+}
+
+sub b2a {
+    my @args = @_;
+    foreach (@args) {
+	$_ = pack ("u", $_);
+	s/\n//gm;
+	tr/\`\!-\_/A-Za-z0-9\+\//;
+    }
+    return wantarray ? @args : $args[0];
+}
+
+sub a2b {
+    my @args = @_;
+    foreach (@args) {
+	tr/A-Za-z0-9\+\//\`\!-\_/;
+	s/(.{1,61})/$1\n/g;
+	$_ = unpack ("u", $_);
+    }
+    return wantarray ? @args : $args[0];
+}
+
+sub killbaks {
+    my @args = @_;
+    unlink grep {s/\.pgp$/\.bak/ && $_} @args;
+}
+
+sub testkey {
+    my ($ring, @recips) = @_;
+    my $err;
+    unless (&runpgpwring ($ring, "-fes -u 0x @recips", '', undef, \$err)) {
+	print STDERR &catfile ($err);
+	&error ("\nCould not use your keys.  "
+		. "The passphrase must be blank.\n");
+    }
+}
+
+sub filecat {
+    my ($f1, $f2) = @_;
+    local (*F1, *F2);
+    unless (open (F1, "<$f1")) {return;}
+    unless (open (F2, ">>$f2")) {close F1; return;}
+    while (<F1>) {
+	print F2 $_;
+    }
+    close F1;
+    close F2;
+}
+
+sub makebigrings {
+# ($pubring, $secring) = &makebigrings ()
+# Make public and secret keyrings.
+# Secret keyring contains all nyms, and user's secring.
+# Public keyring contains user's pubring, as well as all remailers.
+# This is used for decoding (sr) and signature checking (pr).
+    my ($pr, $sr) = (&tmp_filename ('.pgp'), &tmp_filename ('.pgp'));
+    my $PGPPATH = $ENV{'PGPPATH'} ? $ENV{'PGPPATH'} : $ENV{'HOME'} . "/.pgp";
+    my $PGP = &tilde_expand ($config{'pgp'});
+    local ($_);
+
+    &load_secrets ();
+    foreach (keys %pgpring) {
+	my ($tpr, $tsr) = &makerings ($pgpring{$_});
+	system ("$PGP +batchmode +verbose=0 -kx 0x $pr $tpr > /dev/null");
+	#filecat ($tpr, $pr);
+	filecat ($tsr, $sr);
+	&delete_tmpfile ($tpr);
+	&delete_tmpfile ($tsr);
+    }
+    &filecat ("$PGPPATH/pubring.pgp", "$pr");
+    &filecat ("$PGPPATH/secring.pgp", "$sr");
+    &filecat (&tilde_expand ($config{'pubring'}), $pr);
+    return ((-r $pr) ? $pr : undef, (-r $sr) ? $sr : undef);
+}
+
+sub makerings {
+# ($pr, $sr) = ($ring, $pubring, @pubkeys)
+# Make specialized public and secret keyrings. The $ring argument contains
+# base-64 encoded public and secret keyrings for the nym, separated by a
+# comma.
+#
+# In addition, the @pubkeys are extracted from $pubring to the new pubring.
+    my ($ring, $pubring, @pubkeys) = @_;
+    $ring =~ s/.*$;//;
+    my ($pr, $sr) = (&tmp_filename ('.pgp'), &tmp_filename ('.pgp'));
+    my ($pk, $sk) = a2b (split (/,/, $ring));
+    local (*TMP);
+
+#   &pdv ('&makerings ("'.join ('", "', @_)."\")\n");
+    foreach ([$pr, $pk], [$sr, $sk]) {
+	open TMP, ">$$_[0]";
+	print TMP $$_[1];
+	close TMP;
+    }
+    my $PGP = &tilde_expand ($config{'pgp'});
+    foreach $id (@pubkeys) {
+	my $invoc = "$PGP +batchmode +force +verbose=0 -kx "
+	    . "$id $pr $pubring 2>&1";
+	&pdv ("$invoc > /dev/null\n");
+	system "$invoc > /dev/null";
+    }
+    &killbaks ($pr, $sr);
+#   system "pgp -kvv $pr";
+#   system "pgp -kvv $sr";
+    return ($pr, $sr);
+}
+
+sub runpgpwring {
+    my ($ring, $cmd, $in, $outfnp, $errfnp) = @_;
+    my ($pr, $sr) = &makerings ($ring);
+    my ($invoc, $status, $infile, $outfile, $errfile);
+    local (*TMP);
+
+    if ($in) {
+	$infile = &tmp_filename ();
+	open TMP, ">$infile";
+	print TMP $in;
+	close TMP;
+    }
+
+    $outfile = &tmp_filename ();
+    $errfile = &tmp_filename ();
+    $invoc = &tilde_expand ($config{'pgp'});
+    $invoc .= ' +batchmode +force +verbose=0 ';
+    $invoc .= " +pubring=$pr +secring=$sr ";
+    $invoc .= $cmd;
+    $invoc .= ' < ' . $infile if $infile;
+    $invoc .= ' > '.$outfile;
+    $invoc .= ' 2> '.$errfile;
+    #print STDERR "$invoc\n";
+    $status = &open_pgp ($invoc, "\n", '');
+
+    if ($outfnp) {
+	$$outfnp = $outfile;
+    }
+    else {
+	delete_tmpfile ($outfile);
+    }
+    if ($errfnp) {
+	$$errfnp = $errfile;
+    }
+    else {
+	delete_tmpfile ($errfile);
+    }
+    delete_tmpfile ($sr);
+    delete_tmpfile ($pr);
+    return $status;
+}
+
+sub genkeypair {
+# $ring = &genkeypair ($id)
+# Make a new keypair, and return the public and secret keyrings in ascii
+# form (i.e. comma separated base-64 encoded).
+#
+# Include the remailer public key whose id is given as an argument.
+    my ($pr, $sr) = &makerings (',', &tilde_expand ($config{'pubring'}), @_);
+    my ($PGP, $ring);
+
+    $PGP = &tilde_expand ($config{'pgp'});
+
+    print <<"EOF", "Press return to begin: ";
+
+PGP must be invoked to generate an RSA keypair for your nym.  When
+prompted for a key ID, you may type anything you wish, but whatever
+you choose should in no way be traceable back to your real identity.
+PGP will not accept a completely empty key ID, so if you don\'t want a
+key ID, it is recommended that you choose a key ID which is just one
+space character.
+
+If you wish to publish your nym\'s PGP public key, then the key ID
+should contain the E-mail address of your nym in angle brackets, for
+instance:
+	Mr. Test <test\@nym.alias.net>
+
+LEAVE THE PASSPRASE BLANK on the new key.  When you are prompted for a
+passphrase, simply press return.  Premail will protect both your
+public and private keys by encrypting your entire keyrings in your
+secrets file.
+
+EOF
+    <STDIN>;
+
+    if (system ("$PGP -kg +pubring=$pr +secring=$sr +verbose=0")) {
+	print STDERR "\nKey generation failed.\n";
+	&killbaks ($pr, $sr);
+	&delete_open_tmpfiles ();
+	exit 1;
+    }
+
+    $ring = join (',', b2a (&read_and_delete ($pr), &read_and_delete ($sr)));
+    &killbaks ($pr, $sr);
+    &testkey ($ring, @_);
+    return $ring;
+}
+
+sub importkeys {
+    my ($kid, $remid) = @_;
+    my ($pr, $sr) = (&tmp_filename ('.pgp'), &tmp_filename ('.pgp'));
+    my ($PGP, $ring);
+    my $defsr = $ENV{'PGPPATH'} ? $ENV{'PGPPATH'} . "/secring.pgp"
+	: $ENV{'HOME'} . "/.pgp/secring.pgp";
+
+    $PGP = &tilde_expand ($config{'pgp'});
+    foreach $a ("$kid $pr",
+		"$remid $pr " . &tilde_expand ($config{'pubring'}),
+		"$kid $sr $defsr") {
+	my $invoc = "$PGP +batchmode +force +verbose=0 -kx $a 2>&1";
+#	print STDERR "+ $invoc\n";
+	my $result = `$invoc`;
+	unless ($result =~ /^Key extracted/m) {
+	    my ($xid, $xr) = split ' ', $a;
+	    $xr = "default public key ring" unless $xr;
+	    &error ("Could not extract key $xid from $xr\n");
+	}
+    }
+
+    print <<"EOF" . "Press return to begin: ";
+
+Because the user-ID of your PGP private keys can be determined by
+anyone from your private keyring, even without your passprase, premail
+will encrypt your entire private keyring in the premail secrets file.
+
+However, in order to use your private key, you must set the passphrase
+to be null.  Premail will therefore invoke PGP for you to edit a copy
+of your key (your actual keyring will remail unchanged).
+
+PGP will ask you several questions.  Answer no to all questions until
+asked if you want to change your passphrase.  Then answer yes and
+press return to set an empty passphrase.  [Sorry, it is not possible
+to perform these functions automatically from within an application.]
+
+EOF
+    <STDIN>;
+
+    my $invoc = "$PGP +secring=$sr -ke $kid $pr";
+#    print STDERR "+ $invoc\n";
+    if (system ($invoc)) {
+	print STDERR "Edit failed.\n";
+	&killbaks ($pr, $sr);
+	&delete_open_tmpfiles ();
+	exit 1;
+    }
+
+    &killbaks ($pr, $sr);
+    $ring = join (',', b2a (&read_and_delete ($pr), &read_and_delete ($sr)));
+    &testkey ($ring, $remid);
+    return $ring;
+}
+
+sub exportnym {
+    my (@args) = @_;
+    my ($nym, $remailer);
+    my (@options);
+    my ($pass);
+    my ($addrtail, $addrtail2);
+
+    $error_mode = 'd';
+    &set_configs ();
+    %alias = ();
+    if (!$config{'encrypt'}) {
+	&error ("Need to enable PGP to create nyms."
+		." Add this to your $config{'preferences'} file:\n"
+		.'$config{\'encrypt\'} = \'yes\';'."\n");
+    }
+    $interactive = 1;
+    $| = 1;
+    if ($#args >= 0) {
+	$nym = $args[0];
+    } else {
+	$nym = &query ('Nym to export (example johndoe@alpha)', '');
+	if ($nym eq '') { exit 0; }
+    }
+    &get_remailers ();
+    if ($nym =~ /^([\w\-]+)\=(.*)$/) {
+	$remailer = $1;
+	$nym = $2;
+    } elsif ($nym =~ /^([^\@]+)\@([^\.]+\..*)$/) {
+	$nym = $1;
+	$addrtail2 = $2;
+	$remailer = '';
+	foreach $rem (keys %address) {
+	    $addrtail = $address{$rem};
+	    $addrtail =~ s/^([^\@]+)\@//;
+	    if ($addrtail2 eq $addrtail) {
+		$remailer = $rem;
+	    }
+	}
+	if (!$remailer) {
+	    &error ("No remailer found with address alias\@$addrtail2\n");
+	}
+    } elsif ($nym =~ /^([^\@]+)\@([\w\-]*)$/) {
+	$nym = $1;
+	$remailer = $2;
+    } else {
+	&error ("Nym must be of the form remailer=alias\n");
+    }
+    &load_secrets ();
+    if (!$options{$remailer}) {
+	&error ("Unknown remailer $remailer\n");
+    }
+    @options = split (/ /, $options{$remailer});
+    &error ("Remailer $remailer is not of type 'newnym'\n")
+	unless (&member ('newnym', @options));
+    my $nymid = "$remailer=$nym";
+    $old_nym = &find_nym ($nymid);
+    &error ("No such nym as $nym\@$remailer\n")
+	unless ($old_nym);
+    &error ("No RSA key for $nym\@$remailer\n")
+	unless ($pgpring{$nymid});
+    my ($pr, $sr) = &makerings ($pgpring{$nymid});
+    print "Public keys are in $pr.\nPrivate keys are in $sr.\n";
+    exit 0;
+}
+
+##########################################
+# creation and management of nyms
+
+sub makenym {
+    my (@args) = @_;
+    my ($nym, $to, $chain, $chain2, $remailer);
+    my (@options);
+    my ($replyblock_fn);
+    my ($pass, $prefix);
+    my ($secret, $time);
+    my ($addrtail, $addrtail2);
+    my ($newnym, $nymid, $fullname, $fakechains, $signsend, $old_chain);
+    my ($kid);
+
+    $error_mode = 'd';
+    if ($importnym) {
+	$kid = shift @args;
+	$kid = &query ('Key ID to use for this nym', '')
+	    unless ($kid);
+    }
+    &set_configs ();
+    %alias = ();
+    if (!$config{'encrypt'}) {
+	&error ("Need to enable PGP to create nyms."
+		." Add this to your $config{'preferences'} file:\n"
+		.'$config{\'encrypt\'} = \'yes\';'."\n");
+    }
+    $interactive = 1;
+    $| = 1;
+    if ($#args >= 0) {
+	$nym = $args[0];
+    } else {
+	$nym = &query ('Nym to create (example johndoe@alpha)', '');
+	if ($nym eq '') { exit 0; }
+    }
+    &get_remailers ();
+    if ($nym =~ /^([\w\-]+)\=(.*)$/) {
+	$remailer = $1;
+	$nym = $2;
+    } elsif ($nym =~ /^([^\@]+)\@([^\.]+\..*)$/) {
+	$nym = $1;
+	$addrtail2 = $2;
+	$remailer = '';
+	foreach $rem (keys %address) {
+	    $addrtail = $address{$rem};
+	    $addrtail =~ s/^([^\@]+)\@//;
+	    if ($addrtail2 eq $addrtail) {
+		$remailer = $rem;
+	    }
+	}
+	if (!$remailer) {
+	    &error ("No remailer found with address alias\@$addrtail2\n");
+	}
+    } elsif ($nym =~ /^([^\@]+)\@([\w\-]*)$/) {
+	$nym = $1;
+	$remailer = $2;
+    } else {
+	&error ("Nym must be of the form remailer=alias\n");
+    }
+    &load_secrets ();
+    if (!$options{$remailer}) {
+	&error ("Unknown remailer $remailer\n");
+    }
+    @options = split (/ /, $options{$remailer});
+    if (&member ('newnym', @options)) {
+	$newnym = 1;
+    }
+    elsif (&member ('alpha', @options)) {
+	&error ("Can only import RSA keys for 'newnym' class remailers.\n")
+	    if ($importnym);
+	$pass = &random (128);
+    }
+    else {
+	&error ("Remailer $remailer does not support nyms\n");
+    }
+    $to = $ENV{'USER'}.'@'.$ENV{'HOST'};
+    $chain = 2;
+    $fakechains = 1;
+    $fullname = ucfirst $nym;
+    $nymid = "$remailer=$nym";
+    $old_nym = &find_nym ($nymid);
+    if ($old_nym ne '') {
+	if ($nym{$old_nym} =~ /(\^|^)to\=([^\^]*)(\^|$)/) {
+	    $to = $2;
+	}
+	if ($nym{$old_nym} =~ /(\^|^)chain\=([^\^]*)(\^|$)/) {
+	    $old_chain = $2;
+	    if ($old_chain =~ /^\d+$/) {
+		# Chains will be integer on a refresher delete
+		$chain = $old_chain + !$newnym;
+	    } else {
+		$chain = ($old_chain =~ tr/;/;/) + !$newnym;
+	    }
+	}
+        if (&member ('newnym', @options)) {
+	    if ($pgpring{$nymid}) {
+		print "Updating existing nym...\n";
+	    }
+	    if ($nym{$old_nym} =~ /(\^|^)fakechains\=([^\^]*)(\^|$)/) {
+		$fakechains = $2;
+	    }
+	    if ($nym{$old_nym} =~ /(\^|^)fullname\=([^\^]*)(\^|$)/) {
+		$fullname = $2;
+	    }
+	    if ($nym{$old_nym} =~ /(\^|^)signsend\=([^\^]*)(\^|$)/) {
+		$signsend = $2;
+	    }
+        }
+	else {
+	    if ($nym{$old_nym} =~ /(\^|^)pass\=([^\^]*)(\^|$)/) {
+		$pass = $2;
+		print "Updating existing nym...\n";
+	    }
+	}
+    }
+    if ($#args >= 1) {
+	$to = $args[1];
+    } elsif ($#args < 0) {
+	$to = &query ('Your e-mail address', $to);
+    }
+    if ($to ne 'delete') {
+	if ($to =~ /\@[\w\-]+$/) {
+	    &error ("Need fully qualified domain name in e-mail address\n");
+	}
+	if ($#args >= 2) {
+	    $chain = $args[2];
+	} elsif ($#args < 0) {
+	    $chain = &query ('Number of remailers to use', $chain);
+	}
+	# Choosing the chain should be done with awareness that the remailer
+	# is part of the chain. Thus, we append the remailer to the chain
+	# and then strip it off. The code assumes that the remailer matches
+	# /^[\w\-\]+$/ . Technically, the remailer should be added to the
+	# beginning of the chain, but choose_chain is not smart enough to
+	# deal with that.
+	$chain = &choose_chain ($chain.';'.$remailer, 1);
+	$chain =~ s/(\;|^)[\w\-]+$//;
+	&pfi ("Creating nym $nym\@$remailer -> $to through $chain\n");
+	$chain = &add_random_eks ($chain);
+	$replyblock_fn = &make_reply_block ($to, $chain);
+    }
+    $addrtail = $address{$remailer};
+    $addrtail =~ s/^([^\@]+)\@//;
+    if (!$old_nym && $to eq 'delete') {
+	&delete_open_tmpfiles ();
+	print "Could not find nym '$nym\@$addrtail' to delete.\n";
+	exit 1;
+    }
+    if ($newnym && !$pgpring{$nymid}) {
+	if ($importnym) {
+	    $pgpring{$nymid} = &importkeys ($kid, $address{$remailer});
+	}
+	else {
+	    $pgpring{$nymid} = &genkeypair ($address{$remailer});
+	}
+    }
+    if (!$newnym) {
+	$prefix = 'From: '.$nym.'@'.$addrtail."\n";
+	$prefix .= 'Password: '.$pass."\n";
+	if ($to eq 'delete') {
+	    $prefix .= 'New-Password:'."\n\n";
+	    $replyblock_fn = &tmp_filename ();
+	    open (TMP, '>'.$replyblock_fn);
+	    close (TMP);
+	} else {
+	    $prefix .= 'Reply-Block:'."\n";
+	    $prefix .= '::'."\nAnon-";
+	}
+    }
+    else {
+	my ($pk, $err);
+	$prefix = "Config:\nFrom: ".$nym.'@'.$addrtail."\n";
+	unless (&runpgpwring ($pgpring{$nymid}, "-fkxa 0x",
+			      '', \$pk, \$err)) {
+	    print STDERR ("Failed to extract public key\n",
+			  &read_and_delete ($err));
+	    &delete_open_tmpfiles ();
+	    exit 1;
+	}
+	$pk = &read_and_delete ($pk);
+	delete_tmpfile ($err);
+	$prefix .= "Public-Key:\n$pk";
+	if ($to eq 'delete') {
+	    $prefix .= "Nym-Commands: delete\n";
+	} else {
+	    my @rbs;
+	    my ($rb, $ek, $fakechain, $first, $i, $fn);
+
+	    $fakechains = &query ('Number of fake reply blocks', $fakechains)
+		if ($#args < 0);
+
+	    $ek = &random (128);
+	    $rb = "Reply-Block:\n::\nLatent-Time: +0:00\n"
+		. "Encrypt-Key: $ek\nAnon-"
+		    . &read_and_delete ($replyblock_fn) . "**\n";
+	    @rbs = ($rb);
+	    $first = ($chain =~ /^([^.;\^]*)/)[0];
+	    $chain = "$remailer.Encrypt-Key: $ek" . ($chain ? ";$chain" : "");
+
+	    for ($i = 0; $i < $fakechains; $i++) {
+		if ($config{'numshuf'}) {
+		    $config{'numshuf'} *= 2;
+		    $config{'numshuf'} = 100 if $config{'numshuf'} > 100;
+		}
+		else {
+		    $config{'numshuf'} = 4;
+		}
+
+		$fakechain = ($chain =~ tr/;/;/);
+		$fakechain = &choose_chain ($fakechain.';'.$remailer);
+		$fakechain =~ s/(\;|^)[\w\-]+$//;
+
+		&pfi ("Adding fake chain $nym\@$remailer -> nobody "
+		      . "through $fakechain\n");
+		$fakechain = &add_random_eks ($fakechain);
+		$replyblock_fn = &make_reply_block ($to, $fakechain);
+		$rb = "Reply-Block:\n::\nLatent-Time: +0:00\n"
+		    . "Encrypt-Key: " . &random (128) . "\nAnon-"
+			. &read_and_delete (&make_reply_block ("nobody",
+							       $fakechain))
+			    . "**\n";
+		splice (@rbs, vec (&random (24), 0, 32) % (1 + @rbs),
+			0, ($rb));
+	    }
+
+	    if ($#args < 0) {
+		$fullname = &query ('Full name of pseudonym (not just '
+				    . 'E-mail address)', $fullname);
+		$fullname =~ s/[\'\^\n]//g;  # kludge for secrets file
+		$signsend = 'n' unless $signsend;
+		$signsend = &query ('Sign mail with (R)emailer key, '
+				    . '(P)seudonym key or (N)o key?',
+				    $signsend);
+		$signsend = substr ($signsend, 0, 1);
+		$signsend =~ tr/A-Z/a-z/;
+		$signsend = 'n' unless $signsend =~ /^[rp]$/;
+	    }
+	    $fn = $fullname;
+	    $fn =~ s/([\\\"])/\\$1/g;
+	    $fn = "\"$fn\"";
+
+	    $prefix .= "Nym-Commands: create"
+		. (($old_nym || $importnym) ? "? " : " ")
+		    . ($config{'ack'} ? '+' : '-') . "acksend "
+			. ($signsend eq 'p' ? '+' : '-') . "fingerkey "
+			    . "-signsend +cryptrecv -disable name=$fn\n";
+	    $prefix .= join ('', @rbs);
+	}
+	$replyblock_fn = &tmp_filename ();
+	open (TMP, '>'.$replyblock_fn);
+	close (TMP);
+    }
+#   print $prefix;
+#   print "Here's the reply block:\n";
+#   system "cat $replyblock_fn";
+    if (&member ('pgp', @options)) {
+	$key = $address{$remailer};
+    } else {
+	$key = $remailer;
+    }
+    if (!$newnym) {
+	($replyblock_fn, $err) =
+	    &pgp_encrypt
+		($replyblock_fn, $prefix, '', '',
+		 &tilde_expand ($config{'pubring'}), $key);
+    }
+    else {
+	($replyblock_fn, $err) =
+	    &pgp_encrypt ($replyblock_fn, $prefix, 'ring', $nymid, '', $key);
+    }
+#   print "Here's the encrypted block:\n";
+#   system "cat $replyblock_fn";
+    $time = time;
+    if (&member ('newnym', @options)) {
+	$secret = "\$nym\{\'$time\,$remailer\=$nym\'\} \= ".
+	    "\'chain=$chain\^to=$to^"
+		. "fakechains=$fakechains^fullname=$fullname^"
+		    . "signsend=$signsend\'\;\n";
+    }
+    else {
+	$secret = "\$nym\{\'$time\,$remailer\=$nym\'\} \= ".
+	    "\'pass=$pass\^chain=$chain\^to=$to\'\;\n";
+    }
+    &pdv ($secret);
+    # Need to add $remailer to chain as above.
+    $chain2 = 3;
+    if ($#args >= 3) {
+	$chain2 = $args[3];
+    } elsif ($#args < 0) {
+	$chain2 = &query ('Number of remailers for sending request', $chain2);
+    }
+    $chain2 = &choose_chain ($chain2);
+    unless ($config{'debug'} =~ /y/) {
+	&add_secret ($secret);
+	&add_secret ('$pgpring{\''.$nymid.'\'} = \''
+		     .$pgpring{$nymid}. '\';' . "\n", 1);
+    }
+    &send_nym_request ($address{$remailer}, $chain2, $replyblock_fn);
+    print "Sent nym request through $chain2\n";
+    print "If no response in 24 hours, try again.\n";
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+sub query {
+# $result = &query ($query_string, $default)
+    my ($query_string, $default) = @_;
+    my ($result);
+
+    if ($default eq '') {
+	print "$query_string: ";
+    } else {
+	print "$query_string [$default]: ";
+    }
+    $result = <STDIN>;
+    chop $result;
+    if ($result eq '') { $result = $default; }
+    return $result;
+}
+
+sub add_random_eks {
+# $chain = &add_random_eks ($chain)
+# Add random Encrypt-Key:'s to each of the remailers in the chain that
+# support it.
+    my ($chain) = @_;
+    my (@chain, @new_chain);
+    my (@options, $pass);
+
+    @chain = split (/\;/, $chain);
+    @new_chain = ();
+    foreach $remailer (@chain) {
+	@options = split (/ /, $options{$remailer});
+	if (&member ('ek', @options) && (&member ('pgp', @options) 
+					 || &member ('pgp.', @options))) {
+	    $pass = &random (128);
+	    push (@new_chain, $remailer.'.Encrypt-Key: '.$pass);
+	} else {
+	    push (@new_chain, $remailer);
+	}
+    }
+    return join (';', @new_chain);
+}
+
+sub make_reply_block {
+# $replyblock_fn = &make_reply_block ($to, $chain)
+#
+# Note: this function duplicates a bunch of function from main.
+    my ($to, $chain) = @_;
+    my ($replyblock_fn);
+
+    $replyblock_fn = &tmp_filename ();
+    open (REPLY, '>'.$replyblock_fn);
+    print REPLY "To: $to\n";
+    print REPLY "Chain: $chain \n" if $chain;
+    print REPLY "\n";
+    close (REPLY);
+    
+    # Prepare to run premail -edit on the replyblock.
+    $edit = 1;
+    $editfile = $replyblock_fn;
+    push (@open_tmpfiles, $editfile.'~'); # Take care of backup file
+    if (!&open_input ()) {
+	&error ("Internal error opening replyblock\n");
+    }
+    &get_header ('-');
+    &clear_alias ();
+    &find_recips ();
+    &prepare_send_header ();
+    &compute_groups ();
+    &close_input ();
+    if ($#groups + 1 != 1) {
+	&error ("Internal error: more than one recipient group\n");
+    }
+    &send_group ($groups[0]);
+    &close_input ();
+    return ($replyblock_fn);
+}
+
+sub send_nym_request {
+# &send_nym_request ($to, $chain, $body)
+#
+# Note: this function duplicates a bunch of function from main, and also
+# breaks many abstractions.
+    my ($to, $chain, $body) = @_;
+
+    $in_body = $body;
+    $edit = 0;
+    $dasht = 1;
+    if (!open (IN, $body)) {
+	&error ("Internal error opening replyblock\n");
+    }
+    @in_headers = ("To: $to\n");
+    push (@in_headers, "Chain: $chain\n") if $chain;
+    $header_sep = "\n";
+    &clear_alias ();
+    &find_recips ();
+    &prepare_send_header ();
+    &compute_groups ();
+    &close_input ();
+    if ($#groups + 1 != 1) {
+	&error ("Internal error: more than one recipient group\n");
+    }
+    &send_group ($groups[0]);
+    close (IN);
+}
+
+sub find_nym {
+# $full_nym = &find_nym ($short_nym)
+# Find a nym's full version (i.e. including a timestamp). Return '' if
+# not found.
+    my ($short_nym) = @_;
+
+    foreach $nym (@nym_list) {
+	if ($nym =~ /^\d+\,(.*)$/) {
+	    if ($1 eq $short_nym) { return $nym; }
+	}
+    }
+    return '';
+}
+
+##########################################
+# The characterize subsystem
+
+sub characterize {
+# Don't use this unless you really know what you're doing.
+    my ($remailer, $target, $test) = @_;
+    my ($all);
+
+    $error_mode = 'd';
+    &set_configs ();
+    $all = ($test eq 'all');
+    if ($all || $test eq 'ek') {
+	$replyblock_fn = &make_reply_block ($target,
+					    $remailer.'.Encrypt-Key: test');
+	open (RB, ">>$replyblock_fn");
+	print RB "Test of ek functionality of $remailer."
+	    ." This line must be encrypted.\n";
+#	print RB "**\n";
+#	print RB "-----BEGIN PGP JUNK-----\n";
+#	print RB "-----END PGP JUNK-----\n";
+	close (RB);
+	system "cat $replyblock_fn";
+	system "/usr/lib/sendmail -oi -t < $replyblock_fn"
+	    unless $config{'debug'} =~ /y/;
+    }
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+##########################################
+# login and logout
+
+sub login {
+    my ($x);
+
+    $error_mode = 'd';
+    &set_configs ();
+    foreach $arg (@_) {
+	if ($arg eq '-x') {
+	    $x = 1;
+	}
+    }
+    &do_login ($x);
+    &delete_open_tmpfiles ();
+    exit 0;
+
+}
+
+sub logout {
+    my ($ps, $ps_pgp);
+    my ($go, $status);
+
+    $error_mode = 'd';
+    &set_configs ();
+    $interactive = 1;
+    $ps = &tilde_expand ($config{'premail-secrets'});
+    $ps_pgp = &tilde_expand_mkdir ($config{'premail-secrets-pgp'});
+    if (!-e $ps) {
+	if (!-e $ps_pgp) {
+	    &error ("No premail secrets file set up. For info on how to set up"
+	     ." the premail\nsecrets, see:\n"
+	     ."       http://www.c2.net/~raph/premail/index.html#secrets\n");
+	}
+	&error ("Not logged in!\n");
+    }
+    &load_secrets ();
+    if (!$premail_pass) {
+	&error ("No premail password defined. To set up"
+		." the premail\npassword, try:\n"
+		."      premail -setpass");
+    } 
+    $go = 1;
+    if (-e $ps_pgp) {
+	# Check to see whether secrets have changed, and update only if so.
+	$status = &decrypt_secrets ($ps_pgp, $ps.'~', $premail_pass);
+	$go = $status || &cmp_file ($ps, $ps.'~');
+	unlink ($ps.'~');
+    }
+    if ($go) {
+	&encrypt_secrets ($ps_pgp, $ps, $premail_pass);
+    }
+    $status = &decrypt_secrets ($ps_pgp, $ps.'~', $premail_pass);
+    $status ||= &cmp_file ($ps, $ps.'~');
+    unlink ($ps.'~');
+    if ($status) {
+	&error ("Error encrypting secrets file: decryption doesn't match\n");
+    }
+    unlink ($ps);
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+sub cmp_file {
+# $different = &cmp_file ($file1, $file2)
+    my ($file1, $file2) = @_;
+    my ($l2);
+
+    open (F1, $file1);
+    open (F2, $file2);
+    while (<F1>) {
+	$l2 = <F2>;
+	if ($_ ne $l2) { close (F1); close (F2); return 1; }
+    }
+    close (F1);
+    if (<F2>) { close (F2); return 1; }
+    close (F2);
+    return 0;
+}
+
+sub setpass {
+    my ($pass);
+
+    $error_mode = 'd';
+    &set_configs ();
+    &load_secrets ();
+    $pass = &getpass ();
+    if ($pass =~ /\'/) {
+	&error ("Passphrase can't have apostrophe (') in it.");
+    }
+    &add_secret ('$premail_pass = \''.$pass.'\';'."\n", 1);
+    print "Now logged in with new passphrase\n";
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+##########################################
+# Ripem key generation
+
+sub ripemkey {
+    my (@args) = @_;
+    my ($user, $pass);
+
+    $error_mode = 'd';
+    &set_configs ();
+    $interactive = 1;
+    $| = 1;
+    if ($#args >= 0) {
+	$user = $args[0];
+    } else {
+	$user = $ENV{'USER'}.'@'.$ENV{'HOST'};
+	$user = &query ('Your e-mail address (RIPEM user id)', $user);
+	if ($user eq '') { exit 0; }
+    }
+    &load_secrets ();
+    $pass = &random (128);
+    if (!open (RIPEM, '|'.&tilde_expand ($config{'ripem'})
+	       ." -G -b 1024 -u $user -k - -C ".&random (128))) {
+	&error ("Error invoking RIPEM - maybe you need to set $config{'ripem'}\n");
+    }
+    print RIPEM ($pass."\n");
+    print RIPEM ("E\n");
+    print RIPEM ($user."\n");
+    print RIPEM ("\n");
+    close (RIPEM);
+    if ($?) {
+	&error ("Error generating RIPEM key\n");
+    }
+    &add_secret ('$ripempass{\''.$user.'\'} = \''.$pass.'\';'."\n", 1);
+    print "RIPEM key for $user generated\n";
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+##########################################
+# The prototype GIST server
+
+sub gist {
+# Serve a GIST interface.
+    my ($buf, $nbytes);
+    my ($rin, $win, $ein);
+    my ($cmdbuf, $cmd);
+    my ($quit, $ineof);
+    my (@hold_active_chans);
+
+    $error_mode = 'd';
+    &set_configs ();
+
+    # GIST globals
+    @chandir = (); # 'r' = reading (from engine), 'w' = writing, '' = idle
+    @chanbuf = ();
+    @chanf = ();
+    @chanstat = (); # 0 = functioning, 1 = eof, 2 = error
+    %chanpid = (); # pid associated with each channel
+    $bufsize = 1024;
+    $stdin_chan = -1; # -1 = command, otherwise channel for 'write' command
+    $stdin_cnt = 0;
+    $stdin_eof = 0;
+    $select_cmd = 0;
+    @active_chans = (); # channels with pipes connected
+    @pid_chans = (); # channels associated with each pid
+    $gist = 1;
+
+    # Make STDIN (channel from GIST client) nonblocking.
+    fcntl (STDIN, F_SETFL, O_NONBLOCK | fcntl (STDIN, F_GETFL, $buf));
+
+    # The main loop
+    $quit = 0;
+    $inoef = 0;
+    while (!$quit) {
+	$rin = $win = $ein = '';
+	vec ($rin, fileno(STDIN), 1) = 1 unless $ineof;
+	foreach $chan (@active_chans) {
+#	    print "$chan $chandir[$chan] ".length ($chanbuf[$chan])
+#		." $chanstat[$chan]\n";
+	    if ($chandir[$chan] eq 'r'
+		&& (length $chanbuf[$chan]) != $bufsize) {
+#		print "chan $chan selected for read\n";
+		vec ($rin, fileno($chanf[$chan]), 1) = 1;
+	    } elsif ($chandir[$chan] eq 'w'
+		     && ($chanbuf[$chan] ne '' || $chanstat[$chan])) {
+#		print "chan $chan selected for write\n";
+		vec ($win, fileno($chanf[$chan]), 1) = 1;
+	    }
+	}
+	select ($rin, $win, $ein, undef);
+	if (vec ($rin, fileno(STDIN), 1) || $select_cmd) {
+	    if (vec ($rin, fileno(STDIN), 1)) {
+		if ($stdin_chan == -1) {
+		    $nbytes = $bufsize;
+		} else {
+		    $nbytes = $stdin_cnt;
+		}
+		$nbytes = sysread STDIN, $buf, $nbytes;
+		if ($nbytes eq 0) { $ineof = 1; }
+		if ($stdin_chan eq -1) {
+		    $cmdbuf .= $buf;
+		} else {
+		    $chanbuf[$stdin_chan] .= $buf;
+		    $stdin_cnt -= length $buf;
+		    if ($stdin_cnt == 0) {
+			$chanstat[$stdin_chan] = 1 if $stdin_eof;
+			$stdin_chan = -1;
+		    }
+		}
+	    }
+	    if ($select_cmd) {
+		if ($cmdbuf =~ /^\n/) {
+		    &respond ("201 Unselect\n");
+		    $select_cmd = '';
+		} else {	
+		    &gist_command ($select_cmd);
+		}
+	    }
+	    while (!$select_cmd && $cmdbuf =~ /^(\n?)([^\n]+\n)(.*)$/s) {
+		# Handle an input command
+		&gist_command ($2);
+		$cmdbuf = $3;
+	    }
+	    $quit ||= $ineof;
+	}
+	@hold_active_chans = @active_chans;
+	foreach $chan (@hold_active_chans) {
+	    if ($chandir[$chan] eq 'r'
+		&& (length $chanbuf[$chan]) != $bufsize
+		&& vec ($rin, fileno($chanf[$chan]), 1)) {
+#		print "chan $chan ok for read!\n";
+		$nbytes = $bufsize - length $chanbuf[$chan];
+		$nbytes = sysread $chanf[$chan], $buf, $nbytes;
+#		print "Read $nbytes from chan $chan\n";
+		if ($nbytes) {
+		    $chanbuf[$chan] .= $buf;
+		} else {
+		    $chanstat[$chan] = 1;
+		    close ($chanf[$chan]);
+		    &inactivate_chan ($chan);
+		}
+	    } elsif ($chandir[$chan] eq 'w'
+		     && ($chanbuf[$chan] ne '' || $chanstat[$chan])
+		     && vec ($win, fileno($chanf[$chan]), 1)) {
+#		print "chan $chan ok for write!\n";
+		$nbytes = length $chanbuf[$chan];
+		$nbytes = syswrite $chanf[$chan], $chanbuf[$chan], $nbytes;
+		$chanbuf[$chan] = substr ($chanbuf[$chan], $nbytes);
+#		print "$chan stat $chanstat[$chan] nbytes $nbytes\n";
+		if ($chanstat[$chan]) {
+#		    print "Closed $chanf[$chan]\n";
+		    close ($chanf[$chan]);
+		    &inactivate_chan ($chan);
+		    if ($chanbuf[$chan] eq '') {
+			&close_chan ($chan);
+		    }
+		}
+	    }
+	}
+    }
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+sub gist_command {
+    my ($cmd) = @_;
+    my ($nonzero, $status, $resp);
+    my (@st_code) = ('', '.', '?');
+    my ($ch, $ch1, $ch2, $ch3);
+    my ($f1, $f2, $f3);
+    my ($pid);
+
+    # Low level primitives
+    if ($cmd =~ /^ping\s/) {
+	&respond ("250 Pong\n");
+    } elsif ($cmd =~ /^select (.*)$/) {
+	$resp = '250 Status';
+	$nonzero = 0;
+	foreach $ch (split (/ /, $1)) {
+	    $resp .= ' ';
+	    if ($chandir[$ch] eq 'r') {
+		$status = (length $chanbuf[$ch]).$st_code[$chanstat[$ch]];
+	    } elsif ($chandir[$ch] eq 'w') {
+		$status .= $bufsize - length $chanbuf[$ch];
+	    }
+	    $nonzero ||= ($status ne '0');;
+	    $resp .= $status;
+	}
+	if ($nonzero) {
+	    $select_cmd = '';
+	    &respond ($resp."\n");
+	} else {
+	    $select_cmd = $cmd;
+	}
+    } elsif ($cmd =~ /^read (\d+) (\d+)$/) {
+	$nbytes = $2;
+	if (length $chanbuf[$1] < $nbytes) { $nbytes = length $chanbuf[$1]; }
+	&respond ("250 Read $nbytes\n");
+	&respond (substr ($chanbuf[$1], 0, $nbytes));
+	$chanbuf[$1] = substr ($chanbuf[$1], $nbytes);
+	if ($chanbuf[$1] eq '' && $chanstat[$1] == 1) {
+	    &close_chan ($1);
+	}
+    } elsif ($cmd =~ /^write (\d+) (\d+)(\.?)$/) {
+	&respond ("250 Write $2\n");
+	if ($2) {
+	    $stdin_chan = $1;
+	    $stdin_cnt = $2;
+	    if ($3) { $stdin_eof = 1; }
+	} elsif ($3) { $chanstat[$1] = 1; }
+    #
+    # The actual server commands
+    #
+    } elsif ($cmd =~ /^Test.echo\s/) {
+	($f1, $ch1) = &new_chan ('w');
+	($f2, $ch2) = &new_chan ('r');
+	push (@active_chans, $ch1, $ch2);
+	if (!($pid = fork ())) {
+	    &close_all_chanfs ();
+	    &echo ($f1, $f2);
+	}
+	close ($f1); close ($f2);
+	&register_pid ($pid, $ch1, $ch2);
+	&respond ("250 Opened $ch1 $ch2\n");
+    } elsif ($cmd =~ /^Mail.capabilities\s/) {
+	$ch = &alloc_chan ('r');
+	$chanbuf[$ch] = "Accept: application/pgp\n"
+	    ."Accept: application/x-pgp\n"
+	    ."Accept: multipart/security\n"
+	    ."Accept: multipart/encrypted\n"
+	    ."Accept: text/plain; lineprefix=\"-----BEGIN PGP \"\n";
+	$chanstat[$ch] = 1;
+	&respond ("250 Opened $ch\n");
+    } elsif ($cmd =~ /^Mail.in\s/) {
+	($f1, $ch1) = &new_chan ('w');
+	($f2, $ch2) = &new_chan ('r');
+	($f3, $ch3) = &new_chan ('r');
+	push (@active_chans, $ch1, $ch2, $ch3);
+	if (!($pid = fork ())) {
+	    &close_all_chanfs ();
+	    &gist_decode ($f1, $f2, $f3);
+	}
+	close ($f1); close ($f2); close ($f3);
+	&register_pid ($pid, $ch1, $ch2, $ch3);
+	&respond ("250 Opened $ch1 $ch2 $ch3\n");
+    } else {
+	&respond ("500 Command unrecognized\n");
+    }
+}
+
+sub alloc_chan {
+# $new_chan = &alloc_chan ($dir)
+    my ($dir, $f) = @_;
+    my ($chan);
+
+    for ($chan = 0; $chandir[$chan]; $chan++) {} 
+    $chandir[$chan] = $dir;
+    $chanf[$chan] = '';
+    $chanstat[$chan] = 0;
+    return $chan;
+}
+
+sub new_chan {
+# ($f, $new_chan) = &new_chan ($dir)
+# Open a new channel connected to a pipe.
+    my ($dir) = @_;
+    my ($chan);
+
+    $chan = &alloc_chan ($dir);
+    pipe ('R'.$chan, 'W'.$chan);
+    if ($dir eq 'r') {
+	$chanf[$chan] = 'R'.$chan;
+	fcntl ('R'.$chan, F_SETFL, O_NONBLOCK
+	       | fcntl ('R'.$chan, F_GETFL, $buf));
+	return ('W'.$chan, $chan);
+    } elsif ($dir eq 'w') {
+	$chanf[$chan] = 'W'.$chan;
+	fcntl ('W'.$chan, F_SETFL, O_NONBLOCK
+	       | fcntl ('W'.$chan, F_GETFL, $buf));
+	return ('R'.$chan, $chan);
+    }
+}
+
+sub close_chan {
+# &close_chan ($chan)
+    my ($chan) = @_;
+    my (@new_pid_chans, $pid);
+
+#   print "close_chan $chan\n";
+    if ($chanpid[$chan]) {
+	$pid = $chanpid{$chan};
+	foreach $cha ($pid_chans[$pid]) {
+	    if ($cha != $chan) {
+		push (@new_pid_chans, $cha);
+	    }
+	}
+	$pid_chans{$pid} = join (',', @new_pid_chans);
+	if ($#new_pid_chans < 0) {
+	    waitpid ($pid, 0);
+	    delete $pid_chans{$pid};
+	}
+    }
+    $chandir[$chan] = '';
+    $chanbuf[$chan] = '';
+    $chanpid[$chan] = '';
+}
+
+sub respond {
+# Respond. Does the same thing as print, but uses syswrite
+    my ($line) = @_;
+
+    syswrite STDOUT, $line, length $line;
+}
+
+sub inactivate_chan {
+# Remove $chan from @active_chans
+    my ($cha) = @_;
+    my (@new_active) = ();
+
+    foreach $ch (@active_chans) {
+	if ($ch != $cha) {
+	    push (@new_active, $ch);
+	}
+    }
+    @active_chans = @new_active;
+}
+
+sub close_all_chanfs {
+    foreach $ch (@active_chans) {
+#	print "close_all_chanfs: closing $chanf[$ch]\n";
+	close ($chanf[$ch]);
+    }
+}
+
+sub register_pid {
+    my ($pid, @chans) = @_;
+
+    $pid_chans{$pid} = join (',', @chans);
+    foreach $ch (@chans) {
+	$chanpid = $pid;
+    }
+}
+
+# Handlers for actual commands
+
+sub echo {
+    my ($f1, $f2) = @_;
+
+#   sleep (10);
+    select ($f2); $| = 1;
+    while (<$f1>) {
+	print $f2 $_;
+    }
+    close ($f1);
+    close ($f2);
+    exit 0;
+}
+
+sub gist_decode {
+    my ($f1, $f2, $f3) = @_;
+    my ($key, $val);
+    my (@new_headers);
+
+    open (STDIN, "<&$f1");
+    open (STDOUT, ">&$f2");
+    open (STDERR, ">&$f3");
+
+    $error_mode = 'g';
+
+    &open_input ();
+    &get_header ('-');
+    @deliver_headers = @in_headers;
+    &decode_body ($in_body, '', 0);
+    &delete_open_tmpfiles ();
+    exit 0;
+}
+
+##########################################
+# Routines to get files from the Web (experimental)
+
+# Should we disable all the socket stuff if the config specifies
+# getting the file through a command (eg, Lynx)?
+
+use Socket;
+
+sub open_web {
+# $success = &open_web ($url)
+# Open a Web connection for the file as file handle WWW.
+    my ($url) = @_;
+    my ($host, $port, $suf);
+    my ($fqdn, $aliases, $type, $len, $thataddr);
+    my ($name, $proto);
+    my ($that, $thataddr);
+    my ($savesel, $gotsep);
+#    my ($thishost, $this, $thisaddr);
+
+    if ($config{'geturl'}) {
+	&pfi ("Getting $url using command $config{'geturl'}\n");
+	return (open (WWW, $config{'geturl'}.' '.&shell_quote ($url).'|'));
+    }
+    &pfi ("Getting $url\n");
+    if ($url =~ /^http\:\/\/([\w\-\.]+)(\:\d+)?(\/.*)$/) {
+	$host = $1;
+	$port = $2;
+	$suf = $3;
+	if ($port =~ /^\:(\d+)$/) { $port = $1; }
+	else { $port = 80; }
+	($fqdn, $aliases, $type, $len, $thataddr) = gethostbyname ($host);
+	return &pdv ("Host not found: $host\n") if ($thataddr eq '');
+#	chop($thishost = `hostname`);
+	($name, $aliases, $proto) = getprotobyname("tcp");
+#	($name, $aliases, $type, $len, $thisaddr) = gethostbyname($thishost);
+	socket (WWW, PF_INET, SOCK_STREAM, $proto)
+	    || return &pdv ("socket: $!\n");
+#	$this = pack('S n a4 x8', AF_INET, 0, $thisaddr);
+	$that = pack('S n a4 x8', AF_INET, $port, $thataddr);
+	&pdv (sprintf ("connecting to %d.%d.%d.%d:%d\n",
+		       unpack ('C4', $thataddr), $port));
+	eval {
+	    $SIG{'ALRM'} = sub { die "Timeout error on $url\n" };
+	    alarm (5);
+#	    bind(WWW, $this) || &die_disarm ("bind: $!\n");
+#	    &pdv ("bound the socket...\n");
+	    connect(WWW, $that) || &die_disarm ("connect: $!\n");
+	    &pdv ("connected to the socket...\n");
+	    $savesel = select (WWW); $| = 1; select ($savesel);
+	    print WWW "GET $suf HTTP/1.0\n"
+		."Accept: text/plain, text/html, application/x-pgp-pubring, */*\n"
+	        ."User-Agent: premail/$version (perl; unix)\n"
+		."\n";
+	    $response = <WWW>;
+	    if ($response !~ /^HTTP\/1\.0 200/) {
+		&die_disarm ("Remote server error: $response");
+	    }
+	    $gotsep = 0;
+	    while (!$gotsep && defined ($_ = <WWW>)) {
+		$gotsep = 1 if (/^\r?$/);
+	    }
+	    alarm (0);
+	    $SIG{'ALRM'} = "IGNORE";
+	};
+	if ($@) { return &pdv ($@); }
+	return &pdv ("No response from server\n") unless $gotsep;
+    } else {
+	&error ("Misformed URL: $url\n");
+    }
+    return 1;
+}
+
+sub die_disarm {
+# Disarm the alarm, then die. Avoids race condition (present in http.ph).
+    alarm (0);
+    $SIG{'ALRM'} = "IGNORE";
+    die @_;
+}

@@ -1,0 +1,206 @@
+# premail preferences file
+#
+# This is the default preferences file for premail v. 0.44
+# Raph Levien <raph@c2.net>
+# 4 Jul 1996
+#
+# To change a setting, remove the # before the $config, and edit the
+# value after the = sign. For example, to set pgppath to
+# ~/remailerkeys, change the line
+#    # $config{'pgppath'} = '~/.pgp'
+# to
+#    $config{'pgppath'} = '~/remailerkeys'
+
+# pgp: this is the filename where your copy of PGP resides.
+#
+# $config{'pgp'} = 'pgp';
+
+# sendmail: this is where the system's real sendmail is kept. It is
+# almost always /usr/lib/sendmail, but if not, set it here. If you're
+# installing premail as /usr/lib/sendmail, then it's a better idea to
+# set it within the premail file itself, so that it doesn't depend on
+# reading this ~/.premailrc file. Also, if you're installing premail
+# as /usr/lib/sendmail, then make sure that none of the ~/.premailrc
+# files have config{'sendmail'} set to premail -- this will cause a
+# nasty loop. 
+#
+# $config{'sendmail'} = '/usr/lib/sendmail';
+
+# mixmaster: this is the filename where your mixmaster exectuable
+# resides.
+#
+# $config{'mixmaster'} = 'mixmaster';
+
+# movemail: this is the filename where your movemail exectuable
+# resides. You only need to set this if you will be using mixmaster.
+#
+# $config{'movemail'} = 'movemail';
+
+# ripem: this is the filename where your ripem exectuable resides.
+# You only need to set this if you will be using S/MIME.
+#
+# $config{'ripem'} = 'ripem';
+
+# moss: this is the directory where your TIS/MOSS exectuables reside.
+# You only need to set this if you will be using MOSS.
+#
+# $config{'mossbin'} = '';
+
+# post: full pathname of the MH posting agent. This is used in the
+# -post mode.
+#
+# $config{'post'} = '/usr/lib/mh/post';
+
+# geturl: A command for getting files from the Web. If you are behind
+# a firewall which doesn't let you make connections to the outside,
+# set this to "lynx -source". If this isn't set, premail will use its
+# built-in Web client.
+#
+# $config{'geturl'} = '';
+
+# dead-letter: The filename where premail stores its undeliverable
+# mail.
+#
+# $config{'dead-letter'} = '~/dead.letter';
+
+# logfile: where to keep a log of mail sent through premail. A log can
+# be very useful in tracking down problems, especially since it can
+# help identify bounced mail.
+#
+# $config{'logfile'} = '';
+
+# storefile: where to store outgoing mail instead of using sendmail to
+# send it directly. This is useful if your machine is usually not
+# connected to the net when you use premail. You can send your mail
+# later by just running csh on it (i.e. 'csh storefile'). Delete the
+# file after it is sent, so that you don't send the same mail more
+# than once. This is also useful for composing mail on a different
+# machine than sending it, in which case you would transfer the file.
+#
+# $config{'storefile'} = '';
+
+# tmpdir: The directory where premail stores its temporary files. If
+# you have a ramdisk or an encrypted partition, it would be much safer
+# to set tmpdir to store the temporary files there, instead. See also
+# premail-secrets.
+#
+# $config{'tmpdir'} = '/tmp';
+
+# charset: The default charset for outgoing 8-bit messages. If your
+# mailer is correctly configured, it will label the correct charset
+# itself. This is just the one used when that doesn't happen.
+#
+# $config{'charset'} = 'iso-8859-1';
+
+# encrypt: Set this to 'yes' if you want to use PGP encryption, or to
+# '' to disable encryption.
+#
+# $config{'encrypt'} = 'yes';
+
+# ack: Set this to 'yes' to get an acknowledgement for all mail
+# outgoing mail sent through the nymservers.
+#
+# $config{'ack'} = '';
+
+# extrablank: insert extra blank line between header and body. This
+# can be useful when the mailer messes up the message formats. Set to
+# 'yes' to add the extra blank line, or get the mailer fixed ;-)
+#
+# $config{'extrablank'} = '';
+
+# debug: you can set debug options here, although it is usually better
+# to do so from the command line (i.e. premail +debug=y -t).
+#
+# $config{'debug'} = '';
+
+# signuser: Set this to your PGP key user id if you want premail to
+# sign your PGP-encrypted  messages. In general, you will want to
+# store your passphrase in the secrets file for this to be useful.
+#
+# $config{'signuser'} = '';
+
+# default-reply-to: This automatically adds a 'Reply-To:' field to all
+# anonymous outgoing mail. You can override it by providing your own
+# 'Reply-To:'. If you want to remain anonymous, set this to your
+# anonymous address.
+#
+# $config{'anon-from'} = '';
+
+# addresses: The location of your address book. Each entry in the
+# address book has the form:
+#    address: expansion
+# where the expansion can either be a double-paren command, or a list
+# of addresses, possibly containing double-paren commands of their
+# own.
+#
+# $config{'addresses'} = '~/.premail/addresses';
+
+# rlist: The file where premail stores the remailer list.
+#
+# $config{'rlist'} = '~/.premail/rlist';
+
+# pubring: The file where premail stores the public keyring for the
+# remailers. This file is kept separately from your normal keyring, so
+# keys between the two can never get confused.
+#
+# $config{'pubring'} = '~/.premail/pubring.pgp';
+
+# premail-secrets-pgp: The file where premail stores the encrypted
+# secrets file.
+#
+# $config{'premail-secrets-pgp'} = '~/.premail/secrets.pgp';
+
+# premail-secrets: The location of your secrets file. As with tmpfile,
+# if you have a ramdisk or encrypted partition, the file should be on
+# that. If the filename contains '$<', then that is expanded to your
+# numeric user id.
+#
+# $config{'premail-secrets'} = '/tmp/.premail-secrets.$<';
+
+# rlist-valid: The validity period for remailer-list information, in
+# seconds. If the remailer-list file is older than this, it is fetched
+# from the Net.
+#
+# $config{'rlist-valid'} = 300;
+
+# URL's for information about the remailers. If these URL's are set to
+# blank, then that disables the process of getting the files from the
+# Web.
+#
+# $config{'rlist-url'} = 'http://kiwi.cs.berkeley.edu/rlist';
+# $config{'pubring-url'} = 'http://kiwi.cs.berkeley.edu/pubring.pgp';
+# $config{'type2-list-url'} = 'http://www.jpunix.com/type2.html';
+# $config{'pubring-mix-url'} = 'http://www.jpunix.com/pubring.html';
+
+# The following obscure options are only documented here, i.e. not in
+# the official documentation.
+
+# defaultpath: default chain for routing mail messages. If most or all
+# of your mail will go through the remailers, then this is a good one
+# to set. It can be either a standard remailer path (such as
+# replay;portal;exon), or a number indicating how many hops. If you
+# set this and want to send mail that is _not_ sent through the
+# remailers, include the line 
+#    Chain: ;
+# in your header.
+#
+# $config{'defaultpath'} = '';
+
+# pgp-only: choose only PGP-capable remailers in auto-chaining mode.
+# Set to 'yes' to disallow non-PGP-capable remailers from being used.
+# This feature isn't very useful, because premail almost always
+# selects pgp-capable remailers anyway.
+#
+# $config{'pgp-only'} = '';
+
+# numshuf: amount of shuffling to do when choosing a chain of
+# remailers. 0 is no shuffling, 3 tends to pick remailers from the top
+# of the list, and 100 should pick remailers completely at random.
+#
+# $config{'numshuf'} = 3;
+
+# no-middle: disable selection of middleman remailers. This is a
+# useful feature when the middleman remailers are themselves using
+# premail to select chains - it prevents mail loops.
+#
+# $config{'no-middle'} = '';

@@ -1,0 +1,1053 @@
+
+   This document is available online at
+   [1]http://www.c2.net/~raph/premail/.
+   
+Introduction to premail
+
+     This is the documentation for version 0.45 of premail, an e-mail
+     privacy package by [2]Raph Levien. It is organized as a single,
+     large document so as to be easily readable when printed. You can,
+     however, jump directly to one of these topics: [3]installation,
+     [4]secrets, [5]preferences, [6]Netscape, [7]Pine, [8]other mailers,
+     [9]command line, [10]encryption, [11]decoding, [12]anonymity,
+     [13]nyms, [14]usenet, [15]address book, [16]smime, [17]debugging,
+     [18]technical notes, [19]related documents, (end of list).
+     
+     The main function of premail is adding support for encrypted e-mail
+     to your mailer, using plain PGP, [20]PGP/MIME, [21]MOSS, or
+     [22]S/MIME.
+     
+     In addition, premail provides a seamless, transparent interface to
+     the [23]anonymous remailers, including full support for Mixmaster
+     remailers and the nymservers. Nymservers provide cryptographically
+     protected, fully anonymous accounts for both sending and receiving
+     e-mail.
+     
+     While premail can be used as a stand-alone application, it works
+     best when integrated with your mailer. Currently, premail is
+     integrated completely seamlessly and transparently only with
+     Netscape 3.0's built-in mailer. It works fairly well with [24]Pine
+     3.94 or later, as well (plain PGP is supported, but decryption of
+     MIME-based e-mail encryption protocols is still missing).
+     Transparent integration of outgoing mail only is supported for any
+     mailer in which the mail sending program can be configured,
+     including Berkeley mail, most emacs mailers, and [25]MH. For these
+     mailers, you can decode messages with a single command.
+     
+     To integrate with your mailer, premail places itself between the
+     mailer and the actual mail transport. For outgoing mail, premail
+     masquerades as sendmail. You configure your mailer to call premail
+     instead of sendmail. Then, premail performs the encryption or
+     signing, and invokes sendmail to actually send the message.
+     
+     For mailers that call a command to receive incoming mail (including
+     Netscape 3.0), the situation is similar. Netscape, for example, can
+     be configured to call movemail to get incoming mail. To integrate
+     premail, you'd configure Netscape to call premail instead, which
+     would in turn call movemail to actually get the mail, then would
+     decode it.
+     
+     You need the following software in order to effectively use
+     premail:
+     
+     * Unix. Unfortunarely, premail does not work on Mac or Windows.
+     * [26]Perl 5.000 or later.
+     * [27]PGP (version 2.6.2 recommended).
+     * [28]RIPEM 3.0b2 or later (optional, for S/MIME support)
+       
+       [29]TIS/MOSS 7.1 (optional, for MOSS support)
+     
+       [30]Mixmaster (optional, for higher security anonymous mail)
+     
+     [31]Lynx (only if you're behind a firewall)
+   
+Installation
+
+     First, you need to get premail. The source code is available from
+     an [32]export-control Web server. You may also be able to find a
+     copy on the [33]Hacktic FTP site in the Netherlands. In either
+     case, you want to get the file premail-0.45.tar.gz.
+     
+     After you've gotten the file, unpack it. This command should do it:
+     
+   gzip -dc premail-0.45.tar.gz | tar xvf -
+
+     The unpacking process will create a subdirectory called
+     premail-0.45, containing the following files:
+     
+                  README A short description of the contents
+                      premail The premail program itself
+                    preferences A skeletal preferences file
+                                      
+     Test to see if you can run premail. These commands should print a
+     usage summary:
+     
+   cd premail-0.45
+   ./premail
+
+     If you get an error message reading "command not found," then you
+     will have to edit the first line of premail to refer to the actual
+     pathname of the perl5 interpreter. One good way to find out the
+     pathname is to do "which perl5" or "which perl".
+     
+     On the other hand, if you get a string of syntax errors, then the
+     problem is that you are running perl4, while premail needs perl5.
+     Try to see if you can find perl5 on your machine. Otherwise, you
+     may need to install perl5 yourself.
+     
+     If you will be using premail from the command line frequently, then
+     you may want to copy (or symlink) the premail program into a
+     location in your $PATH. For example, if you have permission to add
+     files into /usr/local/bin, then you may consider running this
+     command:
+     
+   cp -p premail /usr/local/bin
+
+     At this point, you are ready to test whether premail actually
+     works. We are assuming that you already have PGP installed and have
+     generated your own public key. Type this command, substituting in
+     your own e-mail address:
+     
+   ./premail -t
+   To: your@own.email.addr ((encrypt-pgp))
+   Subject: Test
+
+   Does this really work?
+   .
+
+     If all goes well, you should be back at the command line within a
+     couple of seconds. If it seems to hang without any disk or net
+     activity, try typing randomly for a minute, under the assumption
+     that PGP needs random keystrokes. This shouldn't happen if PGP is
+     already set up correctly (including having generated your own
+     public key), but on the chance that it isn't, hanging while waiting
+     for random keystrokes is one of the more common failure modes.
+     
+     This is also the point at which you may get a PGP error. Two common
+     problems are that premail can't find the PGP program, in which case
+     you will want to add a line to your preferences file (see
+     [34]below), or that it can't find the public key corresponding to
+     your e-mail address.
+     
+     If the test was successful you now have a PGP-encrypted message in
+     your mailbox, then you should now have a PGP-encrypted message in
+     your mailbox.
+     
+Preferences
+
+     While premail's default configuration is designed to be sufficient
+     for the the most common cases, you may want to change some of the
+     configuration options. This is done by adding lines to the
+     preferences file.
+     
+     The default location for the preferences file is
+     ~/.premail/preferences, where ~ represents your home directory. The
+     premail distribution comes with a skeleton preferences file, but it
+     does not automatically copy it into the ~/.premail directory. You
+     might choose to do that yourself, or you might create one from
+     scratch.
+     
+     The format of the preferences file is a sequence of lines such as
+     the following:
+     
+   $config{'option'} = 'value';
+
+     All other lines (including those beginning with #) are considered
+     to be comments and are ignored. Here's a typical preferences file
+     (actually, the one on my home machine):
+     
+   $config{'logfile'} = '/home/raph/premail/log';
+   $config{'debug'} = 'chvl';
+   $config{'movemail'} = '/home/raph/bin/movehome';
+   $config{'ripem'} = '/home/raph/install/ripem/main/ripem';
+   $config{'pgp'} = '/usr/local/bin/pgp';
+
+     As you can see, a major use for the preferences file is to specify
+     full pathnames for the helper programs. In addition, I've set it up
+     to produce a full log, which I find useful, because I'm constantly
+     tracking down bugs :-)
+     
+     Here's a table of all the configuration options, their defaults,
+     and a very brief description. More complete descriptions are found
+     in the preferences file included in the premail distribution.
+     
+   _option
+   default_ _explanation_
+   pgp
+   _pgp_ The location of the PGP executable.
+   sendmail
+   _/usr/lib/sendmail_ The location of the sendmail executable.
+   mixmaster
+   _mixmaster_ The location of the Mixmaster executable (useful for more
+   secure anonymous mail).
+   movemail
+   _movemail_ The location of the movemail executable (useful for
+   integrating Netscape 3.0).
+   ripem
+   _ripem_ The location of the ripem executable (needed for S/MIME
+   messages).
+   mossbin
+   __The directory containing the TIS/MOSS executables (needed for MOSS
+   messages).
+   post
+   _post_ The location of the MH post executable (needed for MH
+   integration).
+   geturl
+   __A command for getting files from the Web. Use "lynx -source" if
+   behind a firewall.
+   dead-letter
+   _~/dead.letter_ The file where premail stores undeliverable mail.
+   logfile
+   __The location where premail stores its log, if the l debug flag is
+   set.
+   storefile
+   __If set, the location where premail stores outgoing mail, instead of
+   calling sendmail.
+   tmpdir
+   _/tmp_ Where premail stores its temporary files.
+   charset
+   _iso-8859-1_ The default charset for outgoing 8-bit messages.
+   encrypt
+   _yes_ Set to blank to disable PGP encryption to remailers.
+   ack
+   __If set, nymservers will send acknowledgements for all outgoing mail.
+   extrablank
+   __If set, premail adds an extra blank on remailer messages. Useful if
+   behind a broken mail proxy.
+   debug
+   __Debugging flags (see section on [35]debugging).
+   signuser
+   __The user id of the default PGP secret key used to sign messages.
+   default-reply-to
+   __Adds a Reply-To: header field with this address when sending
+   anonymous e-mail.
+   addresses
+   _~/.premail/addresses_ The file containing your addresses.
+   rlist
+   _~/.premail/rlist_ The file where premail stores the remailer list.
+   pubring
+   _~/.premail/pubring.pgp_ The file where premail stores the public
+   keyring for the remailers.
+   premail-secrets-pgp
+   _~/.premail/secrets.pgp_ The file where premail stores the encrypted
+   secrets file.
+   premail-secrets
+   _/tmp/premail-secrets.$<_ The location of your secrets file
+   rlist-url
+   _http://kiwi.cs.berkeley.edu/rlist _The URL for the remailer list.
+   pubring-url
+   _http://kiwi.cs.berkeley.edu/pubring.pgp_ The URL for the remailer
+   public keyring.
+   type2-list-url
+   _http://www.jpunix.com/type2.html_ The URL for the Mixmaster type2
+   list.
+   pubring-mix-url
+   _http://www.jpunix.com/pubring.html_ The URL for the Mixmaster
+   pubring.
+   
+Secrets
+
+     To create signatures, decrypt messages, or use nyms, you need to
+     set up a "premail secrets" file. If you will only be using premail
+     to encrypt outgoing mail, you can skip this section.
+     
+     The default filename is /tmp/.premail-secrets.$< , where $< is
+     equal to your numeric user id. To change the filename, use a
+     preferences line such as this one:
+     
+   $config{'premail-secrets'} = '/mnt/cryptdisk/premail-secrets';
+
+     If you don't know your numeric user id, you can find it by running
+     "echo $uid" (from csh or tcsh), "echo $UID" (from sh or bash), or:
+     
+   perl -e 'print "$<\n"'
+
+     The premail secrets file has this format:
+     
+   $pgppass{'user'} = 'PGP passphrase for user';
+   $pgppass{'alternate'} = 'PGP passphrase for alternate';
+   $penetpass = 'Passphrase for anon.penet.fi';
+
+     However, make sure your premail secrets file has restrictive
+     permissions, so other people on your system can't read your
+     passphrases! This command is well recommended (substituting your
+     actual user id, of course):
+     
+   chmod 600 /tmp/.premail-secrets.7437
+
+  Logging in and logging out
+  
+     Generally, premail stores its secrets file in the /tmp directory.
+     In some cases, this is good enough security. In other cases, it
+     might be better to store the file encrypted most of the time, and
+     only decrypt it when necessary. To use this capability of premail,
+     first set a passphrase with:
+     
+   premail -setpass
+
+     You will be prompted for a passphrase. You can use the same
+     passphrase as for your PGP key, or a different one, depending on
+     how many passphrases you want to remember. This command leaves you
+     logged in with the new passphrase set.
+     
+     To log out:
+     
+   premail -logout
+
+     You might consider adding this command to your .logout file, so
+     that it occurs automatically every time you log out of your
+     account.
+     
+     To log in again:
+     
+   premail -login
+
+     If you are running on a system with X, then premail will
+     automatically pop up a window to log in whenever the secrets are
+     needed. If you are not running X, and the secrets are needed, you
+     will get an error. In this case, you can log in manually and try
+     the command again.
+     
+Netscape
+
+     This section describes how to integrate premail into Netscape 3.0's
+     built-in mailer. Skip this section if you won't be using Netscape
+     mail.
+     
+     1. Create symbolic links to premail called "prezilla" and
+     "premailmove". To do this, make sure you are in the same directory
+     as premail itself, and type:
+     
+   ln -s premail prezilla
+   ln -s premail premailmove
+
+     2. Find a working movemail. If you have emacs installed, then you
+     most likely have one in /usr/lib/emacs/etc/movemail or a similar
+     location. If you don't already have one, then the source (or
+     possibly binary) for one is included in the Netscape Navigator
+     distribution and you can build it (no need if a binary is
+     included). Then, make sure premail can find it by adding a line
+     such as this one to your preferences file:
+     
+   $config{'movemail'} = '/usr/lib/emacs/etc/movemail';
+
+     This usage assumes that you get your mail from a mail spool, as
+     opposed to POP or some such. You may be able to get it to work for
+     POP as well, but you need to figure out how to invoke movemail to
+     move the mail from your mailbox to a file (specified as the second
+     argument to the movemail script).
+     
+     3. Add this line to your .cshrc, assuming your shell is csh or
+     tcsh:
+     
+   setenv NS_MSG_DELIVERY_HOOK /your/path/to/prezilla
+
+     Also run this command from the shell so it takes effect
+     immediately. The syntax is slightly different if your shell is sh
+     or bash _(note: is this right?)_:
+     
+   NS_MSG_DELIVERY_HOOK=/your/path/to/prezilla
+   export NS_MSG_DELIVERY_HOOK
+
+     4. Start Netscape (exit first if it's already running). Go to the
+     Options|Mail and News Preferences dialog, select the Servers tab.
+     Click on "External Movemail" and set the value to
+     /your/path/to/premailmove.
+     
+     Try sending yourself mail, and clicking on "Get Mail" from the
+     Netscape Mail window. The mail should show up in the Inbox,
+     correctly decoded.
+     
+     To view the X-Premail-Auth: header field to see the result of
+     signature checking, select Options|Show All Headers from the
+     Netscape Mail window.
+     
+     Note: as of Netscape v3.0, there is still a bug in the handling of
+     the Bcc: header field, which causes it to be ignored. Do not use
+     this field. Hopefully, this will be fixed in a future version of
+     Netscape.
+     
+     Note: some 3.0 beta versions modify the PATH environment variable.
+     If premail seems to work correctly from the command line, but not
+     from Netscape, try setting absolute pathnames for the programs used
+     by premail.
+     
+Pine
+
+     As of Pine 3.94, premail integrates both outgoing mail and the
+     decryption of plain PGP incoming mail. Unfortunately, decryption of
+     MIME-based mail is not yet supported.
+     
+     Two Pine configuration options need to be set to integrate premail
+     (i.e. from the main Pine screen, S for setup, then C for
+     configure). First, sendmail-path should be set to a value similar
+     to this (substituting the actual path to premail):
+     
+   /your/path/to/premail -oem -t -oi
+
+     Second, display_filters should be set to a value similar to this:
+     
+   _BEGINNING("-----BEGIN PGP")_ /your/path/to/premail -decode -body
+
+     If you have trouble finding these options in the setup screen, then
+     you can edit the .pinerc file directly.
+     
+     One caveat when using Pine: it usually tries to be "smart" and
+     remove comments from e-mail addresses, which includes the
+     double-paren commands such as ((encrypt-pgp)). There are a few ways
+     to deal with this problem:
+     
+     * Use "( )" instead of (( )). _Note: I think this works, but I
+       haven't tested it._
+     * Use the alternative caret syntax. These two lines mean the same
+       thing:
+
+   To: raph@cs.berkeley.edu ((encrypt-key, sign))
+   To: raph@cs.berkeley.edu^encrypt-key^sign
+     * Avoid setting the encryption options on the command line
+       altogether, and set them in the addresses file instead (see
+       [36]below).
+       
+Other mailers
+
+     This section describes how to integrate premail with MH, emacs, and
+     UCBMail. With these mailers, premail will only handle outgoing mail
+     automatically. To decode incoming mail, you still need to invoke
+     premail -decode by hand.
+     
+  Integrating premail with Emacs
+  
+     To add premail support to emacs, just add this line to your .emacs
+     file:
+     
+   (setq sendmail-program "/your/path/to/premail")
+
+  Integrating premail with MH
+  
+     In whatever directory you keep the premail executable, create a
+     symbolic link as follows:
+     
+   ln -s premail prepost
+
+     Under the name "prepost", premail will masquerade as MH's post
+     program rather than sendmail. You can get MH to call premail
+     instead of post by adding this line to your .mh_profile:
+     
+   postproc: /your/path/to/prepost
+
+     One thing to keep in mind is that premail's processing is done
+     before that of post. Thus, if you have MH aliases, they will get
+     expanded after the call to premail. If you use only premail
+     aliases, only MH aliases, or neither, this won't be a problem.
+     
+     Alternatively, if you have appropriate privileges, you can add this
+     line to /usr/lib/mh/mtstailor:
+     
+   sendmail: /your/path/to/premail
+
+     You may also have to configure MH to call sendmail locally rather
+     than connecting to an SMTP server. Don't do both the mtstailor and
+     mh_profile methods -- that would run premail twice.
+     
+  Installing premail with UCBmail
+  
+     UCBmail is a simple mailer front-end (also known as Mail and
+     mailx). If, when you type "mail user@site.dom", the mailer asks you
+     for a "Subject: " line, you are undoubtedly using UCBmail. If so,
+     you are in luck - it integrates very easily with premail. Just add
+     this line to your ~/.mailrc file:
+
+   set sendmail=/your/path/to/premail
+
+     Using premail with UCBmail is not very different from using premail
+     by itself, but you do get some handy features, such as including
+     files and using an editor on the mail.
+     
+Command line
+
+     Hopefully, you have integrated premail into your mail client, and
+     you won't have to invoke it from the command line. However, there
+     may still be times when it is convenient to use premail from the
+     command line.
+     
+     The most basic use of premail is as a replacement for sendmail. For
+     example, you can send mail directly from the command line, as
+     follows (here, the > represents the Unix prompt):
+     
+   > premail -t
+   To: raph@cs.berkeley.edu ((sign))
+   Subject: premail bug report
+
+   Here's a bug in premail: ...
+   .
+   >
+
+     The -t option specifies that the recipients are extracted from the
+     header fields (To:, Cc:, Bcc:, and the Resent- variants of each).
+     As in sendmail, you can specify the recipients on the command line
+     instead of using the -t option.
+     
+     In addition, you can set configuration options from the command
+     line, using the +option=value syntax. This is especially useful
+     with the [37]debug option. For example, to show you what happens
+     when formatting mail for remailers, but not actually send the
+     message:
+     
+
+   > premail +debug=ry -t
+   To: raph@cs.berkeley.edu ((chain=1))
+   Subject: test of remailer
+
+   test
+   .
+   Chose chain exon
+   /usr/lib/sendmail -oi remailer\@remailer\.nl\.com
+
+ There is one configuration option that can only be set from the
+command line in this fashion, which is the location of the preferences
+file itself. The configuration option is preferences, and the
+default value is ~/.premail/preferences.
+
+
+Encryption
+
+     Once you've got premail set up, actually using encryption is easy.
+     You simply add commands in double parentheses to the e-mail
+     addresses. The encrypt-pgp command (which can be abbreviated to
+     key) adds encryption to the outgoing mail, and the sign command
+     signs it.
+     
+     For example, to send me encrypted mail, you'd send it to
+     raph@cs.berkeley.edu ((encrypt-pgp)). You need to have a key with
+     this user id on your PGP public keyring, otherwise you'll get an
+     error message. If the user id on the key doesn't match the e-mail
+     address, you can specify it directly. For example, to send mail
+     directly to my workstation, but using the same public key as above,
+     use raph@kiwi.cs.berkeley.edu ((key=raph@cs.berkeley.edu)).
+     
+     Signing works much the same way. I can sign mail by adding
+     ((sign=raph@cs.berkeley.edu)) to the outgoing address. Actually,
+     because I set the signuser configuration option in my preferences
+     file, all I have to add is ((sign)).
+     
+     Doing both encryption and signing is just as easy. For example, to
+     send me signed, encrypted mail, use this line:
+     
+   To: raph@cs.berkeley.edu ((encrypt-pgp, sign))
+
+     Each recipient is treated separately - the double-paren commands
+     after an e-mail address apply to that recipient only. However, you
+     can add a Sign: header field to indicate that your message is
+     signed for all recipients. Example:
+     
+   To: vp@company, secretary@company, employees@company,
+       friend@outside ((encrypt-pgp))
+   Subject: Important announcement
+   Sign:
+
+   ...
+
+     In this example, all recipients will get a signed message, and the
+     message to friend@outside will be encrypted as well.
+     
+Decoding
+
+     The basic way to decode encrypted messages is to use premail
+     -decode as a command line. You can either give a filename as an
+     argument, or premail will accept the encrypted message on its
+     standard input. In either case, the decoded message will be printed
+     on the standard output.
+     
+     The message can be a standard e-mail message (RFC 822 format), or
+     it can be an entire mailbox. In the latter case, premail will
+     decode each of the messages individually. If you don't have premail
+     directly integrated into your mailer, then here's a handy way to
+     view your mail:
+     
+   premail -decode $MAIL | more
+
+     If the message is actually encrypted, then premail will need to
+     access the secrets file. If you are logged out of premail, then
+     premail will try to open an xterm window for you to type the
+     passphrase for the secrets file. If that doesn't succeed, premail
+     will print an error message. At that point, you might choose to log
+     in (i.e. premail -login) and then try the decoding again.
+     
+     If, as in many mailers, you have easy access to the body of the
+     message but not the header, then you can use premail -decode -body
+     on the body. This works well for plain PGP encrypted messages, but
+     unfortunately does not work for MIME-based message formats, because
+     important information is contained in the header.
+     
+     The results of the decoding (including signature verification) are
+     given in an X-Premail-Auth: header field. This header field is
+     protected against forgery; if the original message contains it, it
+     is changed to X-Attempted-Auth-Forgery.
+     
+Anonymity
+
+     The original reason for writing premail was to provide good support
+     for [38]anonymous remailers. If you're not interested in sending
+     anonymous mail, you can skip this section.
+     
+     Sending anonymous mail is very similar to sending encrypted mail.
+     Simply add the ((chain)) command to the recipient's e-mail address.
+     Alternatively, you can add a Chain: header field, and the mail will
+     be send anonymously to all recipients.
+     
+     Even though the chain command is simple, a lot is going on under
+     the surface. The default chain is 3, which asks that three "good"
+     remailers be chosen randomly. To make sure that it makes its choice
+     based on fresh, up-to-date information, premail downloads the
+     remailer list and a set of PGP public keys for the remailers from
+     the Web (the actual URLs are configuration options). After choosing
+     the remailers, the message is multiply encrypted with the PGP
+     public keys, and finally sent to the first remailer in the chain.
+     
+     The automatic chain selection process is very good. My tests
+     indicate that reliability is consistently above 99%. Further, the
+     chain selection process avoids some potential problems. For
+     example, some remailers are known not to work well in chains,
+     probably because of incorrectly configured "block lists." Also,
+     some remailers are "linked," in the sense of being hosted on the
+     same machine, or being administered by the same person. Choosing a
+     sequence of linked remailers wouldn't offer much security, so
+     premail doesn't.
+     
+     You can also choose the chain length. A shorter chain will be
+     faster and more reliable, but less secure, and conversely for
+     longer chains. For example, ((chain=5)) selects a chain of five
+     remailers.
+     
+     If this isn't enough control, you can specify the exact chain of
+     remailers by hand. For example, ((chain=replay;jam;exon)) bounces
+     the message around a few times outside the US.
+     
+     Mixmaster chains are specified inside an additional set of
+     parentheses. At the moment, there is no way to automatically select
+     a chain of Mixmaster remailers, so you have to do it by hand. For
+     example: ((chain=(replay;ecafe-mix;lcs))). You can even mix
+     Mixmaster and type-1 remailers; for example,
+     ((chain=(anon);1;(replay))) will sandwich one well-chosen remailer
+     between the two Mixmaster remailers.
+     
+     Extra header fields can be placed in the outgoing message by
+     prefixing the header with "Anon-". A particularly common usage is
+     an Anon-Reply-To: field, which specifies a reply-to address in the
+     mail delivered to the recipient. The Reply-To: header field is used
+     often enough that premail includes a default-reply-to configuration
+     option, which automatically adds it to all anonymous messages.
+     
+     The following header fields are passed through to the anonymized
+     message, even without the Anon- prefix:
+     
+   Mime-Version:
+   Content-Type:
+   Content-Transfer-Encoding:
+   Newsgroups:
+   X-Anon-To:
+   In-Reply-To:
+   References:
+
+Using nyms
+
+     This section describes how to create and use _nyms_, which are
+     accounts for sending and receiving anonymous mail. There are two
+     types of nymservers: alpha (named after the now defunct
+     alpha.c2.org), and newnym. For the most part, the operation of the
+     two is similar.
+     
+     To create a new nym, type
+     
+   premail -makenym
+
+     and follow the prompts. This command is also good for updating an
+     existing nym, which is important if one of the nym's remailers goes
+     down.
+     
+     You can also create or update a nym from the command line, as
+     follows:
+     
+   premail -makenym you@alias.cyberpass.net your@real.email.address
+
+     When premail creates a nym, it chooses random passphrases (one for
+     each remailer in the chain). The passphrases and other details of
+     the nym are stored in the premail secrets file. Thus, the nym is
+     fairly secure (much more so than, say, anon.penet.fi).
+     
+     The decode mechanism handles responses to nyms, again looking up
+     the passphrases in the premail secrets file.
+     
+     You can also send mail from your nym, in one of two ways. Assume
+     for the sake of example that your nym is you@alias.cyberpass.net.
+     Then, you would use a chain of 2;cyber=you. Alternatively, you can
+     use a chain of 2;cyber and include this header field:
+     
+   Anon-From: you@alias.cyberpass.net (You Know Who)
+
+     If you want the nymserver to send you a confirmation every time you
+     send mail from your nym, add a $config{'ack'} = 'yes'; line to your
+     preferences file.
+     
+     To delete a nym:
+     
+   premail -makenym you@alias.cyberpass delete
+
+     Please delete nyms if you are not actually using them; this helps
+     free up disk space and prevents the nymservers from being
+     overloaded.
+     
+     As of version 0.45, premail now supports the newnym type of
+     nymserver. This nymserver is more richly featured than the alpha
+     type. You do have to answer a few more prompts when creating nyms
+     for the newnym type, including creating a new PGP key. It's worth
+     it, though. The newnym servers seem to be working a lot better than
+     the alpha ones ever did. For more information on newnym, see the
+     [39]nym.alias.net homepage. If you want to exchange nyms between
+     premail and other programs (or a manual setup), then take a look at
+     the -importnym and -exportnym commands, which are explained in the
+     documentation for the [40]patch that upgraded premail 0.44 to have
+     newnym capability.
+     
+Posting to Usenet
+
+     Even though some remailers can post directly to Usenet, premail
+     does not support that. Thus, if you want to post to Usenet, you
+     should use a mail-to-news gateway.
+     
+     To find a working mail-to-news gateway, check Don Kitchen's
+     [41]list. There are two basic kinds: sites that scan the header
+     fields, and sites that include the newsgroup in the address.
+     
+     Using the address-parsing kind, to post to alt.anonymous, you'd
+     just send mail to alt.anonymous@myriad.alias.net (assuming, of
+     course, that myriad.alias.net is still functioning).
+     
+     Using the header-scanning kind, send mail to
+     mail2news@myriad.alias.net, and include this header field:
+     
+   Newsgroups: alt.anonymous
+
+     The header scanning kind has one advantage: you can cross-post to
+     multiple newsgroups using one mail message.
+     
+     One frequently asked question is: how can I follow up on a thread
+     while posting anonymously? This is easy. Find the Message-Id:
+     header field in the post you're responding to, and change it into a
+     References: field in your outgoing mail.
+     
+     Here's an example that ties it all together. Let's say you wanted
+     to reply to this post:
+     
+   From: Edward Brian Kaufman <ebk8@columbia.edu>
+   Newsgroups: alt.privacy.anon-server, alt.anonymous
+   Subject: A few questions about anon posts
+   Message-ID: <Pine.SUN.3.94L.960630113156@aloha.cc.columbia.edu>
+
+   Hi,
+
+   I'd like to know what the best/easiest way to do anon posts is and
+   how to do them.  Thank you,
+
+   Ed
+
+     To post the reply anonymously, send this mail:
+     
+   To: mail2news@myriad.alias.net ((chain))
+   Cc: Edward Brian Kaufman <ebk8@columbia.edu> ((chain))
+   Newsgroups: alt.privacy.anon-server, alt.anonymous
+   Subject: Re: A few questions about anon posts
+   References: <Pine.SUN.3.94L.960630113156@aloha.cc.columbia.edu>
+
+   If you have a Unix machine, using premail is the best way. To find
+   out how, read the manual.
+
+Address book
+
+     Adding the extra encryption commands is not difficult, but it can
+     be tedious and potentially error prone. Thus, premail provides an
+     address book for specifying commands to be used with specific
+     e-mail addresses.
+     
+     For example, let's say that one of your correspondents tells you
+     that she prefers mail to be PGP encrypted. Then, instead of typing
+     ((encrypt-pgp)) every time you send her mail, you could add this
+     line to your addresses file:
+     
+   her@email.address: ((encrypt-pgp))
+
+     The addresses file is usually at ~/.premail/addresses, but the
+     location is a configurable option.
+     
+     Another example was the hackerpunks mailing list (now defunct), in
+     which all of the subscribers have alpha.c2.org nyms. Since
+     haqr@alpha.c2.org had this line in his addresses file, he was able
+     to post to the list with just "To: hpunks":
+     
+   hpunks: hackerpunks@alpha.c2.org ((chain=2;alpha=haqr))
+
+     An address book entry can also expand to a list of addresses. For
+     example:
+     
+   alice: alice@crypto.com ((encrypt-pgp))
+   bob: bwhite@got.net ((key=bobw@netcom.com))
+   eric: eric@ecsl.org ((encrypt-pgp))
+
+   friends: alice, bob, eric
+
+     Sending mail to friends would then do what you'd expect: send
+     encrypted mail to each of alice, bob, and eric's full e-mail
+     addresses.
+     
+S/MIME
+
+     Version 0.45 of premail contains limited support for S/MIME
+     messages. Basic message formatting works, but there are problems
+     with creating usable certificates, and there is still no support
+     for an encryption algorithm interoperable with RC2. However, a few
+     hearty souls may wish to experiment with the S/MIME functionality
+     that is present. This section explains how to do it.
+     
+     First, you must install RIPEM 3.0b2 (or later). This is available
+     from the ripem export-controlled [42]FTP site. You'll need to get
+     an account on the server in order to download any of the
+     export-controlled code - the [43]GETTING_ACCESS file on the site
+     explains how.
+     
+     Once you have RIPEM installed (and the ripem configuration option
+     pointing to the executable), create a public key with this command:
+     
+   premail -ripemkey
+
+     You will then be prompted for your e-mail address. Alternatively,
+     you can give your e-mail address as a command line argument to
+     premail -ripemkey.
+     
+     After your key is created, you can send signed messages by adding
+     the ((ssign)) command. If you send a signed message to another
+     premail user, they will have your public key, and can send you
+     mail, by using ((encrypt=your@user.id)).
+     
+     The default encryption is Triple-DES. If the recipient can't handle
+     it, then ((encrypt-des)) will fall back to plain DES, which most
+     users will be able to decrypt - probably including "export"
+     versions of S/MIME. Of course, the disadvantage of using plain DES
+     is that any competent spy organization will also be able to decrypt
+     the messages ;-).
+     
+     Unfortunately, RIPEM 3.0b2 has some significant differences from
+     other S/MIME implementations in the way it handles public key
+     certificates. These prevent you from getting a VeriSign certificate
+     you can use. It is, however, possible to accept VeriSign class 1
+     beta certificates by running the following (prompts and messages
+     are in normal font, what you type is in boldface; you can find out
+     the password by looking in the secrets file):
+     
+   > _rcerts -u your@user.id_
+   Enter password to private key:
+   E - Enable standard issuers...
+   _...other choices..._
+     Enter choice:
+   _e_
+   ...V - VeriSign something or other...
+   _v_
+     Enter the number of months the certificate will be valid, or blank to canc
+el:
+   _12_
+     Enter choice:
+   _q_
+
+Debugging
+
+     If you run into trouble with premail, it might be of value to turn
+     on some of the debugging options. This can be done on the command
+     line, or in the .premailrc file. In the former case, add a
+     +debug=chvy argument to the command line. In the latter case, try:
+     
+   $config{'debug'} = 'chvy';
+
+     Here are the meanings of the debug options:
+     
+     c: Print command line invocation.
+     h: Print headers of input message.
+     l: Debug output goes to log instead of stdout.
+     p: Print finished message, do PGP.
+     r: Print chain chosen (useful in debugging chain selection).
+     y: Print finished message, don't do PGP.
+     v: Print all kinds of verbose info.
+     
+     Note that +debug=p puts the encrypted message on stdout. This may
+     be useful for constructing reply blocks, among other things.
+     
+     If there are problems with premail, then one of the best ways to
+     track them down is through the log. Try setting the debug
+     configuration option to chvl, setting the logfile configuration
+     option (for example, to ~/.premail/log), and then examining the
+     log. Also, if you're bringing bugs to my attention, it helps a lot
+     if you can send me relevant excerpts from the log.
+     
+Technical notes
+
+     This section covers a number of techincal notes related to the
+     operation of premail. This information should not be necessary for
+     ordinary use.
+     
+  Multiple recipients
+  
+     One of the tricky problems with mail encryption packages such as
+     premail is how to deal with multiple recipients. Based on
+     experience with previous versions, this version of premail tries
+     very hard to "get it right." However, as a consequence, the exact
+     behavior can sometimes be difficult to understand.
+     
+     The hard part is when some of the recipients have encryption
+     specified and others don't. What premail does is to split the
+     recipients up into groups. If two recipients can receive the same
+     actual message, they are in the same group, otherwise not. For
+     example, recipients getting an encrypted and an unencrypted message
+     cannot be in the same group. However, multiple recipients appearing
+     in To: and Cc: fields that use the same encryption method will be
+     in the same group. A single message, encrypted to multiple
+     recipients, will be sent, which is considerably more efficient than
+     encrypting separately for each recipient.
+     
+     One subtle point is the handling of Bcc: recipients. The semantics
+     of Bcc: specify that the mail be sent to each of the Bcc:
+     recipients, but that none of the other recipients be able to find
+     out their identity. However, encrypting to multiple recipients
+     would defeat this, because it is possible to indentify all of the
+     recipients of the encrypted message. Thus, each encrypted Bcc:
+     recipient gets its own group.
+     
+     Each recipient of an anonymous message also gets its own group, for
+     similar reasons.
+     
+     An attempt is made to make the headers in the message received by
+     the recipient be the same as if no encryption were used.
+     Specifically, the complete To: and Cc: header fields will be
+     present, but the Bcc: field will be missing. One exception to this
+     rule is anonymous messages, in which case the recipient can't see
+     any information about the other recipients.
+     
+  Error handling
+  
+     The goal is to handle errors in the same way as sendmail. Thus, the
+     exact handling depends on the setting of the -oe command line
+     option. The default (as in sendmail) is -oep, meaning that the
+     error message is printed to standard out, and the mail message is
+     appended to the dead letter file (the location of which is a
+     configuration option).
+     
+     Another choice is -oem, in which case the error message and the
+     mail message are packaged together and mailed back to the user.
+     This is appropriate when the mailer has no way to deal with error
+     messages returned from premail.
+     
+     One additional choice, not provided by sendmail, is -oed, which
+     prints the error message on standard out, but drops the mail
+     message. This is a good choice if the mailer can interpret a
+     non-zero return status code as indication of an error. This is the
+     mode used by Netscape (and is automatically selected when premail
+     is invoked as prezilla).
+     
+  Security issues
+  
+     In designing premail, usefulness and convenience were considered
+     more important than top security. Nonetheless, it can provide good
+     security, especially if you are aware of the security issues.
+     
+     One overriding assumption was that your machine is secure, and that
+     the serious threats were those of eavesdroppers on the network and
+     e-mail forgers. In general, premail handles passive attacks quite
+     well, while containing a number of vulnerabilities to active
+     attacks.
+     
+     Here are some potential security pitfalls with premail:
+     
+     * Stores secrets information on disk file.
+     * Stores (potentially sensitive) temporary files on disk.
+     * Does not check authenticity of remailer list, remailer public key
+       ring, or Mixmaster information gotten from the Web.
+     * Accessing the Web signals when anonymous mail is about to be sent,
+       perhaps aiding traffic analysis.
+     * Does not evaluate the trustworthiness of public keys used for
+       encryption and signature checking.
+       
+  Useless features
+  
+     Over the years, premail has accumulated a number of features of
+     dubious value. One of them is support for MOSS, a nice encryption
+     protocol that nevertheless failed to catch on. If you feel the urge
+     to use it, documentation is available in the [44]release notes for
+     version 0.43.
+     
+     One potentially cool feature is a server for decoding e-mail. This
+     _would_ be a useful feature if there were any mailers which used
+     it. The protcol for the server was designed to be fast (much, much
+     faster than invoking premail -decode separately for each message),
+     as well as "crypto-neutral," meaning that it doesn't contain any
+     features designed just for crypto, and that it could be used for
+     other tasks, for example converting image formats or character
+     sets. Thus, a client designed to use this protocol would like be
+     fully exportable from the US. If you're interested in integrating
+     support for this protocol into a popular e-mail client, please get
+     in touch with me.
+     
+Related documents
+
+     * The [45]README file for premail version 0.33a.
+     * [46]Release notes for version 0.43 of premail.
+       
+     _________
+     
+     [47]premail home
+
+References
+
+   1. http://www.c2.net/~raph/premail/
+   2. http://kiwi.cs.berkeley.edu/~raph/
+   3. file://localhost/home/raph/premail/doc-0.45.html#install
+   4. file://localhost/home/raph/premail/doc-0.45.html#secrets
+   5. file://localhost/home/raph/premail/doc-0.45.html#pref
+   6. file://localhost/home/raph/premail/doc-0.45.html#netscape
+   7. file://localhost/home/raph/premail/doc-0.45.html#pine
+   8. file://localhost/home/raph/premail/doc-0.45.html#other
+   9. file://localhost/home/raph/premail/doc-0.45.html#command
+  10. file://localhost/home/raph/premail/doc-0.45.html#encrypt
+  11. file://localhost/home/raph/premail/doc-0.45.html#decode
+  12. file://localhost/home/raph/premail/doc-0.45.html#anon
+  13. file://localhost/home/raph/premail/doc-0.45.html#nyms
+  14. file://localhost/home/raph/premail/doc-0.45.html#usenet
+  15. file://localhost/home/raph/premail/doc-0.45.html#address
+  16. file://localhost/home/raph/premail/doc-0.45.html#smime
+  17. file://localhost/home/raph/premail/doc-0.45.html#debug
+  18. file://localhost/home/raph/premail/doc-0.45.html#notes
+  19. file://localhost/home/raph/premail/doc-0.45.html#docs
+  20. http://www.c2.net/~raph/pgpmime.html
+  21. http://www.tis.com/docs/Research/moss.html
+  22. http://www.rsa.com/rsa/S-MIME/
+  23. http://www.cs.berkeley.edu/~raph/remailer-list.html
+  24. http://www.cac.washington.edu/pine/
+  25. http://www.smartpages.com/faqs/mh-faq/part1/faq.html
+  26. http://www.perl.com/perl/index.html
+  27. http://web.mit.edu/network/pgp-form.html
+  28. ftp://ripem.msu.edu/pub/crypt/ripem/
+  29. http://www.tis.com/docs/Products/tismoss.html
+  30. http://www.obscura.com/~loki/
+  31. http://www.ukans.edu/about_lynx/about_lynx.html
+  32. http://kiwi.cs.berkeley.edu/premail-form.html
+  33. ftp://ftp.hacktic.nl/pub/replay/pub/remailer/
+  34. file://localhost/home/raph/premail/doc-0.45.html#pref
+  35. file://localhost/home/raph/premail/doc-0.45.html#debug
+  36. file://localhost/home/raph/premail/doc-0.45.html#address
+  37. file://localhost/home/raph/premail/doc-0.45.html#debug
+  38. http://www.cs.berkeley.edu/~raph/remailer-list.html
+  39. http://kiwi.cs.berkeley.edu/~raph/n.a.n.html
+  40. http://kiwi.cs.berkeley.edu/~raph/n.a.n.premail-info
+  41. http://students.cs.byu.edu/~don/mail2news.html
+  42. ftp://ripem.msu.edu/pub/crypt/ripem/
+  43. ftp://ripem.msu.edu/pub/crypt/ripem/GETTING_ACCESS
+  44. http://www.c2.net/~raph/premail/premail.notes.0.43
+  45. file://localhost/home/raph/premail-readme.html
+  46. file://localhost/home/raph/premail/premail.notes.0.43
+  47. file://localhost/home/raph/premail.html

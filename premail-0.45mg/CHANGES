@@ -1,0 +1,6 @@
+The only difference between this and the 0.45 premail code is that we
+don't verify signatures on decoded messages. Instead they're passed
+through to Privtool for decoding.
+
+	Mark
+
