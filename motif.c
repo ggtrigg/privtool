@@ -1016,7 +1016,7 @@ setup_ui(int level, int argc, char **argv)
 
     XtRealizeWidget (toplevel_);
     XtAppMainLoop (app_context_);
-}
+} /* setup_ui */
 
 /*----------------------------------------------------------------------*/
 

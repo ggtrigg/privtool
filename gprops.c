@@ -81,6 +81,7 @@ typedef struct {
     GtkWidget	*pgpkeys;
     GtkWidget	*security_level;
     GtkWidget	*test_interval;
+    GtkWidget	*check_interval;
     GtkWidget	*pseudonyms;
     GtkWidget	*kill_list;
     GtkWidget	*default_nym;
@@ -98,6 +99,7 @@ typedef struct {
     GtkWidget	*organizn;		/* organization */
     GtkWidget	*record;		/* record */
     GtkWidget	*badbeep;		/* nobeepbadsig */
+    GtkWidget	*sigfile;		/* signature file */
 } PropWidgets;
 
 static PropWidgets	propw;
@@ -264,10 +266,16 @@ proptop_cb(GtkWidget *w, gpointer data)
 	else {
 	    remove_mailrc("folder");
 	}
-	buf = gtk_entry_get_text(GTK_ENTRY(propw.mail_spool));
 
+	buf = gtk_entry_get_text(GTK_ENTRY(propw.mail_spool));
 	if(*buf != '\0') {
 	    fprintf(nprivrc, "set mailspoolfile=%s\n", buf);
+	}
+
+	buf = gtk_entry_get_text(GTK_ENTRY(propw.check_interval));
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set retrieveinterval=%s\n", buf);
+	    replace_mailrc("retrieveinterval", buf);
 	}
 
 	buf = gtk_entry_get_text(GTK_ENTRY(propw.print_cmd));
@@ -322,6 +330,15 @@ proptop_cb(GtkWidget *w, gpointer data)
 	}
 	else {
 	    remove_mailrc("record");
+	}
+
+	buf = gtk_entry_get_text(GTK_ENTRY(propw.sigfile));
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set sigfile='%s'\n", buf);
+	    replace_mailrc("sigfile", buf);
+	}
+	else {
+	    remove_mailrc("sigfile");
 	}
 
 	fprintf(nprivrc, "set filemenu2='");
@@ -400,11 +417,13 @@ proptop_cb(GtkWidget *w, gpointer data)
 
 	    if( (strncmp(buf2, "set folder=", 11) != 0) &&
 		(strncmp(buf2, "set mailspoolfile=", 18) != 0) &&
+		(strncmp(buf2, "set retrieveinterval=", 21) != 0) &&
 		(strncmp(buf2, "set printmail=", 14) != 0) &&
 		(strncmp(buf2, "set domain=", 11) != 0) &&
 		(strncmp(buf2, "set indentprefix=", 17) != 0) &&
 		(strncmp(buf2, "set organization=", 17) != 0) &&
 		(strncmp(buf2, "set record=", 11) != 0) &&
+		(strncmp(buf2, "set sigfile=", 12) != 0) &&
 		(strncmp(buf2, "set filemenu2=", 14) != 0) &&
 		(strncmp(buf2, "set defaultusereplyto", 17) != 0) &&
 		(strncmp(buf2, "set defaultusefrom", 17) != 0) &&
@@ -499,7 +518,7 @@ create_mailer_page()
     GtkWidget	*vbox, *table, *align, *w, *hbox, *swin;
 
     vbox = gtk_vbox_new(FALSE, 0);
-    table = gtk_table_new(4, 2, FALSE);
+    table = gtk_table_new(5, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, TRUE, 4);
 
     align = gtk_alignment_new(1, 0.5, 0, 0);
@@ -515,25 +534,37 @@ create_mailer_page()
     gtk_widget_show(propw.mail_spool);
 
     align = gtk_alignment_new(1, 0.5, 0, 0);
-    w = gtk_label_new("Mail File Directory");
+    w = gtk_label_new("Check Interval (s)");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_table_attach(GTK_TABLE(table), align, 0, 1, 1, 2,
 		     GTK_FILL, 0, 4, 4);
     gtk_widget_show(w);
     gtk_widget_show(align);
+    propw.check_interval = gtk_entry_new();
+    gtk_table_attach(GTK_TABLE(table), propw.check_interval, 1, 2, 1, 2,
+		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
+    gtk_widget_show(propw.check_interval);
+
+    align = gtk_alignment_new(1, 0.5, 0, 0);
+    w = gtk_label_new("Mail File Directory");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 2, 3,
+		     GTK_FILL, 0, 4, 4);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
     propw.mail_dir = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.mail_dir, 1, 2, 1, 2,
+    gtk_table_attach(GTK_TABLE(table), propw.mail_dir, 1, 2, 2, 3,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(propw.mail_dir);
 
     align = gtk_alignment_new(1, 0.5, 0, 0);
     w = gtk_label_new("Print Command");
     gtk_container_add(GTK_CONTAINER(align), w);
-    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 2, 3,
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 3, 4,
 		     GTK_FILL, 0, 4, 4);
     gtk_widget_show(w);
     propw.print_cmd = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.print_cmd, 1, 2, 2, 3,
+    gtk_table_attach(GTK_TABLE(table), propw.print_cmd, 1, 2, 3, 4,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(align);
     gtk_widget_show(propw.print_cmd);
@@ -541,12 +572,12 @@ create_mailer_page()
     align = gtk_alignment_new(1, 0.5, 0, 0);
     w = gtk_label_new("Organization");
     gtk_container_add(GTK_CONTAINER(align), w);
-    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 3, 4,
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 4, 5,
 		     GTK_FILL, 0, 4, 4);
     gtk_widget_show(align);
     gtk_widget_show(w);
     propw.organizn = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.organizn, 1, 2, 3, 4,
+    gtk_table_attach(GTK_TABLE(table), propw.organizn, 1, 2, 4, 5,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(propw.organizn);
 
@@ -584,7 +615,7 @@ create_compose_page()
     GtkItemFactory	*ifactory;
 
     vbox = gtk_vbox_new(FALSE, 0);
-    table = gtk_table_new(4, 2, FALSE);
+    table = gtk_table_new(5, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, TRUE, 4);
 
     align = gtk_alignment_new(1, 0.5, 0, 0);
@@ -634,6 +665,18 @@ create_compose_page()
     gtk_table_attach(GTK_TABLE(table), propw.record, 1, 2, 3, 4,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(propw.record);
+
+    align = gtk_alignment_new(1, 0.5, 0, 0);
+    w = gtk_label_new("Signature File");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 4, 5,
+		     GTK_FILL, 0, 4, 4);
+    gtk_widget_show(align);
+    gtk_widget_show(w);
+    propw.sigfile = gtk_entry_new();
+    gtk_table_attach(GTK_TABLE(table), propw.sigfile, 1, 2, 4, 5,
+		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
+    gtk_widget_show(propw.sigfile);
 
     frame = gtk_frame_new("Options");
     gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 4);
@@ -878,6 +921,15 @@ load_mailer_page()
 
     if( (rcval = find_mailrc("mailspoolfile")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.mail_spool), rcval);
+
+    if( (rcval = find_mailrc("retrieveinterval")) )
+	gtk_entry_set_text(GTK_ENTRY(propw.check_interval), rcval);
+    else {
+	temp = g_strdup_printf("%ld", DEFAULT_CHECK_TIME);
+	gtk_entry_set_text(GTK_ENTRY(propw.check_interval), temp);
+	g_free(temp);
+    }
+
     if( (rcval = find_mailrc("folder")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.mail_dir), rcval);
 
@@ -913,9 +965,11 @@ load_compose_page()
     if( (rcval = find_mailrc("replyto")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.replyto), rcval);
 
-
     if( (rcval = find_mailrc("record")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.record), rcval);
+
+    if( (rcval = find_mailrc("sigfile")) )
+	gtk_entry_set_text(GTK_ENTRY(propw.sigfile ), rcval);
 
     if( (rcval = find_mailrc("indentprefix")) ) {
 	gtk_entry_set_text(GTK_ENTRY(propw.indent), rcval);

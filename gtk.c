@@ -54,8 +54,6 @@
 #include	"images/exclamation.xpm"
 #include	"images/exclamation2.xpm"
 
-#define DATADIR "/usr/share"
-
 /* Typedefs */
 typedef enum {
     COMPOSE_NEW = 0x01,
@@ -95,6 +93,7 @@ static void	clist_sort_cb(GtkWidget *, gint, gpointer);
 static gint	clist_sort_cmp(GtkCList *, gconstpointer, gconstpointer);
 static char	*extract_addresses(char *);
 static void	display_new_message(void);
+static gint	mail_check_cb(gpointer);
 static void	next_msg_cb(GtkWidget *, gpointer);
 static void	prev_msg_cb(GtkWidget *, gpointer);
 static void	select_msg_cb(GtkWidget *, gint, gint, GdkEvent *);
@@ -124,6 +123,7 @@ static gint	compmenu_post_cb(GtkWidget *, GdkEventButton *event);
 static void	compmenu_cb(GtkWidget *, gpointer);
 static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
 static void	edit_ops_cb(GtkWidget *, gpointer);
+static void	add_signature(COMPOSE_WINDOW *);
 
 /* Static data */
 static GtkWidget	*toplevel;
@@ -205,7 +205,8 @@ static GtkItemFactoryEntry comp_ife[] = {
 void
 setup_ui(int level, int argc, char **argv)
 {
-    gchar		*title, *gtkrc_path;
+    gchar		*title, *gtkrc_path, *f;
+    guint32		interval;
     GdkColor		delcol;
     GtkWidget		*vbox, *mbar, *tbar, *vpane, *msglist, *swin, *txt,
 			*statbar;
@@ -253,7 +254,7 @@ setup_ui(int level, int argc, char **argv)
 
     /* Create vertical paned window. */
     vpane = gtk_vpaned_new();
-    gtk_container_set_border_width(GTK_CONTAINER(vpane), 4);
+    gtk_container_set_border_width(GTK_CONTAINER(vpane), 2);
 
     /* List of mail header's window. */
     msglist = create_msglist();
@@ -264,6 +265,7 @@ setup_ui(int level, int argc, char **argv)
     hb = gtk_handle_box_new();
     gtk_handle_box_set_handle_position(GTK_HANDLE_BOX(hb), GTK_POS_TOP);
     gtk_handle_box_set_snap_edge(GTK_HANDLE_BOX(hb), GTK_POS_TOP);
+    gtk_container_set_border_width(GTK_CONTAINER(hb), 2);
     swin = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(hb), swin);
     txt = gtk_text_new(NULL, NULL);
@@ -314,8 +316,38 @@ setup_ui(int level, int argc, char **argv)
     update_message_list();
     show_undelete(FALSE);
 
-    gtk_main();
+    /* Set up periodical mail checking. */
+    f = find_mailrc("retrieveinterval");
+    if (!f) {
+	interval = DEFAULT_CHECK_TIME * 1000;
+    }
+    else {
+	interval = atoi(f) * 1000;
+    }
+    if(interval > 0)
+	gtk_timeout_add(interval, mail_check_cb, (gpointer)interval);
+
+   gtk_main();
 }
+
+static gint
+mail_check_cb(gpointer data)
+{
+    gchar	*f;
+    guint32	interval;
+
+    check_for_new_mail();
+
+    f = find_mailrc("retrieveinterval");
+    if (!f) {
+	interval = DEFAULT_CHECK_TIME * 1000;
+    }
+    else {
+	interval = atoi(f) * 1000;
+    }
+    if(interval > 0)
+	gtk_timeout_add(interval, mail_check_cb, (gpointer)interval);
+} /* mail_check_cb */
 
 unsigned int
 alert(GtkWidget *parent, char *message, ALERT_TYPE atype,
@@ -328,6 +360,7 @@ alert(GtkWidget *parent, char *message, ALERT_TYPE atype,
     char		*btn;
     GtkWidget		*dialog, *hbox, *label, *button, *image;
 
+    update_random();
     dialog = gtk_dialog_new();
     hbox = gtk_hbox_new(FALSE, 4);
     label = gtk_label_new(message);
@@ -1093,10 +1126,17 @@ show_display_window(MESSAGE *m)
 void
 show_newmail_icon()
 {
-    GdkPixmap	*pixmap;
-    GdkBitmap	*mask;
-    GtkStyle	*style;
-    
+    static time_t	lastbeeptime = 0;
+    GdkPixmap		*pixmap;
+    GdkBitmap		*mask;
+    GtkStyle		*style;
+
+    /* Don't beep more than once every two seconds. */
+    if(time(NULL) > (lastbeeptime + 2)) {
+	lastbeeptime = time(NULL);
+	beep_display_window();
+    }
+
     style = gtk_widget_get_style(toplevel);
     /* TODO: Possible memory leak here? Need to save pixmap pointer? */
     pixmap = gdk_pixmap_create_from_xpm_d(toplevel->window,
@@ -1407,8 +1447,8 @@ create_msglist(void)
 	else
 	    delete_message (m);
 
-	/*	if (m->status == MSTAT_NONE)
-		show_newmail_icon();*/
+	if (m->status == MSTAT_NONE)
+	    show_newmail_icon();
 
 	set_message_description(m);
 	m = m->next;
@@ -2420,6 +2460,49 @@ compose_find_free()
 } /* compose_find_free */
 
 static void
+add_signature(COMPOSE_WINDOW *win)
+{
+    FILE	*sig_fp;
+    char	*sig_name, *file, buf[BUFSIZE];
+    int		l, ispipe;
+	
+    if (!(sig_name = find_mailrc ("sigfile")) || !*sig_name)
+	return;
+
+    if((*sig_name != '/') && (*sig_name != '|')) {
+	file = g_strconcat(g_get_home_dir(), "/", sig_name, NULL);
+    }
+    else {
+	file = g_strdup(sig_name);
+    }
+
+    if(*file == '|') {
+	sig_fp = popen(file + 1, "rt");
+	ispipe = 1;
+    }
+    else {
+	sig_fp = fopen(file, "rt");
+	ispipe = 0;
+    }
+
+    if(sig_fp == NULL) {
+	g_free(file);
+	return;
+    }
+
+    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL, "\n--\n", -1);
+    while(!feof(sig_fp)) {
+	l = fread(buf, 1, BUFSIZE, sig_fp);
+	if(l) 
+	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL, buf, l);
+    }
+    gtk_text_set_point(GTK_TEXT(win->text), 0);
+
+    g_free(file);
+    ispipe? pclose(sig_fp): fclose(sig_fp);
+} /* add_signature */
+
+static void
 reset_deliver_flags(COMPOSE_WINDOW *win)
 {
     int		log, dontlog;
@@ -2587,6 +2670,7 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype)
 	break;
     }
 
+    add_signature(win);
     gtk_text_thaw(GTK_TEXT(win->text));
 } /* initialise_compose_win */
 
