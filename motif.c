@@ -80,6 +80,8 @@
 #include	"undelete.xpm"
 #include	"folderwin.xpm"
 
+extern char		*our_userid;
+
 void			update_message_list(void);
 void			set_foldwin_toggles(Boolean);
 void			update_combo(char *);
@@ -88,7 +90,7 @@ int			full_header_ = 0;
 int			debug_ = 0;
 
 static Widget		toplevel_, msgarea_, msgarea2_, mailslist_;
-static Widget		text_ = NULL, hdrtext_ = NULL;
+static Widget		text_ = NULL, hdrtext_ = NULL, tbarframe_;
 static Widget		liteClue_, pp_window_ = NULL, abt_window_ = NULL;
 static Widget		foldwin_[2], fold_combo_, addkey_, attach_;
 static XtAppContext	app_context_;
@@ -186,6 +188,7 @@ static void		filerCb(Widget, XtPointer, XtPointer);
 static void		insert_file(Widget, XtPointer, XtPointer);
 static void		show_deletedCb(Widget, XtPointer, XtPointer);
 static void		toggleHdrCb(Widget, XtPointer, XtPointer);
+static void		toggleTbarCb(Widget, XtPointer, XtPointer);
 static void		addkey_proc(Widget, XtPointer, XtPointer);
 static void		attach_proc(Widget, XtPointer, XtPointer);
 static void		hide_addkey();
@@ -483,17 +486,33 @@ deleteAllMessages()
 void
 display_message_body(BUFFER *b)
 {
+#if 1
     XmString	body = XmStringGenerate(b->message, NULL, XmCHARSET_TEXT,
 					(XmStringTag)"LIST");
+#else  /* Playing with ParseMappings */
+    XmString	body;
+    XmString	repl;
+    Arg			args[5];
+    XmParseMapping	pt[2];
 
+    repl = XmStringGenerate("A", NULL, XmCHARSET_TEXT,
+						  (XmStringTag)"HDR_B");
+    XtSetArg(args[0], XmNpattern, "A");
+    XtSetArg(args[1], XmNsubstitute, repl);
+    pt[0] = XmParseMappingCreate(args, 2);
+    XtSetArg(args[0], XmNpattern, "\n");
+    XtSetArg(args[1], XmNsubstitute, XmStringSeparatorCreate());
+    pt[1] = XmParseMappingCreate(args, 2);
+    body = XmStringParseText(b->message, NULL, (XmStringTag)"LIST",
+			     XmCHARSET_TEXT, pt, 2, NULL);
+    XmStringFree(repl);
+    XmParseTableFree(pt, 2);
+#endif
     hide_addkey();
     hide_attach();
     XmCSTextDisableRedisplay(text_);
-#if 0
-    XmCSTextReplace(text_, 0, XmCSTextGetLastPosition(text_), body);
-#else
     XmCSTextSetString(text_, body);
-#endif
+
     XmStringFree(body);
     XmCSTextSetTopCharacter(text_, 0);
     XmCSTextEnableRedisplay(text_);
@@ -530,7 +549,20 @@ display_message_description(MESSAGE *m)
 void
 display_message_sig(BUFFER *b)
 {
-    /* TODO */
+    /* b->message is the complete signature message which may be
+       multi-line. We need to figure out a decent way to display that
+       without taking to much screen real-estate.  -gt 13/4/97 */
+
+    /* For now, just display the first line in the right hand message
+       area. */
+    char	*sigmess = strdup(b->message), *ptr;
+    DEBUG2(("display_message_sig: %s\n", b->message));
+
+    if((ptr = strchr(sigmess, '\n')) != NULL){
+	*ptr = '\0';
+    }
+    set_display_footer(NULL, sigmess);
+    free(sigmess);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1054,7 +1086,8 @@ compose_find_free()
 {
     COMPOSE_WINDOW	*win;
     Widget		msgbox, topform, ctrl, cap, tbox, button;
-    int			i;
+    int			i, log, dontlog;
+    char		*nym;
 
     win = compose_first;
 
@@ -1186,6 +1219,35 @@ compose_find_free()
 		  (XtCallbackProc)filerCb, win->text);
     XtManageChild(win->text);
 
+    /* Default to encryption and signature */
+    win->deliver_flags = DELIVER_SIGN|DELIVER_ENCRYPT;
+
+    /* Default to remail if using a nym */
+    nym = current_nym();
+    if (strcmp(nym, our_userid)) 
+	win->deliver_flags |= DELIVER_REMAIL;
+
+    /* Clear the bits if told to by mailrc */
+    if (find_mailrc("nodefaultsign"))
+	win->deliver_flags &= ~DELIVER_SIGN;
+    if (find_mailrc("nodefaultencrypt"))
+	win->deliver_flags &= ~DELIVER_ENCRYPT;
+    if (find_mailrc("nodefaultremail"))
+	win->deliver_flags &= ~DELIVER_REMAIL;
+
+    /* Check mailrc for logging options */
+    log = find_mailrc("nodontlogmessages");
+    dontlog = find_mailrc("dontlogmessages");
+
+    /* If logging enabled, set log options */
+    if (log && !dontlog) {
+	win->deliver_flags |= DELIVER_LOG;
+    }
+
+    if (find_mailrc("log-raw")) {
+	win->deliver_flags |= DELIVER_RAW;
+    }
+
     return win;
 }
 
@@ -1213,6 +1275,20 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype,
 	    XtVaSetValues(win->extra_headers[i], XmNvalue, "", NULL);
 	}
     }
+
+    /* Set state of toggles (encrypt, sign etc.) */
+    XmToggleButtonSetState(win->sign,
+			   win->deliver_flags & DELIVER_SIGN, False);
+    XmToggleButtonSetState(win->encrypt,
+			   win->deliver_flags & DELIVER_ENCRYPT, False);
+    XmToggleButtonSetState(win->log,
+			   win->deliver_flags & DELIVER_LOG, False);
+    XmToggleButtonSetState(win->raw,
+			   win->deliver_flags & DELIVER_RAW, False);
+#ifndef NO_MIXMASTER
+    XmToggleButtonSetState(win->remail,
+			   win->deliver_flags & DELIVER_REMAIL, False);
+#endif
 
     switch(comptype){
     case COMPOSE_NEW:
@@ -1452,13 +1528,13 @@ create_menubar(Widget parent)
 static void
 create_toolbar(Widget parent)
 {
-    Widget	toolbar_, frame;
+    Widget	toolbar_;
 
-    frame = XmCreateFrame(parent, "toolframe", NULL, 0);
-    XtManageChild(frame);
-    toolbar_ = XmCreateForm(frame, "toolbar", NULL, 0);
+    tbarframe_ = XmCreateFrame(parent, "toolframe", NULL, 0);
+    XtManageChild(tbarframe_);
+    toolbar_ = XmCreateForm(tbarframe_, "toolbar", NULL, 0);
     XtManageChild(toolbar_);
-    XtVaSetValues (parent, XmNcommandWindow, frame, NULL);
+    XtVaSetValues (parent, XmNcommandWindow, tbarframe_, NULL);
 
     create_toolbar_button(toolbar_, "prev", "Previous message",
 			  prev_messageCB, NULL);
@@ -1696,6 +1772,11 @@ create_view_menu(Widget parent)
     DEBUG2(("  full_header_ = %d\n", full_header_));
     XtAddCallback (button_, XmNvalueChangedCallback,
 		   toggleHdrCb, NULL);
+
+    button_ = XmCreateToggleButton (menu_, "showtbar", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNvalueChangedCallback,
+		   toggleTbarCb, NULL);
 
     foldwin_[0] = XmCreateToggleButton(menu_, "folders", NULL, 0);
     XtManageChild (foldwin_[0]);
@@ -2126,6 +2207,14 @@ aboutCB(Widget w, XtPointer clientdata, XtPointer calldata)
 		XmStringGenerate("(ggt@netspace.net.au)", NULL,
 				 XmCHARSET_TEXT,
 				 (XmStringTag)"BLUE"));
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate("\nMotif user documentation available at ", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"HDR"));
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate("http://netspace.net.au/~ggt", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"RED"));
 	XtVaSetValues(abt_window_, XmNmessageString, about, NULL);
 
 	XmStringFree(about);
@@ -2769,3 +2858,18 @@ toggleHdrCb(Widget w, XtPointer clientdata, XtPointer calldata)
     if(last_message_read != NULL)
 	display_sender_info(last_message_read);
 } /* toggleHdrCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+toggleTbarCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmToggleButtonCallbackStruct *cbs = (XmToggleButtonCallbackStruct *)calldata;
+
+    if(cbs->set){
+	XtManageChild(tbarframe_);
+    }
+    else{
+	XtUnmanageChild(tbarframe_);
+    }
+} /* toggleTbarCb */
