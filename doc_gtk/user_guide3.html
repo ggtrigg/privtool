@@ -9,13 +9,153 @@
 <BODY BGCOLOR="#FFFFFF">
 
 <H2 ALIGN=CENTER><U><FONT COLOR="#CC3232">Privtool</FONT></U><BR>
-<FONT COLOR="#6495ED">Gtk+ Usage Guide</FONT></H2>
-
+<FONT COLOR="#6495ED">User Guide (Gtk+ Version)</FONT></H2>
+<P ALIGN=center>
+<SMALL><A HREF="user_guide1.html#reading_mail">[Reading mail]</A> 
+<A HREF="user_guide2.html#writing_mail">[Writing mail]</A>
+<A HREF="user_guide2.html#folders">[Folders]</A>
+<A HREF="user_guide3.html">[Configuration]</A>
+</SMALL>
+<P ALIGN=center>
+<A HREF="user_guide2.html">Previous page</A>
+<P>
 <TABLE CELLSPACING=5 WIDTH="100%" >
 <TR>
 <TD WIDTH="30%" VALIGN=top>
 <H3>Configuration</H3>
-<TD ALIGN=left VALIGN=top>The folder window has a blah blah blah
+<P><A HREF="props_mailer.png">
+<IMG SRC="props_mailer_mini.png" ALT="Mailer Property Window" BORDER="1"></A>
+<TD ALIGN=left VALIGN=top>Most of Privtool can be configured using the Properties
+window which is accessed via the <STRONG>Edit-&gt;Properties</STRONG> menu item. This is a notebook style
+window with the various aspects of Privtool having their own page of options.
+<P>
+Any changes to the configuration will only be saved upon pressing the <STRONG>OK</STRONG>
+or <STRONG>Apply</STRONG> buttons.
+<P>
+Some of these windows contain a grid area into which text can be entered. There
+will always be one extra row for entering new data, if you start typing in the
+last row another row will automatically be created. Also enpty rows are ignored.
+<H3>Mailer</H3>
+The first page presents general mailer configuration options. These are:
+<P>
+<TABLE WIDTH="85%" ALIGN=center><TR>
+<TD>Mail File Directory</TD><TD>The directory where the mail folders reside.</TD>
+</TR><TR>
+<TD VALIGN=top>Print Command</TD>
+<TD VALIGN=top>The command which will have the mail item piped to it for printing.</TD>
+</TR><TR>
+<TD VALIGN=top>Organization</TD>
+<TD VALIGN=top>The text that will be placed in the Organizaation mail header field.</TD>
+</TR><TR>
+<TD VALIGN=top>Folder Combo Items</TD>
+<TD VALIGN=top>Commonly used folders can be placed in this area which will
+then be used to populate the folder combo on the toolbar.</TD></TR>
 </TABLE>
+<TR><TD VALIGN=top><A HREF="props_compose.png">
+<IMG SRC="props_compose_mini.png" ALT="Compose Properties Window" BORDER="1"></A>
+<TD VALIGN=top>
+<H3>Compose</H3>
+These configuration options pertain to composing email.
+<P>
+<TABLE WIDTH="85%" ALIGN=center>
+<TR><TD VALIGN=top>Reply-To Address</TD>
+<TD VALIGN=top>The address to be used instead of the From address when people reply to your email.</TD></TR>
+<TR><TD VALIGN=top>Domain</TD>
+<TD VALIGN=top>The domain which get's appended to your username to build the From address.
+This only needs to be set if the system doesn't get it right automatically</TD></TR>
+<TR><TD VALIGN=top>Indent Prefix</TD>
+<TD VALIGN=top>The string to prepend onto each line of an included mail for quoting purposes.</TD></TR>
+<TR><TD VALIGN=top>Log Folder Name</TD>
+<TD VALIGN=top>The name of a folder where outgoing mail will be saved. (Outgoing mail is saved
+when the <STRONG>Log</STRONG> checkbox is checked in the compose window.)</TD></TR>
+<TR><TD COLSPAN=2><STRONG>Options</STRONG></TD></TR>
+<TR><TD VALIGN=top>Sign Outgoing Mail</TD>
+<TD VALIGN=top>The default setting to specify whether sent mail should be digitally signed.</TD></TR>
+<TR><TD VALIGN=top>Encrypt Outgoing Mail</TD>
+<TD VALIGN=top>The default setting to specify whether sent mail should be digitally encrypted.</TD></TR>
+<TR><TD VALIGN=top>Log Outgoing Mail</TD>
+<TD VALIGN=top>The default setting to specify whether sent mail should be saved.</TD></TR>
+<TR><TD VALIGN=top>Log As Ascii</TD>
+<TD VALIGN=top>The default setting to specify whether sent mail which is encrypted should be
+saved as plain text.</TD></TR>
+<TR><TD VALIGN=top>Beep on Bad Signature</TD>
+<TD VALIGN=top>The default setting to specify whether privtool should beep if it can't validate a
+digital signature.</TD></TR>
+<TR><TD VALIGN=top>Reply Address Method</TD>
+<TD VALIGN=top>How to handle replying to mail that has both <STRONG>From:</STRONG> &amp;
+<STRONG>Reply-To:</STRONG> headers. This can be one of:<BR>
+Use From: - Always use the <STRONG>From:</STRONG> header address.<BR>
+Use Reply-To: - Always use the <STRONG>Reply-To:</STRONG> header address.<BR>
+Ask - Show an alert asking which address to use.</TD></TR>
+</TABLE>
+<TR><TD VALIGN=top><A HREF="props_aliases.png">
+<IMG SRC="props_aliases_mini.png" ALT="Aliases Properties Window" BORDER="1"></A>
+<TD VALIGN=top>
+<H3>Aliases</H3>
+This window contains personal mail address aliases. It is not a full featured
+address book, there is simply a column for the alias and a column for the
+full email address.
+<TR><TD VALIGN=top><A HREF="props_headers.png">
+<IMG SRC="props_headers_mini.png" ALT="Mail Headers Propeties Window" BORDER="1"></A>
+<TD VALIGN=top>
+<H3>Mail Headers</H3>
+This window contains a number of check boxes for selecting which headers
+should be displayed by default. Of course all headers can be displayed by using
+the <STRONG>View-&gt;Full Header</STRONG> menu item.
+<TR><TD VALIGN=top><A HREF="props_security.png">
+<IMG SRC="props_security_mini.png" ALT="Security Properties Window" BORDER="1"></A>
+<TD VALIGN=top>
+<H3>Security</H3>
+These properties affect the behaviour of the PGP &amp; security aspects of Privtool.
+<P>
+<TABLE WIDTH="85%" ALIGN=center>
+<TR><TD VALIGN=top>PGP Key Translations</TD>
+<TD VALIGN=top>This allows you to specify a mapping from a mail address to a pgp key. You
+MUST specify such a mapping for your own id in order to make signatures and
+encrypted logging work.
+</TD></TR>
+<TR><TD VALIGN=top>Security Level</TD>
+<TD VALIGN=top>Privtool supports four security levels:<BR>
+Level 1 - read passphrase from PGPPASS
+Level 2 - ask for passphrase when first required and store it in
+		memory until it is cleared either by time delay or user
+		selection.
+Level 3 - ask for passphrase every time it is needed and destroy
+		it as soon as possible.
+Level 4 - currently identical to level 3, in the final release it
+		will delete the decrypted text of each message when you
+		close the display window.
+</TD></TR>
+<TR><TD VALIGN=top>Test Interval</TD>
+<TD VALIGN=top>If retrieveinterval is set to specify the time periods at which Privtool will
+check for new mail in your mailbox, then you can also set testinterval to
+a time in seconds. Each time Privtool checks for mail, it will also check that
+a message has been displayed in the previous 'testinterval' seconds. If not,
+then it will destroy your passphrase, regardless of the security level you
+are running at.
+</TD></TR>
+<TR><TD VALIGN=top>PGP Pseudonyms</TD>
+<TD VALIGN=top>This allows you to specify an additional identity that you wish to use
+when using Privtool. The list of identities will appear on the Nym
+menu, and can be selected from the menu. After the selection, if you
+use the compose window then messages will be sent as if they came from
+that pseudonym (e.g. signed with the nym's key). If you use any pseudonym
+other than your real user id, then the compose window will default to
+sending messages through remailers.
+</TD></TR>
+<TR><TD VALIGN=top>Kill Mail Matching</TD>
+<TD VALIGN=top>This allows you to set up automatically ignored email. If the first
+column contains a 'U' then the second column should specify a user name to ignore.
+If the first column contains a 'S' then the second column is a subject to ignore.
+<P>
+Ignored mail is actually just automatically marked as deleted and can be subsequantly
+undeleted if so desired.</TD></TR>
+<TR><TD VALIGN=top>Default Pseudonym</TD>
+<TD VALIGN=top>This allows you to specify the default pseudonym to use, otherwise
+Privtool will default to your real identity.
+</TD></TR>
+</TABLE>
+</TABLE>
+<CENTER><P><A HREF="user_guide2.html">Previous page</A> </P></CENTER>
 </BODY>
 </HTML>

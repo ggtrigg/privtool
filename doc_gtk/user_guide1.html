@@ -4,16 +4,22 @@
 <HEAD>
    <TITLE>Privtool - Gtk+ Usage Guide</TITLE>
    <META NAME="Author" CONTENT="Glenn Trigg">
-   <META NAME="Keywords" CONTENT="Privtool, motif, mail tool, PGP">
+   <META CONTENT="Privtool, Gtk+ mail tool, PGP, GnuPG" NAME="Keywords">
 </HEAD>
 <BODY BGCOLOR="#FFFFFF">
 
 <H2 ALIGN=CENTER><U><FONT COLOR="#CC3232">Privtool<BR>
-</FONT></U><FONT COLOR="#6495ED">Gtk+ Usage Guide</FONT></H2>
+</FONT></U><FONT COLOR="#6495ED">User Guide (Gtk+ Version)</FONT></H2>
 
 <CENTER><P><FONT SIZE=-1><A HREF="user_guide1.html#reading_mail">[Reading
-mail]</A> <A HREF="user_guide2.html#writing_mail">[Writing mail]</A> <A HREF="user_guide2.html#folders">[Folders]</A></FONT>
+mail]</A> <A HREF="user_guide2.html#writing_mail">[Writing mail]</A>
+<A HREF="user_guide2.html#folders">[Folders]</A>
+<A HREF="user_guide3.html">[Configuration]</A>
+</FONT>
 </P></CENTER>
+<P ALIGN=center>
+<A HREF="user_guide2.html">Next page</A>
+<P>
 
 <TABLE CELLSPACING=5 WIDTH="100%" >
 <TR>
@@ -37,36 +43,31 @@ used functions. The buttons currently available are:<BR>
 
 <CENTER><TABLE CELLSPACING=0 CELLPADDING=0 WIDTH="60%" >
 <TR>
-<TD><IMG SRC="prev.gif" ALT="Previous toolbar button" HEIGHT=24 WIDTH=24>
-</TD>
-
+<TD><IMG SRC="prev_tb.png" ALT="Previous toolbar button"></TD>
 <TD>&nbsp;Previous mail message. </TD>
 </TR>
-
 <TR>
-<TD><IMG SRC="next.gif" ALT="Next toolbar button" HEIGHT=24 WIDTH=24> </TD>
-
+<TD><IMG SRC="next_tb.png" ALT="Next toolbar button"> </TD>
 <TD>&nbsp;Next mail message. </TD>
 </TR>
-
 <TR>
-<TD><IMG SRC="delete.gif" ALT="Delete toolbar button." HEIGHT=24 WIDTH=24>
-</TD>
-
+<TD><IMG SRC="delete_tb.png" ALT="Delete toolbar button."></TD>
 <TD>&nbsp;Delete selected messages. </TD>
 </TR>
-
 <TR>
-<TD><IMG SRC="undelete.gif" ALT="Undelete toolbar button" HEIGHT=24 WIDTH=24>
-</TD>
-
+<TD><IMG SRC="undelete_tb.png" ALT="Undelete toolbar button"></TD>
 <TD>&nbsp;Undelete selected messages. </TD>
 </TR>
-
 <TR>
-<TD><IMG SRC="folderwin.gif" ALT="Folderwin toolbar button" HEIGHT=24 WIDTH=24>
-</TD>
-
+<TD><IMG SRC="compose_tb.png" ALT="Compose toolbar button"></TD>
+<TD>&nbsp;Compose new mail window. </TD>
+</TR>
+<TR>
+<TD><IMG SRC="reply_tb.png" ALT="Reply toolbar button"></TD>
+<TD>&nbsp;Reply window. </TD>
+</TR>
+<TR>
+<TD><IMG SRC="folderwin_tb.png" ALT="Folderwin toolbar button"></TD>
 <TD>&nbsp;Raise/Lower folder window. </TD>
 </TR>
 </TABLE></CENTER>
@@ -81,10 +82,12 @@ from the <B>Folder</B> menu). </P>
 <TR>
 <TD ALIGN=right VALIGN=top><U>Work area</U> </TD>
 
-<TD VALIGN=top>The <B>work area</B> is divided into three parts, the mail
-summary (message) list, the mail header area and the mail body area. 
+<TD VALIGN=top>The <B>work area</B> is divided into two parts, the mail
+summary (message) list and the displayed mail area. 
 <P>The different areas can be resized by dragging the horizontal sash lines
-that separate the areas. </P>
+that separate the areas and the displayed mail area can be detached from
+the main window by dragging it away using the "rough" handle area just
+above the text area.</P>
 </TD>
 </TR>
 
@@ -103,7 +106,7 @@ by selecting <I>Previous</I> or <I>Next</I> from the <B>View</B> menu.
 </P>
 
 <P>Other messages can be selected at times and these summary lines are
-shown in reverse (white text on black background). Selected messages can
+shown in reverse (white text on blue background). Selected messages can
 be deleted and undeleted (more than one at a time is possible). There are
 also some other actions possible with selected messages which will be discussed
 later. </P>
