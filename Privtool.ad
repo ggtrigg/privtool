@@ -669,8 +669,8 @@ Is this what you want to do?
 *props.XmNotebook*menucap.labelAlignment:	left
 *props.XmNotebook*menugrid.columns:		1
 *props.XmNotebook*menugrid.columnWidths:	20
-*props.XmNotebook*menugrid.rows:		7
-*props.XmNotebook*menugrid.visibleRows:		7
+*props.XmNotebook*menugrid.rows:		10
+*props.XmNotebook*menugrid.visibleRows:		10
 *props.XmNotebook*menuctrl.orientation:		horizontal
 *props*comppage*frame.shadowType:		shadow_etched_in
 *props*guipage*frame.shadowType:		shadow_etched_in
