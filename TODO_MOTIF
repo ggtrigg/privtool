@@ -3,11 +3,14 @@
    ---------------------------------------------
     $Id$
 
+- Improve startup when no .privrc present.
+
 - Finish off footer stuff.
 
-- Implement the compose mail and associated bits (reply etc.).
+- Implement the compose mail and associated bits (reply etc.). - DONE
 
 - Implement the folder window.
+  (Have to fix up the Container-in-scrolledWindow problem.)
 
 - Implement drag-and-drop.
 
@@ -23,9 +26,9 @@
 
 - More help?
 
-- All the alert windows.
+- All the alert windows. - DONE (AFAIK)
 
-- More keyboard shortcuts?
+- More keyboard shortcuts? - DONE
 
 - Get the "hide deleted" mail working. - DONE
 
@@ -35,3 +38,5 @@
 				    pixmap converter.)
 
 - Implement show_busy & clear_busy
+
+- Run purify.
