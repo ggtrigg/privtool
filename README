@@ -1,0 +1,76 @@
+
+Compiling Privtool:
+
+I'm currently compiling Privtool on SunOS 4.1 using gcc to compile
+PGP Tools and cc to compile Privtool. The Makefile is set up by
+default to do this, however some modifications to the PGP Tools
+header files are needed to make them compile. I added a second set
+of non-ansi prototypes to the headers and used #ifdef NON_ANSI
+to select the appropriate variant.
+
+In order to run Privtool, you need a copy of PGP (it's been tested
+with 2.3a, but should work with 2.6), and preferably a copy of
+PGP Tools. 
+
+In order to use the remailing facilities in Privtool, you will need
+a copy of the Mixmaster client program. You should give the path to
+the Mixmaster program in the MIXEXEC variable in the Makefile, and
+the path to the Mixmaster directory (where Privtool can find the
+type2.list file) in the MIXPATH variable in the Makefile. If you do
+not have Mixmaster, then leave these entries blank, and define
+NO_MIXMASTER in the Makefile.
+
+Compiling with PGP Tools (default) :
+
+You need to set the PGPTOOLDIR line in the Makefile to the appropriate 
+directory for PGP Tools include files and libraries, and you need to
+compile all the PGP Tools objects other than ptd.o into a library,
+libpgptools.a. You also need to set PGPVERSION to the version number
+that will be used in signatures and encrypted messages. By default this
+is set to 2.6, but you can set it to whatever you desire.
+
+Finally, you should edit the PGPTOOLS= line in the Makefile to match
+the definitions you used when compiling PGP Tools, so that the header
+files will work correctly. Unless you are low on memory, you will want
+to leave in the -DUSE_HASH, which will keep a public key hash table in
+RAM and significantly reduce signature verification time if you have
+a large public key ring.
+
+Compiling without PGP Tools :
+
+Uncomment the empty PGPLDFLAGS= and PGPTOOLDIR= lines in the Makefile,
+and comment out the second set. Set PGPEXEC to the path for your PGP
+executable, ignore the PGPVERSION line (the version number of your
+executable will be used), comment out the PGPTOOLS= lines, and uncomment
+the empty PGPTOOLS= line.
+
+General Issues :
+
+I've never lost a mail message in the eighteen months I've been using Privtool,
+however you may wish to keep the -DSAFE in the CPPFLAGS line until you're
+sure that it's safe to remove it. This will keep a backup copy of your
+mailbox and mail save files each time Privtool updates them.
+
+Four compiler lines are given, one for gcc, one for cc (assumes that
+your copy of PGP Tools has been modified for NON_ANSI support), one
+for Linux (untested) and one for Solaris 2.x acc. Simply uncomment the 
+appropriate one and comment out the others. For Linux you will also
+need to modify a few other lines in the Makefile as appropriate.
+
+For the Linux version, we use Rich Salz's parsedate() function, included
+in the linux subdirectory. See the COPYRIGHT file in that directory for
+more information.
+
+Finally, if you have your OpenWindows libaries in a standard place that the
+compiler will find, then uncomment the empty OPENWINLDFLAGS= and
+OPENWINCPPFLAGS= lines and comment out the others, otherwise set the
+value of OPENWINHOME to the appropriate directory.
+
+
+
+You should now be able to run make and compile the program. Some warnings will
+be given by ANSI compilers, but most are just due to the format of the
+icon files.
+
+
+

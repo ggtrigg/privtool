@@ -1,0 +1,271 @@
+
+		Using Privtool
+
+Most operations in Privtool are identical to the Sun mailtool, with the
+exception that attachments are not supported, some buttons don't work
+and some menu items are grayed out, and there is currently no graphical
+properties window (all .mailrc changes currently have to be made by
+hand with a text editor). This file will simply describe the new
+features.
+
+1. Displaying messages
+----------------------
+
+When the scrolling list of messages is displayed in the Privtool window,
+additional flags will appear on the left side. As well as the use of 
+'N' for a new message and 'U' for an unread message, the following are
+used :
+
+Second column:
+	's' - message is signed, but unverified.
+	'?' - message may or may not be signed.
+	'S' - message is signed, and has been succesfully verified.
+	'X' - message is signed, but has a bad signature.
+Third column:
+	'E' - message is encrypted.
+	'D' - message has been successfully decrypted.
+
+When you double click on a message, it will be displayed in the display
+window. Unlike the mailtool, the subject will be placed in the window
+title, and the header will not be displayed. If the message is signed, then
+signature information will be displayed in the small window at the foot
+of the main display window.
+
+If the message is encrypted, then Privtool will need your passphrase in
+order to decrypt it. It may or may not actually ask you for it depending
+on the security level chosen (see later for a description of security
+levels).
+
+To display the message header, press the 'header' button, and a seperate
+header window will appear. The 'add key' button will be activated when
+you receive a message that contains a PGP key, however at the moment it
+does not do anything. In the final release it will automatically scan the
+message for new keys and add them to your pubring file.
+
+2. Sending messages
+-------------------
+
+Five new check-boxes appear on the compose window. These are in turn,
+'Sign' - to sign the outgoing message, 'Encrypt' - to encrypt the
+outgoing message, 'Log' - to log the outgoing message (in encrypted
+form if encrypted), 'Remail' - to send messages through the cypherpunks
+anonymous remailers, and 'Raw' - to log outgoing encrypted or signed
+messages in raw ASCII form. You can set the defaults for these in the
+.mailrc file.
+
+When signing, Privtool may have to ask you for your passphrase, depending
+on the security level chosen.
+
+If you select the 'Remail' box, then Privtool will run the Mixmaster
+anonymous remailer client program, randomly selecting up to six
+remailers to send the message through (this can be increased by changing
+the MAXMIX definition in gui.c). For this to work, you must have a
+copy of Mixmaster, and have set up the Makefile appropriately when
+compiling Privtool. Privtool selects the remailers from the type2.list
+file, and only uses the first one hundred if more that one hundred
+are available.
+
+3. Security Levels
+------------------
+
+Privtool supports four security levels :
+
+	Level 1 - read passphrase from PGPPASS
+	Level 2 - ask for passphrase when first required and store it in
+		memory until it is cleared either by time delay or user
+		selection.
+	Level 3 - ask for passphrase every time it is needed and destroy
+		it as soon as possible.
+	Level 4 - currently identical to level 3, in the final release it
+		will delete the decrypted text of each message when you
+		close the display window.
+
+4. Mailrc options
+-----------------
+
+A whole bunch of new options have been added to the .mailrc file. A sample
+is given in the file 'Mailrc.test', which may explain the system better
+than I have here.
+
+In order to retain compatibility with mail and mailtool, all Privtool-specific
+options are given as comments in the .mailrc file, prior to the 'PLEASE MAKE
+ALL CHANGES ABOVE THESE 2 LINES' line inserted by mailtool. Privtool
+understands most of the mailtool options (specifically alias, etc), and
+its options are given by lines starting with '#@'.
+
+#@pgpkey
+
+This allows you to specify a mapping from a mail address to a pgp key. You
+MUST specify such a mapping for your own id in order to make signatures and
+encrypted logging work.
+
+#@killu
+
+This specifies a user id to ignore mail from. The mail from this user will
+be added to the deleted message list, and can be undeleted.
+
+@#kills
+
+This specifies part or all of a subject line to ignore. Any mail whose
+subject line contains the specified string (case-sensitive) will be
+deleted and added to the end of the deleted message list.
+
+#@testinterval
+
+If retrieveinterval is set to specify the time periods at which Privtool will
+check for new mail in your mailbox, then you can also set testinterval to
+a time in seconds. Each time Privtool checks for mail, it will also check that
+a message has been displayed in the previous 'testinterval' seconds. If not,
+then it will destroy your passphrase, regardless of the security level you
+are running at.
+
+#@security
+
+This specifies the security level to use (see above). Level 2 or Level 3 are
+recommended.
+
+#@cfeed
+
+This allows you to specify an address from which you may receive an encrypted
+mailing list feed. Each time an encypted message from this address is 
+decrypted, Privtool will scan the decrypted message to see if it begins with a 
+valid mail header (Received: from, etc). If so, then the original message will
+be junked, and the decrypted message will be put into the list in its
+place. Privtool will then decrypt/verify the new message if that is
+appropriate.
+
+And yes, this *does* work with the encrypted Cypherpunks mailing list 
+feed.
+
+#@pseudonym
+
+This allows you to specify an additional identity that you wish to use
+when using Privtool. The list of identities will appear on the Nym
+menu, and can be selected from the menu. After the selection, if you
+use the compose window then messages will be sent as if they came from
+that pseudonym (e.g. signed with the nym's key). If you use any pseudonym
+other than your real user id, then the compose window will default to
+sending messages through remailers.
+
+#@defnym
+
+This allows you to specify the default pseudonym to use, otherwise
+Privtool will default to your real identity.
+
+There are also a number of options that can be specified using the
+'set' command in the .mailrc file.
+
+set defaultusefrom
+
+This will default to using the from: line rather than the reply-to: line
+in the mail header if one is specified. Otherwise Privtool will pop up
+a panel to ask you to specify which address to use. This option takes
+precedence over defaultusereplyto if both are specified.
+
+set defaultusereplyto
+
+This will default to using the reply-to: line rather than the from: line
+in the mail header if one is specified. Otherwise Privtool will pop up
+a panel to ask you to specify which address to use.
+
+set folder='directory'
+
+This will use the specified directory as the root of your mail files
+tree. If you specify a mail file with '+name', then it will look for
+the file in 'directory/name', and the mail files menu will always look
+in the specified directory. If the path given begins with a / it is
+assumed to be an absolute pathname, otherwise it is assumed to be
+relative to $HOME.
+
+set log-raw
+
+This will enable raw logging as the default when sending messages.
+
+set nobeepbadsig
+
+Don't beep if the signature is bad.
+
+set nodefaultencrypt
+
+This will disable the default PGP-encryption of messages. You will have to
+check the 'Encrypt' box manually to encrypt outgoing messages.
+
+set nodefaultremail
+
+This will disable the default remailing of messages sent by anything other
+than the default pseudonym. You will have to check the 'Remail' box manually 
+to remail outgoing messages.
+
+set nodefaultsign
+
+This will disable the default PGP-signing of messages. You will have to
+check the 'Sign' box manually to sign outgoing messages.
+
+5. Public key access
+--------------------
+
+Normally privtool will read the public keys to use out of PGP's pubring.pgp
+file, however if it is compiled with PGP Tools then it will first look for
+the file $PGPPATH/smallring.pgp, and if this exists it will search for the
+key in this file before checking the main one. If you have a large pubring.pgp
+file, then you can store commonly used keys in smallring.pgp to reduce
+the time required to access them.
+
+6. ToDo
+-------
+
+Features to be added :
+
+	Graphical .mailrc properties window.
+
+	Hopefully a Motif or Xt replacement for x.c.
+
+	Support for key management.
+
+	Improved security in general.
+
+	Create color icon.
+
+	Add multiple compose and display windows.
+
+See README.1ST for other information on current bugs and intended fixes.
+
+7. Security concerns
+--------------------
+
+I'm not sure how good the random number generation is at the moment, it
+essentially keeps an array of user interface interaction times and
+passes it to the PGP Tools random number functions (the old array will
+be stored as 'privseed.bin' in your $PGPPATH).
+
+Another major concern is that if you mail out an encrypted message to
+several people it will be encrypted to all those people rather than
+encrypted to each individually, hence any recipient will be able to
+get the entire list of recipients by looking at the PGP headers. In
+addition, when you encrypt a message to send and also log it in
+'cooked' (i.e. non-raw) fashion, the message that is sent and logged
+will also be encrypted to you, so any recipient will be able to determine
+that you are the sender. This is not so much of a problem when you
+are not using remailers, but will be fixed for the PGP Tools version
+of Privtool in the final release.
+
+Currently there is a bug in Mixmaster's handling of stdin that forces
+Privtool to save messages to a temporary file in the Mixmaster directory
+before it sends them out. This can be disabled by defining MIXMASTER_STDIN
+when compiling, if you aquire a later version of Mixmaster which handles
+stdin correctly.
+
+Finally, the XView toolkit has a tendency to dump displayed messages in 
+ASCII files in /tmp where other people may be able to read them. There
+doesn't appear to be much I can do about this without rewriting XView.
+
+8. Other
+--------
+
+This should be all you need to know, if you have any other questions,
+bug reports, bug fixes, suggestions for new features, etc, please mail
+them to mark@unicorn.com.
+
+		Mark
+
+File: @(#)user.doc	1.12 7/21/95

@@ -1,0 +1,61 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+
+
+
+Rather than sign the tar file, here are the md5sum values
+for the files in the release. You can verify the validity
+of this message with PGP, and then verify each file with
+the md5sum program supplied with PGP.
+
+	Mark (mark@unicorn,com)
+
+8ca43cbc842c2336e835926c2166c28b  COPYING
+104ac3586b035d5e10ed49a891e0d0e2  Credits
+85868aa330a2a64b17a5960869c75dbe  Mailrc.test
+3c141bee5d8762d6ebfc3ec1409caa56  Makefile
+ba6c0ebe9082a8c0bf124680e8dc71f5  Makefile.linux
+336120b0585149bb9966b8654f3e174d  README
+aba74ebfd25a9e280585ad47343280e3  README.1ST
+149b143b966df949e2744bcf7ff4ab81  buffers.c
+77862c7374148117c07b14db290cbb60  buffers.h
+82d2fb188cc99d05a5466c4662ca6635  def.h
+420380eae2f1cce01b144e672a8b8417  floppy.c
+2ac47ac75f43d80f83a36e8130bf662f  floppy.h
+5b257ee97cb6465642d462a2941ae433  gui.c
+b82cbcc583bb0c1272cdd8cb295369ba  gui.h
+a3fc173c5c30a492a03c82a4e08b16d1  keys.asc
+0ba946a830c111057237930aa94747b0  linux
+9f9a6f2280be0b8bc3a865b2223dc356  mail_reader.c
+1c2985ca2c0c617b423698ef5ec9a010  mailrc.h
+9e2df0c132f0293bc496357d8c4dc6bf  main.c
+5f776562d71ac1089a464258f5da6d53  message.h
+71215cf8b281f006b546bdfc4af58955  messages.c
+d045cbc1f6988848ddd31cf297b986f4  pgplib.c
+ccc801ee61f65025ffa80e0e5d9258eb  privtool-mask.icon
+8d54db7dda6c5c6766f48a3fa5fb3d26  privtool-mask.xbm
+b64da18d9e2ea88c086656543f0b1ce0  privtool-new.icon
+bb31aa4b8804cb159c7e26bc82c596ce  privtool-new.xbm
+6d27d2cc6ab6d0a22142b5709e4fc713  privtool.icon
+6a12e86bec91f62cb1b71e6e3aa09750  privtool.xbm
+a53144592b25b153323409d1651613f6  user.doc
+415c61997beeb3b8aeb8846ced5ca63c  windows.h
+48d6ecccf38aaede3479b8265555ba2b  x.c
+457e198140bd9f58a5a1659e2ad92bea  linux/COPYRIGHT
+73f975341a88a1b02d81af7ffaa2c26c  linux/clibrary.h
+9b52f0a74b0660995a13593c53089162  linux/configdata.h
+0204aff9ed49df341823b369bb273cc6  linux/gettime.c
+5d87349d8495ea6800696c622e78080c  linux/libinn.h
+acd44c77ce55e77d21a63f55f3dee91d  linux/macros.h
+bed893d6b3791ad09ddcfa8440799b58  linux/parsedate.c
+
+-----BEGIN PGP SIGNATURE-----
+Version: 2.6
+
+iQEVAgUBMFXozFVvaTo9kEQVAQGJlAgAmdVGCo/+ND2ba8c9tPNnlFyiRPRCE/Ys
+hBOPSPSUXFGR9zFwtNtJ8WBRaL3ETc5UYfN9cSnRT/CObQo6FjxJEfD66yU9CrPL
+Q6anrlNZnZpuAjnadmgaYq5FLGfYQQa8b0N2yg44ysg6kk/vKq6RSeMgTIdLEDlQ
+5LpBNaTHnorka5lw1Tspdk/TKEr9yd7qgsGThzgyww54ttIIPMYQDREDAhQ9oGGi
+0vhHve237bfP8Uj2UAyXW038RjIQr5HDtbMHd2WBcaaNsAPvjqY72dnLZhQ60v/9
+QgcppTH2onXGZzZUUPpC7142LZEz64e6s0xCp+ai2o6G1tDuaXNetA==
+=f2li
+-----END PGP SIGNATURE-----
