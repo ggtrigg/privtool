@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -63,7 +64,9 @@
 #endif
 #include "windows.h"
 #include "gui.h"
-
+#include "pgplib.h"
+#include "mail_reader.h"
+#include "main.h"
 #include "version.h"
 
 /* Maximum number of remailers to use */
@@ -94,10 +97,12 @@
 
 #define MAX_MIX_TRIES	4
 
+typedef int (*COMPARE_FUNC)(void *, void *);
 /* Local variables */
 
 static	int	security;
 static	time_t	last_displayed = 0;
+static int	security_level(void);
 
 static	char	*mail_args[] =
 {
@@ -167,7 +172,7 @@ static	char	decrypt_passphrase[]="Passphrase entry (Decryption)";
 
 char	*passphrase;
 int     show_deleted = 0;
-void	(*callback_proc)();
+void	(*callback_proc)(COMPOSE_WINDOW *);
 COMPOSE_WINDOW	*callback_win;
 
 extern	char	*our_userid;
@@ -296,11 +301,8 @@ set_message_description(MESSAGE *m)
 
 #define COUNT_MAX	10
 
-void	expand_send(b,s)
-
-BUFFER	*b;
-char	*s;
-
+void
+expand_send(BUFFER *b, char *s)
 {
 	char	*p,*a;
 	char	address[512];
@@ -354,11 +356,8 @@ char	*s;
 	count--;
 }
 
-static	char	**split_string (s, c)
-
-char	*s;
-int	*c;
-
+static char **
+split_string (char *s, int *c)
 {
 	int	count = 0;
 	int	i, j, k, l;
@@ -393,21 +392,16 @@ int	*c;
 	return list;
 }
 
-static	char	**split_list (b, c)
-
-BUFFER	*b;
-int	*c;
-
+static char **
+split_list (BUFFER *b, int *c)
 {
-	return split_string (b->message, c);
+    return split_string (b->message, c);
 }
 
 /* Display selected message */
 
-void	display_message(m)
-
-MESSAGE	*m;
-
+void
+display_message(MESSAGE *m)
 {
 	int	i;
 	DISPLAY_WINDOW	*w;
@@ -425,7 +419,7 @@ MESSAGE	*m;
 	/* Set the icon back in case it was 'new mail' */
 
 	show_normal_icon ();
-	w = create_display_window(m);
+	w = create_display_window();
 
 	/* Let user know we're doing something */
 
@@ -590,8 +584,8 @@ MESSAGE	*m;
 
 		if (buffer_contains_key (m->decrypted))
 			show_addkey (w);
-		if (m->attachment_type = 
-			buffer_contains_attachment (m->decrypted))
+		if ((m->attachment_type = 
+		     buffer_contains_attachment (m->decrypted)))
 			show_attach (w);
 
 		clear_busy ();
@@ -710,8 +704,8 @@ MESSAGE	*m;
 
 		if (buffer_contains_key (message_contents (m)))
 			show_addkey (w);
-		if (m->attachment_type = 
-			buffer_contains_attachment (message_contents(m)))
+		if ((m->attachment_type = 
+		     buffer_contains_attachment (message_contents(m))))
 			show_attach (w);
 	}
 
@@ -753,10 +747,8 @@ MESSAGE	*m;
 
 /* Selecting next or previous message */
 
-void	select_message_proc(m)
-
-MESSAGE	*m;
-
+void
+select_message_proc(MESSAGE *m)
 {
 	if (last_message_read && m) {
 		last_message_read->flags &= ~MESS_SELECTED;
@@ -777,8 +769,8 @@ MESSAGE	*m;
 	}
 }
 
-void	prev_message_proc()
-
+void
+prev_message_proc()
 {
 	update_random();
 
@@ -794,8 +786,8 @@ void	prev_message_proc()
 	}
 }
 
-void	next_message_proc()
-
+void
+next_message_proc()
 {
 	MESSAGE	*m;
 
@@ -810,8 +802,8 @@ void	next_message_proc()
 	}
 }
 
-void	quit_proc()
-
+void
+quit_proc()
 {
 	MESSAGE	*m, *om;
 
@@ -848,8 +840,8 @@ void	quit_proc()
 
 /* Save Changes and quit */
 
-void	save_and_quit_proc ()
-
+void
+save_and_quit_proc ()
 {
 	set_main_footer ("Saving changes and quitting...");
 
@@ -865,8 +857,8 @@ void	save_and_quit_proc ()
 	quit_proc ();
 }
 
-static	void	wipe_passphrase()
-
+static void
+wipe_passphrase(void)
 {
 
 	/* If we don't have a passphrase, get the value of the
@@ -891,10 +883,10 @@ static	void	wipe_passphrase()
 	clear_passphrase_string();
 }
 
-void	got_passphrase()
-
+void
+got_passphrase()
 {
-	void	(*call_proc)();
+	void	(*call_proc)(COMPOSE_WINDOW *);
 
 	update_random();
 
@@ -927,10 +919,8 @@ void	got_passphrase()
 /* Destroy_passphrase() is used to carefully delete all possible
    copies of the user's passphrase */
 
-void	destroy_passphrase(force)
-
-int	force;
-
+void
+destroy_passphrase(int force)
 {
 	if (security_level() > 2 || force) {
 
@@ -954,8 +944,8 @@ int	force;
 	close_passphrase_window();
 }
 
-void	abort_passphrase_proc()
-
+void
+abort_passphrase_proc()
 {
 	update_random();
 
@@ -966,10 +956,8 @@ void	abort_passphrase_proc()
 	close_passphrase_window();
 }
 
-void	get_passphrase(s)
-
-char	*s;
-
+void
+get_passphrase(char *s)
 {
 	update_random();
 
@@ -980,10 +968,8 @@ char	*s;
 	passphrase = NULL;
 }
 
-void	delete_message(om)
-
-MESSAGE	*om;
-
+void
+delete_message(MESSAGE *om)
 {
 	/* Clear last_message_read if it's deleted */
 
@@ -1030,21 +1016,16 @@ MESSAGE	*om;
 
 /* Return the security level */
 
-int	security_level()
-
+static int
+security_level(void)
 {
 	return security;
 }
 
 /* Setup the display */
 
-void	setup_display(level,phrase,argc,argv)
-
-int	level;
-char	*phrase;
-int	argc;
-char	**argv;
-
+void
+setup_display(int level, char *phrase, int argc, char **argv)
 {
 	security = level;
 	if (security < 2)
@@ -1053,15 +1034,15 @@ char	**argv;
 	setup_ui(level,argc,argv);
 }
 
-void	decrypt_with_passphrase()
-
+void
+decrypt_with_passphrase(COMPOSE_WINDOW *w)
 {
 	display_message(message_to_decrypt);
 	sync_list();
 }
 
-void	set_flags_from_decryption(MESSAGE *m, int i)
-
+void
+set_flags_from_decryption(MESSAGE *m, int i)
 {
 	m->flags |= MESS_VERIFIED;
 
@@ -1103,8 +1084,8 @@ void	set_flags_from_decryption(MESSAGE *m, int i)
 static	char	*replying_message_id;
 static	char	*replying_message_sender;
 
-COMPOSE_WINDOW	*setup_send_window(void)
-
+COMPOSE_WINDOW *
+setup_send_window()
 {
 	if (replying_message_id) {
 		free_string (replying_message_id);
@@ -1121,8 +1102,8 @@ COMPOSE_WINDOW	*setup_send_window(void)
 
 /* Set up reply variables from the message we're replying to */
 
-void	set_reply (MESSAGE *m)
-
+void
+set_reply(MESSAGE *m)
 {
 	if (replying_message_id) {
 		free_string (replying_message_id);
@@ -1142,8 +1123,8 @@ void	set_reply (MESSAGE *m)
 	}
 }
 
-static	int	remove_duplicates (char **list)
-
+static int
+remove_duplicates(char **list)
 {
 	int	i, j;
 
@@ -1184,8 +1165,8 @@ static	int	remove_duplicates (char **list)
 	return j;
 }
 
-static	add_list_to_header (BUFFER *b, char **l)
-
+static void
+add_list_to_header(BUFFER *b, char **l)
 {
 	int	i;
 	int	w, s;
@@ -1206,8 +1187,8 @@ static	add_list_to_header (BUFFER *b, char **l)
 
 /* Support folder specification */
 
-char	*expand_filename (char *s)
-
+char *
+expand_filename(char *s)
 {
 	char	*folder;
 	char	*home;
@@ -1281,8 +1262,8 @@ char	*expand_filename (char *s)
 }
 
 #ifdef HAVE_MIXMASTER
-static	setup_remail_args(char *addrs, char *subject, char *temp)
-
+static
+setup_remail_args(char *addrs, char *subject, char *temp)
 {
 	int	i, j, a, a2;
 	int	l;
@@ -1485,10 +1466,8 @@ static	setup_remail_args(char *addrs, char *subject, char *temp)
 
 /* Deliver the message */
 
-void	deliver_proc(w)
-
-COMPOSE_WINDOW	*w;
-
+void
+deliver_proc(COMPOSE_WINDOW *w)
 {
 	char	recipient[512];
 	char	subject[256];
@@ -1647,7 +1626,7 @@ try_again:
 
 			key_name = nym = current_nym ();
 
-			if (s = find_pgpkey (key_name))
+			if ((s = find_pgpkey (key_name)))
 				key_name = s;
 
 			/* If cooked logging, encrypt for us too */
@@ -2019,10 +1998,8 @@ remail_error_exit:
 	clear_busy ();
 }
 
-void	move_message_proc(s)
-
-char	*s;
-
+void
+move_message_proc(char *s)
 {
 	MESSAGE	*m;
 	char	mess[128];
@@ -2062,10 +2039,8 @@ char	*s;
 	}
 }
 
-void	copy_message_proc(s)
-
-char	*s;
-
+void
+copy_message_proc(char *s)
 {
 	MESSAGE	*m;
 	int	n = 0;
@@ -2104,8 +2079,8 @@ char	*s;
 	}
 }
 
-void	load_new_mail()
-
+void
+load_new_mail()
 {
 	MESSAGE	*m,*last;
 	int	l,i;
@@ -2154,8 +2129,8 @@ void	load_new_mail()
 	clear_main_footer();
 }
 
-void	check_for_new_mail()
-
+void
+check_for_new_mail()
 {
 	static	long	test_interval = 0;
 	time_t	now;
@@ -2239,9 +2214,9 @@ load_file_proc(char *s)
 	messages.unread = 0;
 
 	if (!s || !*s)
-		res = read_mail_file(default_mail_file,TRUE);
+		res = read_mail_file(default_mail_file);
 	else
-		res = read_mail_file(s,FALSE);
+		res = read_mail_file(s);
 
 	m = messages.start;
 
@@ -2269,8 +2244,8 @@ load_file_proc(char *s)
 	return 0;
 }
 
-void	inbox_proc()
-
+void
+inbox_proc()
 {
 	update_random();
 
@@ -2286,8 +2261,8 @@ void	inbox_proc()
 	clear_busy();
 }
 
-void	save_changes_proc()
-
+void
+save_changes_proc()
 {
 	char	*s;
 
@@ -2299,8 +2274,8 @@ void	save_changes_proc()
 	}
 }
 
-void	done_proc()
-
+void
+done_proc()
 {
 	update_random();
 
@@ -2310,18 +2285,14 @@ void	done_proc()
 	clear_busy ();
 }
 
-static	int	number_cmp (m1,m2)
-
-MESSAGE	**m1,**m2;
-
+static int
+number_cmp (MESSAGE **m1, MESSAGE **m2)
 {
 	return (*m1)->number - (*m2)->number;
 }
 
-static	int	status_cmp (m1,m2)
-
-MESSAGE	**m1,**m2;
-
+static int
+status_cmp (MESSAGE **m1, MESSAGE **m2)
 {
 	if ((*m1)->status == (*m2)->status)
 		return (*m1)->number - (*m2)->number;
@@ -2329,34 +2300,26 @@ MESSAGE	**m1,**m2;
 	return (*m1)->status - (*m2)->status;
 }
 
-static	int	size_cmp (m1,m2)
-
-MESSAGE	**m1,**m2;
-
+static int
+size_cmp (MESSAGE **m1, MESSAGE **m2)
 {
 	return (*m1)->size - (*m2)->size;
 }
 
-static	int	date_cmp(m1,m2)
-
-MESSAGE	**m1,**m2;
-
+static int
+date_cmp(MESSAGE **m1, MESSAGE **m2)
 {
 	return ((*m1)->time_secs - (*m2)->time_secs);
 }
 
-static	int	sender_cmp(m1,m2)
-
-MESSAGE	**m1,**m2;
-
+static int
+sender_cmp(MESSAGE **m1, MESSAGE **m2)
 {
 	return strcmp((*m1)->email,(*m2)->email);
 }
 
-static	int	subject_cmp(m1,m2)
-
-MESSAGE	**m1,**m2;
-
+static int
+subject_cmp(MESSAGE **m1, MESSAGE **m2)
 {
 	if ((*m1)->subject == NULL) {
 		if ((*m2)->subject == NULL)
@@ -2370,10 +2333,8 @@ MESSAGE	**m1,**m2;
 	return strcmp((*m1)->subject,(*m2)->subject);
 }
 
-static	int	sort_messages (proc)
-
-int	(*proc)();
-
+static void
+sort_messages(COMPARE_FUNC proc)
 {
 	MESSAGE	**m_list;
 	int	n, i = 0, l = 1;
@@ -2396,7 +2357,7 @@ int	(*proc)();
 		m = m->next;
 	}
 
-	qsort (m_list, n, sizeof (MESSAGE *), proc);
+	qsort (m_list, n, sizeof (MESSAGE *), (__compar_fn_t) proc);
 
 	messages.start = m_list[0];
 	m_list[0]->prev = NULL;
@@ -2423,44 +2384,44 @@ int	(*proc)();
 	clear_busy ();
 }
 
-void	sort_by_time ()
-
+void
+sort_by_time ()
 {
-	sort_messages (date_cmp);
+	sort_messages ((COMPARE_FUNC)date_cmp);
 }
 
-void	sort_by_number ()
-
+void
+sort_by_number ()
 {
-	sort_messages (number_cmp);
+	sort_messages ((COMPARE_FUNC)number_cmp);
 }
 
-void	sort_by_subject ()
-
+void
+sort_by_subject ()
 {
-	sort_messages (subject_cmp);
+	sort_messages ((COMPARE_FUNC)subject_cmp);
 }
 
-void	sort_by_sender ()
-
+void
+sort_by_sender ()
 {
-	sort_messages (sender_cmp);
+	sort_messages ((COMPARE_FUNC)sender_cmp);
 }
 
-void	sort_by_size ()
-
+void
+sort_by_size ()
 {
-	sort_messages (size_cmp);
+	sort_messages ((COMPARE_FUNC)size_cmp);
 }
 
-void	sort_by_status ()
-
+void
+sort_by_status ()
 {
-	sort_messages (status_cmp);
+	sort_messages ((COMPARE_FUNC)status_cmp);
 }
 
-void	undelete_last_proc ()
-
+void
+undelete_last_proc ()
 {
 	MESSAGE	*m;
 
@@ -2557,14 +2518,10 @@ static	char	dec_mess [] = "Decrypted message reads :\n\n";
 static	char	sig_mess [] = "\n\nMessage was signed :\n\n";
 static	char	end_mess [] = "\n\nEnd of signature information\n";
 
-static void print_exec(args, buff, l)
-
-char	*args;
-byte	*buff;
-int	l;
-
+static void
+print_exec(char *args, byte *buff, int l)
 {
-  FILE *out, *popen();
+    FILE *out;
 
   if( (out = popen(args,"w")) == (FILE *) NULL) {
     return;
@@ -2573,10 +2530,8 @@ int	l;
   pclose(out);
 }
 
-static	void	print_message_proc (raw)
-
-int	raw;
-
+static void
+print_message_proc (int raw)
 {
 	MESSAGE	*m;
 	BUFFER	*out;
@@ -2649,23 +2604,20 @@ int	raw;
 	clear_busy ();
 }
 
-void	print_cooked_proc ()
-
+void
+print_cooked_proc ()
 {
 	print_message_proc (FALSE);
 }
 
-void	print_raw_proc ()
-
+void
+print_raw_proc ()
 {
 	print_message_proc (TRUE);
 }
 
-void	save_attachment_proc (w, m)
-
-DISPLAY_WINDOW	*w;
-MESSAGE	*m;
-
+void
+save_attachment_proc (DISPLAY_WINDOW *w, MESSAGE *m)
 {
 	BUFFER	*b = NULL, *a = NULL, *mess;
 	char	*s, *e;
@@ -2731,11 +2683,8 @@ MESSAGE	*m;
 
 }
 
-void	add_key_proc (w, m)
-
-DISPLAY_WINDOW	*w;
-MESSAGE	*m;
-
+void
+add_key_proc (DISPLAY_WINDOW *w, MESSAGE *m)
 {
 	int	err;
 
@@ -2763,7 +2712,7 @@ MESSAGE	*m;
 		case ADD_BAD_KEY:
 		case ADD_NO_TEMP:
 		bad_key_notice_proc ();
-		clear_display_footer ();
+		clear_display_footer (w);
 		break;
 
 		case ADD_OLD_KEY:
@@ -2773,8 +2722,8 @@ MESSAGE	*m;
 }
 
 #ifdef HAVE_PGPTOOLS
-void	reseed_random_generator ()
-
+void
+reseed_random_generator ()
 {
 	show_busy();
 	reseed_random();
@@ -2784,10 +2733,8 @@ void	reseed_random_generator ()
 
 /* Look for an attachment in the buffer */
 
-int	buffer_contains_attachment (b)
-
-BUFFER	*b;
-
+int
+buffer_contains_attachment (BUFFER *b)
 {
 	char	*begin;
 
@@ -2816,7 +2763,8 @@ BUFFER	*b;
 }
 
 
-int mime_decode_printable(BUFFER *encoded, BUFFER *decoded)
+int
+mime_decode_printable(BUFFER *encoded, BUFFER *decoded)
 {
 	char *from;
 	int len, i;

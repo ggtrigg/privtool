@@ -12,7 +12,9 @@ VPATH =		@srcdir@:@srcdir@/liteclue:@srcdir@/linux
 
 CC =		@CC@
 CFLAGS =	@CFLAGS@ @X_CFLAGS@
-CPPFLAGS =	@CPPFLAGS@ @DEFS@ -I${srcdir} @gui_cpp@ @os_cpp@
+CPPFLAGS =	@CPPFLAGS@ @DEFS@ -I${srcdir} @gui_cpp@ @os_cpp@ \
+		-DDATADIR=\"${datadir}\" -D_XOPEN_SOURCE \
+		-D_XOPEN_SOURCE_EXTENDED -D_BSD_SOURCE
 LDFLAGS =	@LDFLAGS@
 LDLIBS =	@LIBS@ @X_PRE_LIBS@ @X_EXTRA_LIBS@
 AUTODEP =	@AUTODEP@
@@ -31,10 +33,6 @@ MOTIF_SRC =	motif.c mfolder.c mprops.c pixmapcache.c m_util.c \
 		liteclue/LiteClue.c
 MOTIF_CPP =	-I${srcdir}/liteclue
 GTK_SRC =	gtk.c gprops.c
-
-# OS specific source files.
-LINUX_SOURCE =	linux/gettime.c linux/parsedate.c
-LINUX_CPP =	-I${srcdir}/linux -DDATADIR=\"${datadir}\"
 
 # Floppy source file(s).
 FLOPPY_SRC =	floppy.c

@@ -13,6 +13,11 @@
 #ifndef _MPROPS_H
 #define _MPROPS_H
 
+typedef struct _mail_header_field {
+    String	name;
+    Boolean	editable;
+} MAIL_HEADER_FIELD;
+
 void show_props(Widget);
 
 #endif /* _MPROPS_H */

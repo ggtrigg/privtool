@@ -14,6 +14,9 @@
  *
  */
 
+#ifndef _BUFFERS_H
+#define _BUFFERS_H
+
 typedef struct {
 	byte	*message;
 	int32	length;
@@ -31,3 +34,4 @@ extern	void	clear_buffer (BUFFER *b);
 extern	void	free_buffer (BUFFER *b);
 extern	void	reset_buffer (BUFFER *b);
 
+#endif /* _BUFFERS_H */

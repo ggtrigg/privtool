@@ -48,9 +48,8 @@
 #include <sys/file.h>
 #include <unistd.h>
 #include <string.h>
-#ifndef HAVE_MALLOC_H
 #include <stdlib.h>
-#else
+#ifdef HAVE_MALLOC_H
 #include <malloc.h>
 #endif
 #include <time.h>
@@ -60,6 +59,11 @@
 #include "def.h"
 #include "buffers.h"
 #include "message.h"
+#include "windows.h"
+#include "gui.h"
+#include "mailrc.h"
+#include "main.h"
+#include "mail_reader.h"
 
 #ifdef SETGID
 
@@ -90,14 +94,16 @@ extern	char	default_mail_file [];
 extern	FILE	*mail_fp;
 extern	char	*our_userid;
 
-static	void	set_real (void)
+static void
+set_real (void)
 {
 #ifdef SETGID
 	setegid (real_gid);
 #endif
 }
 
-static	void	set_mail (void)
+static void
+set_mail (void)
 {
 #ifdef	SETGID
 	setegid (mail_gid);
@@ -105,7 +111,8 @@ static	void	set_mail (void)
 }
 
 #ifndef HAVE_USLEEP
-void	usleep (int n)
+void
+usleep (int n)
 {
 	struct	timeval	t;
 
@@ -118,8 +125,8 @@ void	usleep (int n)
 
 /* Unfortunately, we have to cope with people who use very, very long lines */
 
-static	update_line (int i)
-
+static void
+update_line (int i)
 {
 	while  (i >= (line_length - 16)) {
 		line_length += LINE_LENGTH;
@@ -129,8 +136,8 @@ static	update_line (int i)
 
 /* Read a line from the file */
 
-static	read_line(FILE *fp, int header)
-
+static void
+read_line(FILE *fp, int header)
 {
 	int	c,i=0;
 
@@ -179,8 +186,8 @@ read_loop:
 
 /* Count the number of lines in a buffer */
 
-static	int	count_lines(byte *b, int n)
-
+static int
+count_lines(byte *b, int n)
 {
 	int	l;
 
@@ -210,8 +217,8 @@ MESSAGE_LIST	deleted;
 
 /* Return message structure, given message number */
 
-MESSAGE	*message_from_number(int number)
-
+MESSAGE	*
+message_from_number(int number)
 {
 	MESSAGE	*m = messages.start;
 
@@ -232,9 +239,8 @@ MESSAGE	*message_from_number(int number)
 }
 
 /* Add a message to the deleted list */
-
+void
 add_to_deleted(MESSAGE *om) 
-
 {
 	om->dnext = deleted.start;
 	om->dprev = NULL;
@@ -253,8 +259,8 @@ add_to_deleted(MESSAGE *om)
 
 /* Add a string to the header of the specified message */
 
-static	void	add_header(MESSAGE *m, char *s)
-
+static void
+add_header(MESSAGE *m, char *s)
 {
 	if (!m->header)
 		m->header = new_buffer();
@@ -264,8 +270,8 @@ static	void	add_header(MESSAGE *m, char *s)
 
 /* Add a string to the body of the specified message */
 
-static	void	add_body(MESSAGE *m, char *s)
-
+static void
+add_body(MESSAGE *m, char *s)
 {
 	if (!m->body)
 		m->body = new_buffer();
@@ -288,8 +294,8 @@ static	char	nym_mess[] = "**";
  * are two forms, either foo@bar.com (Foobar) or Foobar <foo@bar.com>
  */
 
-static	char	*get_email (char *s)
-
+static char *
+get_email (char *s)
 {
 	char	address[256];
 	char	*a,*e;
@@ -308,7 +314,7 @@ static	char	*get_email (char *s)
 
 	/* Check for opening < */
 
-	if (e = strchr(s,'<')) {
+	if ((e = strchr(s,'<'))) {
 		e++;
 		while (*e != '>' && *e != ' ' && *e) {
 			*a++ = *e++;
@@ -328,16 +334,16 @@ static	char	*get_email (char *s)
 
 /* Do so for the Reply-To line */
 
-static	get_reply_to_address (MESSAGE *m, char *line)
-
+static void
+get_reply_to_address (MESSAGE *m, char *line)
 {
 	m->reply_to = get_email (line);
 }
 
 /* And for the sender */
 
-static	get_email_address(MESSAGE *m)
-
+static void
+get_email_address(MESSAGE *m)
 {
 	char	*address;
 
@@ -356,8 +362,8 @@ static	get_email_address(MESSAGE *m)
 	}
 }
 
-static	char	*header_strdup(char *s)
-
+static char *
+header_strdup(char *s)
 {
 	char	*temp;
 	char	*d;
@@ -380,10 +386,10 @@ static	char	*header_strdup(char *s)
 	return temp;
 }
 
-static	int	lines;
+static int	lines;
 
-static	copy_and_join(char *s, char *d)
-
+static void
+copy_and_join(char *s, char *d)
 {
 
 	while (*s == ' ')
@@ -400,8 +406,8 @@ static	copy_and_join(char *s, char *d)
 
 /* Process a line from a message header */
 
-static	process_header_line(char *line, MESSAGE *m)
-
+static void
+process_header_line(char *line, MESSAGE *m)
 {
 	static	char	*temp = NULL;
 	static	int	temp_length;
@@ -554,72 +560,41 @@ static	process_header_line(char *line, MESSAGE *m)
 /* I think all of these should use header_date rather than date, but I
    don't have the machines available to test that. */
 
-static	time_t	get_time (MESSAGE *m)
+/* I have done a slash and burn on this function. It appeared to be
+   more complicated than it needed to be... but I haven't tested this
+   on many platforms yet.  -ggt 10/7/99.
+*/
 
+static time_t
+get_time (MESSAGE *m)
 {
-#ifdef __FreeBSD__
-	struct	tm	*t;
-#else
-#ifndef SYSV
-	struct	tm	t;
-#else
-#ifdef linux
-	time_t	tmp;
-#endif
-	struct	tm	*t;
-#endif
-#endif
+    struct	tm	t;
 
-	bzero (&t, sizeof (t));
+    bzero (&t, sizeof (t));
 
-	/* These are the only two common time formats I've come across */
-#ifdef __FreeBSD__
-	parsedate(m->header_date, &t);
-	/* Until a parsedate function gets written, return 0 */
-	return(0);
-#else
-
-#ifndef SYSV
-	if (*(m->date) > '9') {
-		if (m->date[20] > '9')  {
-			strptime (m->date, "%a %h %d %T", &t);
-			strptime (m->date+23, "%Y", &t);
-		}
-		else
-			strptime (m->date, "%a %h %d %T %Y", &t);
+    if (*(m->date) > '9') {
+	if (m->date[20] > '9')  {
+	    strptime (m->date, "%a %h %d %T", &t);
+	    strptime (m->date+23, "%Y", &t);
 	}
-	else {
-		if (m->date[7] == '1')
-			strptime (m->date, "%d %b %Y %T", &t);
-		else
-			strptime (m->date, "%d %b %y %T", &t);
-	}
-
-	return timegm (&t);
-#else
-#ifdef linux
-#define getdate(x) (parsedate((x),NULL))
-	if (!m->header_date)
-		return 0;
-	tmp = getdate (m->header_date);
-	t = localtime (&tmp);
-#else
-	t = (struct tm *)getdate (m->date);
-#endif
-	if (t)
-		return mktime (t);
 	else
-		return 0;
-#endif
-#endif
+	    strptime (m->date, "%a %h %d %T %Y", &t);
+    }
+    else {
+	if (m->date[7] == '1')
+	    strptime (m->date, "%d %b %Y %T", &t);
+	else
+	    strptime (m->date, "%d %b %y %T", &t);
+    }
+
+    return timegm (&t);
 }
 
-MESSAGE	*message_from_message(MESSAGE *m, BUFFER *b)
-
+MESSAGE	*
+message_from_message(MESSAGE *m, BUFFER *b)
 {
 	MESSAGE	*newm;
 	int	i;
-	int	c;
 	char	temp[256];
 	char	*p,*d;
 	char	*m_in;
@@ -796,11 +771,10 @@ static	char	last_file [MAXPATHLEN];
 static	char	pine_lock [MAXPATHLEN];
 #endif
 
+void
 read_mail_from_file(FILE *fp, int kill_messages)
-
 {
 	int	i;
-	int	c;
 	MESSAGE	*m;
 	BUFFER	*mb;
 	static	char	temp[LINE_LENGTH];
@@ -1049,8 +1023,8 @@ read_mail_from_file(FILE *fp, int kill_messages)
 	free_buffer (mb);
 }
 
-void	remove_pine_lock ()
-
+static void
+remove_pine_lock (void)
 {
 #if 0
 	int	pid;
@@ -1071,8 +1045,8 @@ void	remove_pine_lock ()
 
 /* Check to see if there's any new mail in the mail file */
 
-int is_new_mail (void)
-
+int
+is_new_mail (void)
 {
 	struct	stat	s_buf;
 
@@ -1089,8 +1063,8 @@ int is_new_mail (void)
    mailtool program seems to ignore locks.
 */
 
-int close_mail_file (void)
-
+void
+close_mail_file (void)
 {
 	if (mail_fp) {
 #ifdef USE_LOCKING
@@ -1109,11 +1083,10 @@ int close_mail_file (void)
 	}
 }
 
-int	read_mail_file(char *s)
-
+int
+read_mail_file(char *s)
 {
-	char	*p, *q;
-	FILE	*fp;
+	char	*p;
 
 	close_mail_file ();
 
@@ -1168,10 +1141,11 @@ int	read_mail_file(char *s)
 #ifdef USE_LOCKING
 #ifdef USE_LOCKF
 	if (flock (fileno (mail_fp), LOCK_EX|LOCK_NB) < 0 ||
-		lockf (fileno (mail_fp), F_TLOCK, 0) < 0) {
+		lockf (fileno (mail_fp), F_TLOCK, 0) < 0)
 #else
-	if (flock (fileno (mail_fp), LOCK_EX|LOCK_NB) < 0) {
+	if (flock (fileno (mail_fp), LOCK_EX|LOCK_NB) < 0)
 #endif
+	{
 		if (!confirm_unlocked_read()) {
 			fclose (mail_fp);
 			mail_fp = NULL;
@@ -1185,8 +1159,8 @@ int	read_mail_file(char *s)
 	return 0;
 }
 
-void	read_new_mail(void)
-
+void
+read_new_mail(void)
 {
 	if (!mail_fp)
 		return;
@@ -1196,8 +1170,8 @@ void	read_new_mail(void)
 	read_mail_from_file(mail_fp, reading_file (default_mail_file));
 }
 
-int	write_buffer_to_mail_file(BUFFER *b, char *to, char *cc, char *sub, char *s)
-
+int
+write_buffer_to_mail_file(BUFFER *b, char *to, char *cc, char *sub, char *s)
 {
 	FILE	*fp;
 	time_t	t;
@@ -1234,8 +1208,8 @@ int	write_buffer_to_mail_file(BUFFER *b, char *to, char *cc, char *sub, char *s)
 	return 1;
 }
 
-int	append_message(MESSAGE *m, FILE *fp, int save_all)
-
+void
+append_message(MESSAGE *m, FILE *fp, int save_all)
 {
 	char	*m_in,*l,*d;
 	int	lines;
@@ -1320,8 +1294,8 @@ int	append_message(MESSAGE *m, FILE *fp, int save_all)
 /* Here we append a message to a mail file, and deal with suitable
    errors */
 
-int	append_message_to_file(MESSAGE *m, char *s, int save_all)
-
+int
+append_message_to_file(MESSAGE *m, char *s, int save_all)
 {
 	FILE	*fp;
 	long	l;
@@ -1386,8 +1360,8 @@ int	append_message_to_file(MESSAGE *m, char *s, int save_all)
 
 /* Replace the specified message with the new one */
 
-void	replace_message_with_message(MESSAGE *m, MESSAGE *newm)
-
+void
+replace_message_with_message(MESSAGE *m, MESSAGE *newm)
 {
 	if (m->prev) 
 		m->prev->next = newm;
@@ -1409,8 +1383,8 @@ void	replace_message_with_message(MESSAGE *m, MESSAGE *newm)
 
 /* Is the buffer passed in a valid mail message ? */
 
-int	is_mail_message(BUFFER *b)
-
+int
+is_mail_message(BUFFER *b)
 {
 	char	*i,*l;
 
@@ -1433,14 +1407,14 @@ int	is_mail_message(BUFFER *b)
 	return FALSE;
 }
 
-int	reading_file (char *s)
-
+int
+reading_file (char *s)
 {
 	return !strcmp(s, last_file);
 }
 
-int	save_changes (void)
-
+int
+save_changes (void)
 {
 	char	tmp_file [MAXPATHLEN];
 	char	lock_file [MAXPATHLEN];
@@ -1453,12 +1427,12 @@ int	save_changes (void)
 	struct	timeval	tv[2];
 
 	if (!mail_fp)
-		return;
+		return -1;
 
 	if (read_only) {
 		if (read_only_notice_proc ())
 			close_mail_file ();
-		return;
+		return 0;
 	}
 
 	/* Create path names */
@@ -1563,18 +1537,17 @@ int	save_changes (void)
 	return 0;
 }
 
-char	*current_mail_file (void)
-
+char *
+current_mail_file (void)
 {
 	return	last_file;
 }
 
-int	is_mail_file_open (void)
-
+int
+is_mail_file_open (void)
 {
 	if (mail_fp)
 		return TRUE;
 
 	return FALSE;
 }
-

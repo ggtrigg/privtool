@@ -22,11 +22,9 @@
 #include	<string.h>
 #include	<time.h>
 #include	<gtk/gtk.h>
-#include	<time.h>
 #include	<dirent.h>
 #include	<sys/stat.h>
 #include	<errno.h>
-#include	<sys/stat.h>
 #include	<fcntl.h>
 #include	<sys/mman.h>
 
@@ -37,6 +35,9 @@
 #include	"windows.h"
 #include	"gui.h"
 #include	"gtk_protos.h"
+#include	"pgplib.h"
+#include	"mail_reader.h"
+#include	"main.h"
 
 #include	"images/privtool_empty.xpm"
 #include	"images/privtool_new.xpm"
@@ -75,12 +76,12 @@ typedef enum {
     EDIT_WRAP
 } EDIT_OP;
 
-extern int		errno;
+/*extern int		errno;*/
 extern char		*our_userid;
 extern char		*current_nym(void);
 
 /* Static functions */
-static COMPOSE_WINDOW *compose_find_free();
+static COMPOSE_WINDOW *compose_find_free(void);
 static GtkWidget *create_menubar(void);
 static GtkWidget *create_msglist(void);
 static GtkWidget *create_toolbar(GtkWidget *);
@@ -114,7 +115,7 @@ static void	load_new_cb(GtkWidget *, gpointer);
 static void	move_to_folder_cb(GtkWidget *, gpointer);
 static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
 static void	next_msg_cb(GtkWidget *, gpointer);
-static void	populate_combo();
+static void	populate_combo(void);
 static void	prev_msg_cb(GtkWidget *, gpointer);
 static void	print_cb(GtkWidget *, gpointer);
 static void	process_dir(GtkWidget *, char *, GtkCTreeNode *);
@@ -143,66 +144,66 @@ static GtkTargetEntry	targets[] = {
 
 static GtkItemFactoryEntry ife[] = {
     {"/File/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/File/Load Inbox", "<control>L", load_new_cb, 0, NULL},
-    {"/File/Save", "<control>S", save_cb, 0, NULL},
-    {"/File/Print", "<control>P", print_cb, 0, NULL},
-    {"/File/Done", NULL, done_proc, 0, NULL},
+    {"/File/Load Inbox", "<control>L", (GtkItemFactoryCallback)load_new_cb, 0, NULL},
+    {"/File/Save", "<control>S", (GtkItemFactoryCallback)save_cb, 0, NULL},
+    {"/File/Print", "<control>P", (GtkItemFactoryCallback)print_cb, 0, NULL},
+    {"/File/Done", NULL, (GtkItemFactoryCallback)done_proc, 0, NULL},
     {"/File/-", NULL, NULL, 0, "<Separator>"},
-    {"/File/Save & Quit", "<control>Q", save_and_quit_proc, 0, NULL},
-    {"/File/Quit", "<control>C", quit_proc, 0, NULL},
+    {"/File/Save & Quit", "<control>Q", (GtkItemFactoryCallback)save_and_quit_proc, 0, NULL},
+    {"/File/Quit", "<control>C", (GtkItemFactoryCallback)quit_proc, 0, NULL},
     {"/Edit/--", NULL, NULL, 0, "<Tearoff>"},
     /* {"/Edit/Cut", NULL, edit_ops_cb, EDIT_CUT, NULL}, */
-    {"/Edit/Copy", NULL, edit_ops_cb, EDIT_COPY, NULL},
-    {"/Edit/Delete", "<control>D", delete_message_proc, 0, NULL},
-    {"/Edit/Undelete", "<control>U", undelete_cb, 0, NULL},
-    {"/Edit/Undelete Last", NULL, undelete_last_proc, 0, NULL},
+    {"/Edit/Copy", NULL, (GtkItemFactoryCallback)edit_ops_cb, EDIT_COPY, NULL},
+    {"/Edit/Delete", "<control>D", (GtkItemFactoryCallback)delete_message_proc, 0, NULL},
+    {"/Edit/Undelete", "<control>U", (GtkItemFactoryCallback)undelete_cb, 0, NULL},
+    {"/Edit/Undelete Last", NULL, (GtkItemFactoryCallback)undelete_last_proc, 0, NULL},
     {"/Edit/-", NULL, NULL, 0, "<Separator>"},
-    {"/Edit/Add Key", NULL, add_key_cb, 0, NULL},
+    {"/Edit/Add Key", NULL, (GtkItemFactoryCallback)add_key_cb, 0, NULL},
     {"/Edit/Show Attachment", NULL, NULL, 0, NULL},
     {"/Edit/Clear Passphrase", NULL, NULL, 0, NULL},
-    {"/Edit/Properties", "<control>E", show_props, 0, NULL},
+    {"/Edit/Properties", "<control>E", (GtkItemFactoryCallback)show_props, 0, NULL},
     {"/View/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/View/Next", "<alt>N", next_msg_cb, 0, NULL},
-    {"/View/Previous", "<alt>P", prev_msg_cb, 0, NULL},
-    {"/View/Sort By/Time & Date", NULL, sort_cb, 3, NULL},
-    {"/View/Sort By/Sender", NULL, sort_cb, 2, NULL},
-    {"/View/Sort By/Subject", NULL, sort_cb, 5, NULL},
-    {"/View/Sort By/Size", NULL, sort_cb, 4, NULL},
-    {"/View/Sort By/Status", NULL, sort_cb, 0, NULL},
-    {"/View/Sort By/Message", NULL, sort_cb, 1, NULL},
+    {"/View/Next", "<alt>N", (GtkItemFactoryCallback)next_msg_cb, 0, NULL},
+    {"/View/Previous", "<alt>P", (GtkItemFactoryCallback)prev_msg_cb, 0, NULL},
+    {"/View/Sort By/Time & Date", NULL, (GtkItemFactoryCallback)sort_cb, 3, NULL},
+    {"/View/Sort By/Sender", NULL, (GtkItemFactoryCallback)sort_cb, 2, NULL},
+    {"/View/Sort By/Subject", NULL, (GtkItemFactoryCallback)sort_cb, 5, NULL},
+    {"/View/Sort By/Size", NULL, (GtkItemFactoryCallback)sort_cb, 4, NULL},
+    {"/View/Sort By/Status", NULL, (GtkItemFactoryCallback)sort_cb, 0, NULL},
+    {"/View/Sort By/Message", NULL, (GtkItemFactoryCallback)sort_cb, 1, NULL},
     {"/View/-", NULL, NULL, 0, "<Separator>"},
-    {"/View/Show Deleted", NULL, show_deleted_cb, 0, "<CheckItem>"},
-    {"/View/Full Header", "<control>H", show_fullhdr_cb, 0, "<CheckItem>"},
-    {"/View/Show Toolbar", "<control>T", toggle_toolbar_cb, 0, "<CheckItem>"},
-    {"/View/Folders", "<control>F", show_folder_win_cb, 0, "<ToggleItem>"},
+    {"/View/Show Deleted", NULL, (GtkItemFactoryCallback)show_deleted_cb, 0, "<CheckItem>"},
+    {"/View/Full Header", "<control>H", (GtkItemFactoryCallback)show_fullhdr_cb, 0, "<CheckItem>"},
+    {"/View/Show Toolbar", "<control>T", (GtkItemFactoryCallback)toggle_toolbar_cb, 0, "<CheckItem>"},
+    {"/View/Folders", "<control>F", (GtkItemFactoryCallback)show_folder_win_cb, 0, "<ToggleItem>"},
     {"/Folder/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/Folder/Copy to Folder", "<alt>C", move_to_folder_cb, 0, NULL},
-    {"/Folder/Move to Folder", "<alt>M", move_to_folder_cb, 1, NULL},
-    {"/Folder/Load Folder", "<alt>L", load_folder_cb, 0, NULL},
-    {"/Folder/Load Inbox", NULL, load_new_cb, 0, NULL},
+    {"/Folder/Copy to Folder", "<alt>C", (GtkItemFactoryCallback)move_to_folder_cb, 0, NULL},
+    {"/Folder/Move to Folder", "<alt>M", (GtkItemFactoryCallback)move_to_folder_cb, 1, NULL},
+    {"/Folder/Load Folder", "<alt>L", (GtkItemFactoryCallback)load_folder_cb, 0, NULL},
+    {"/Folder/Load Inbox", NULL, (GtkItemFactoryCallback)load_new_cb, 0, NULL},
     {"/Compose/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/Compose/New", NULL, compose_cb, COMPOSE_NEW, NULL},
-    {"/Compose/Reply/Sender", NULL, compose_cb,
+    {"/Compose/New", NULL, (GtkItemFactoryCallback)compose_cb, COMPOSE_NEW, NULL},
+    {"/Compose/Reply/Sender", NULL, (GtkItemFactoryCallback)compose_cb,
 				COMPOSE_REPLY|R_SENDER, NULL},
-    {"/Compose/Reply/Sender (include)", NULL, compose_cb,
+    {"/Compose/Reply/Sender (include)", NULL, (GtkItemFactoryCallback)compose_cb,
 				COMPOSE_REPLY|R_SENDER_INCLUDE, NULL},
-    {"/Compose/Reply/All", NULL, compose_cb,
+    {"/Compose/Reply/All", NULL, (GtkItemFactoryCallback)compose_cb,
 				COMPOSE_REPLY|R_ALL, NULL},
-    {"/Compose/Reply/All (include)", NULL, compose_cb,
+    {"/Compose/Reply/All (include)", NULL, (GtkItemFactoryCallback)compose_cb,
 				COMPOSE_REPLY|R_ALL_INCLUDE, NULL},
-    {"/Compose/Forward", "<alt>F", compose_cb, COMPOSE_FORWARD, NULL},
-    {"/Compose/Resend", "<alt>R", compose_cb, COMPOSE_RESEND, NULL},
+    {"/Compose/Forward", "<alt>F", (GtkItemFactoryCallback)compose_cb, COMPOSE_FORWARD, NULL},
+    {"/Compose/Resend", "<alt>R", (GtkItemFactoryCallback)compose_cb, COMPOSE_RESEND, NULL},
     {"/Help/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/Help/About", "<control>A", about_cb, 0, NULL}
+    {"/Help/About", "<control>A", (GtkItemFactoryCallback)about_cb, 0, NULL}
 };
 
 static GtkItemFactoryEntry comp_ife[] = {
-    {"/Cut", "<control>X", compmenu_cb, EDIT_CUT, NULL},
-    {"/Copy", "<control>C", compmenu_cb, EDIT_COPY, NULL},
-    {"/Paste", "<control>V", compmenu_cb, EDIT_PASTE, NULL},
+    {"/Cut", "<control>X", (GtkItemFactoryCallback)compmenu_cb, EDIT_CUT, NULL},
+    {"/Copy", "<control>C", (GtkItemFactoryCallback)compmenu_cb, EDIT_COPY, NULL},
+    {"/Paste", "<control>V", (GtkItemFactoryCallback)compmenu_cb, EDIT_PASTE, NULL},
     {"/--", NULL, NULL, 0, "<Separator>"},
-    {"/Quote", "<control>Q", compmenu_cb, EDIT_QUOTE, NULL},
-    {"/Wrap Lines", "<control>W", compmenu_cb, EDIT_WRAP, NULL},
+    {"/Quote", "<control>Q", (GtkItemFactoryCallback)compmenu_cb, EDIT_QUOTE, NULL},
+    {"/Wrap Lines", "<control>W", (GtkItemFactoryCallback)compmenu_cb, EDIT_WRAP, NULL},
 };
 
 /*----------------------------------------------------------------------*/
@@ -365,6 +366,8 @@ mail_check_cb(gpointer data)
 	gtk_object_set_data(GTK_OBJECT(toplevel), "mailchkint",
 			    (gpointer)check_interval);
     }
+
+    return 0;
 } /* mail_check_cb */
 
 static void
@@ -629,7 +632,7 @@ clear_display_footer(DISPLAY_WINDOW *w)
 }
 
 void
-clear_display_window()
+clear_display_window(DISPLAY_WINDOW *w)
 {
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
@@ -822,7 +825,7 @@ delete_message_proc()
 }
 
 void
-display_message_body(BUFFER *b)
+display_message_body(BUFFER *b, DISPLAY_WINDOW *w)
 {
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
@@ -877,7 +880,7 @@ display_message_description(MESSAGE *m)
 }
 
 void
-display_message_sig(BUFFER *b)
+display_message_sig(BUFFER *b, DISPLAY_WINDOW *w)
 {
     GtkWidget	*text;
 
@@ -894,14 +897,16 @@ display_message_sig(BUFFER *b)
 
     text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 					    "msgtext");
+    gtk_text_freeze(GTK_TEXT(text));
     gtk_text_set_point(GTK_TEXT(text), gtk_text_get_length(GTK_TEXT(text)));
     gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL, "\n", 1);
     gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
 		    b->message, -1);
+    gtk_text_thaw(GTK_TEXT(text));
 }
 
 void
-display_sender_info(MESSAGE *m)
+display_sender_info(MESSAGE *m, DISPLAY_WINDOW *w)
 {
     char	*allhdr = g_strdup(m->header->message), *ptr, *ptr2, *split;
     char	colon;
@@ -1036,7 +1041,7 @@ invalid_attachment_notice_proc()
 }
 
 void
-lock_display_window()
+lock_display_window(DISPLAY_WINDOW *w)
 {
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
@@ -1259,7 +1264,7 @@ show_busy()
 }
 
 void
-show_display_window(MESSAGE *m)
+show_display_window(MESSAGE *m, DISPLAY_WINDOW *w)
 {
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
@@ -1392,7 +1397,7 @@ sync_list()
 } /* sync_list */
 
 void
-update_log_item()
+update_log_item(COMPOSE_WINDOW *w, int flags)
 {
 				/* TODO */
     g_warning("update_log_item: To be done.");
@@ -1497,34 +1502,34 @@ create_toolbar(GtkWidget *window)
     toolbar = gtk_toolbar_new(GTK_ORIENTATION_HORIZONTAL, GTK_TOOLBAR_ICONS);
     w = gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Prev",
 				"Previous Message", NULL,
-				get_pixmap(window, prev_xpm), prev_msg_cb,
+				get_pixmap(window, prev_xpm), (GtkSignalFunc)prev_msg_cb,
 				NULL);
     gtk_object_set_data(GTK_OBJECT(window), "prevbtn", (gpointer)w);
     w = gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Next", "Next Message",
 				NULL, get_pixmap(window, next_xpm),
-				next_msg_cb, NULL);
+				(GtkSignalFunc)next_msg_cb, NULL);
     gtk_object_set_data(GTK_OBJECT(window), "nextbtn", (gpointer)w);
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Delete", "Delete Message",
 			    NULL, get_pixmap(window, delete_xpm),
-			    delete_message_proc, NULL);
+			    (GtkSignalFunc)delete_message_proc, NULL);
     w = gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Undelete",
 				"Undelete Message",
 				NULL, get_pixmap(window, undelete_xpm),
-				undelete_cb, NULL);
+				(GtkSignalFunc)undelete_cb, NULL);
     gtk_object_set_data(GTK_OBJECT(window), "undeletebtn", (gpointer)w);
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Compose", "Compose new message",
 			    NULL, get_pixmap(window, compose_xpm),
-			    compose_cb, (gpointer)COMPOSE_NEW);
+			    (GtkSignalFunc)compose_cb, (gpointer)COMPOSE_NEW);
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Reply", "Reply to sender",
-			    NULL, get_pixmap(window, reply_xpm), compose_cb,
+			    NULL, get_pixmap(window, reply_xpm), (GtkSignalFunc)compose_cb,
 			    (gpointer)(COMPOSE_REPLY|R_SENDER_INCLUDE));
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     w = gtk_toolbar_append_element(GTK_TOOLBAR(toolbar),
 				   GTK_TOOLBAR_CHILD_TOGGLEBUTTON, NULL,
 				   "Folders", "Folder window", NULL,
 				   get_pixmap(window, folderwin_xpm),
-				   show_folder_win_cb, NULL);
+				   (GtkSignalFunc)show_folder_win_cb, NULL);
     gtk_object_set_data(GTK_OBJECT(window), "folderbtn", (gpointer)w);
 
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
@@ -1999,7 +2004,7 @@ populate_combo()
 
     p = find_mailrc("filemenu2");
 
-    if(p == NULL){
+    if((p == NULL) || (*p == '\0')){
 	return;
     }
 

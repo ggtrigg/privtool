@@ -26,11 +26,11 @@
 #include "def.h"
 #include "buffers.h"
 
-void	add_to_buffer(BUFFER *buffer, byte *mess, int len)
-
+void
+add_to_buffer(BUFFER *buffer, byte *mess, int len)
 {
 	if (!buffer->size) {
-		if (buffer->message = (byte *)malloc(QUANTA))
+		if ((buffer->message = (byte *)malloc(QUANTA)))
 			buffer->size = QUANTA;
 	}
 
@@ -47,8 +47,8 @@ void	add_to_buffer(BUFFER *buffer, byte *mess, int len)
 	buffer->message[buffer->length] = 0;
 }
 
-BUFFER	*new_buffer(void)
-
+BUFFER *
+new_buffer(void)
 {
 	BUFFER	*b;
 
@@ -61,8 +61,8 @@ BUFFER	*new_buffer(void)
 	return b;
 }
 
-void	free_buffer(BUFFER *b)
-
+void
+free_buffer(BUFFER *b)
 {
 	if (b->message && b->size) {
 		bzero (b->message, b->size);
@@ -72,16 +72,16 @@ void	free_buffer(BUFFER *b)
 	free(b);
 }
 
-void	clear_buffer(BUFFER *b)
-
+void
+clear_buffer(BUFFER *b)
 {
 	if (b->message && b->size)
 		bzero (b->message, b->size);
 	b->length = 0;
 }
 
-void	reset_buffer(BUFFER *b)
-
+void
+reset_buffer(BUFFER *b)
 {
 	if (b->message && b->size) {
 		bzero (b->message, b->size);
@@ -91,4 +91,3 @@ void	reset_buffer(BUFFER *b)
 	b->size = 0;
 	b->length = 0;
 }
-

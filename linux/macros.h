@@ -33,7 +33,7 @@
 #define DISPOSE(p)		free((char *)p)
 
     /* This properly belongs in libinn.h. */
-extern int (*xmemfailure)();
+extern int (*xmemfailure)(void);
 #define ONALLLOCFAIL(func)		(xmemfailure = (func))
 
 #endif	/* !defined(NEW) */

@@ -23,7 +23,7 @@ typedef enum {
 gint	mail_check_cb(gpointer);
 unsigned int alert(GtkWidget *, char *, ALERT_TYPE, unsigned int, ...);
 void	clear_busy(void);
-void	delete_message_proc();
+void	delete_message_proc(void);
 void	display_message_description(MESSAGE *);
 void	set_display_footer(DISPLAY_WINDOW *, char *);
 void	show_busy(void);

@@ -35,8 +35,8 @@
 
 extern	FILE	*mail_fp;
 
-void	free_string(char *s)
-
+void
+free_string(char *s)
 {
 	if (s) {
 		bzero (s, strlen(s));
@@ -44,8 +44,8 @@ void	free_string(char *s)
 	}
 }
 
-MESSAGE	*new_message(void)
-
+MESSAGE	*
+new_message(void)
 {
 	MESSAGE	*m;
 	static	word32	id = 1;
@@ -84,8 +84,8 @@ MESSAGE	*new_message(void)
 	return m;
 }
 
-void	free_message(MESSAGE *b)
-
+void
+free_message(MESSAGE *b)
 {
 	if (b->body)
 		free_buffer (b->body);
@@ -120,8 +120,8 @@ void	free_message(MESSAGE *b)
 
 /* Add a message to the specified message list */
 
-void	add_to_message_list_start(MESSAGE_LIST *l, MESSAGE *m)
-
+void
+add_to_message_list_start(MESSAGE_LIST *l, MESSAGE *m)
 {
 	if (l->start) {
 		m->next = l->start;
@@ -148,8 +148,8 @@ void	add_to_message_list_start(MESSAGE_LIST *l, MESSAGE *m)
 		l->encrypted++;
 }
 
-void	add_to_message_list_end(MESSAGE_LIST *l, MESSAGE *m)
-
+void
+add_to_message_list_end(MESSAGE_LIST *l, MESSAGE *m)
 {
 	if (l->end) {
 		m->prev = l->end;
@@ -180,8 +180,8 @@ void	add_to_message_list_end(MESSAGE_LIST *l, MESSAGE *m)
 
 static	BUFFER	*messb = NULL;
 
-BUFFER	*message_contents(MESSAGE *m)
-
+BUFFER *
+message_contents(MESSAGE *m)
 {
 	static	word32 	last_id = 0;
 	byte	buf [BUF_SIZE];
@@ -229,27 +229,26 @@ BUFFER	*message_contents(MESSAGE *m)
 	}
 }
 
-void	set_mem_message (MESSAGE *m)
-
+void
+set_mem_message (MESSAGE *m)
 {
 	m->data_type = DT_MEM;
 }
 
-void	set_file_message (MESSAGE *m)
-
+void
+set_file_message (MESSAGE *m)
 {
 	m->data_type = DT_FILE;
 }
 
-void	init_messages (void)
-
+void
+init_messages (void)
 {
 }
 
-void	close_messages (void)
-
+void
+close_messages (void)
 {
 	if (messb)
 		free_buffer (messb);
 }
-

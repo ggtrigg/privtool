@@ -7,35 +7,35 @@
     /* Worst-case alignment, in order to shut lint up. */
     /* =()<typedef @<ALIGNPTR>@        *ALIGNPTR;>()= */
 typedef int    *ALIGNPTR;
-extern ALIGNPTR        xmalloc();
-extern ALIGNPTR        xrealloc();
+extern ALIGNPTR        xmalloc(unsigned int);
+extern ALIGNPTR        xrealloc(char *, unsigned int);
 
 /* Headers. */
-extern char    *GenerateMessageID();
-extern char    *HeaderFind();
-extern void    HeaderCleanFrom();
+extern char    *GenerateMessageID(void);
+extern char    *HeaderFind(void);
+extern void    HeaderCleanFrom(void);
 
-extern struct _DDHANDLE        *DDstart();
-extern void            DDcheck();
-extern char            *DDend();
+extern struct _DDHANDLE        *DDstart(void);
+extern void            DDcheck(void);
+extern char            *DDend(void);
 
 /* NNTP functions. */
-extern int     NNTPlocalopen();
-extern int     NNTPremoteopen();
-extern int     NNTPconnect();
-extern int     NNTPsendarticle();
-extern int     NNTPsendpassword();
+extern int     NNTPlocalopen(void);
+extern int     NNTPremoteopen(void);
+extern int     NNTPconnect(void);
+extern int     NNTPsendarticle(void);
+extern int     NNTPsendpassword(void);
 
 /* Opening the active file on a client. */
-extern FILE    *CAopen();
-extern FILE    *CAlistopen();
-extern void    CAclose();
+extern FILE    *CAopen(void);
+extern FILE    *CAlistopen(void);
+extern void    CAclose(void);
 
 /* Parameter retrieval. */
-extern char    *GetFQDN();
-extern char    *GetConfigValue();
-extern char    *GetFileConfigValue();
-extern char    *GetModeratorAddress();
+extern char    *GetFQDN(void);
+extern char    *GetConfigValue(void);
+extern char    *GetFileConfigValue(void);
+extern char    *GetModeratorAddress(void);
 
 /* Time functions. */
 typedef struct _TIMEINFO {
@@ -43,22 +43,22 @@ typedef struct _TIMEINFO {
     long       usec;
     long       tzone;
 } TIMEINFO;
-extern time_t  parsedate();
-extern int     GetTimeInfo();
+/*extern time_t  parsedate(void);*/
+extern int     GetTimeInfo(TIMEINFO *);
 
 /* Miscellaneous. */
-extern int     getfdcount();
-extern int     wildmat();
-extern int     waitnb();
-extern int     xread();
-extern int     xwrite();
-extern int     xwritev();
-extern int     LockFile();
-extern int     GetResourceUsage();
-extern int     SetNonBlocking();
-extern void    CloseOnExec();
-extern void    Radix32();
-extern char    *INNVersion();
-extern char    *ReadInDescriptor();
-extern char    *ReadInFile();
-extern FILE    *xfopena();
+extern int     getfdcount(void);
+extern int     wildmat(void);
+extern int     waitnb(void);
+extern int     xread(void);
+extern int     xwrite(void);
+extern int     xwritev(void);
+extern int     LockFile(void);
+extern int     GetResourceUsage(void);
+extern int     SetNonBlocking(void);
+extern void    CloseOnExec(void);
+extern void    Radix32(void);
+extern char    *INNVersion(void);
+extern char    *ReadInDescriptor(void);
+extern char    *ReadInFile(void);
+extern FILE    *xfopena(void);

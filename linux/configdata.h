@@ -313,7 +313,7 @@ typedef char           *CSTRING;
     /* Function that returns no value, and a pointer to it. */
     /* =()<#define FUNCTYPE    @<FUNCTYPE>@>()= */
 #define FUNCTYPE       void
-typedef FUNCTYPE       (*FUNCPTR)();
+typedef FUNCTYPE       (*FUNCPTR)(void);
 
 
     /* While reading input, if we have less than LOW_WATER bytes free, we

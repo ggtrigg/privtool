@@ -44,9 +44,8 @@
 #endif
 
 #include <string.h>
-#ifndef HAVE_MALLOC_H
 #include <stdlib.h>
-#else
+#ifdef HAVE_MALLOC_H
 #include <malloc.h>
 #endif
 #include <limits.h>
@@ -87,11 +86,7 @@
 #ifdef USE_FLOPPY
 #include "floppy.h"
 #endif
-
-/* Does SunOS have getenv() in stdlib.h? Perhaps this should be SunOS
-   specific, or we should include the right SunOS header file. */
-
-extern	char	*getenv();
+#include "pgplib.h"
 
 /* BUF_SIZE is the general size of stack buffers. Should this ever be used 
    on DOS, you might want to reduce the value of BUF_SIZE, or replace the 
@@ -124,8 +119,8 @@ static	char	end_key [] = "\n-----END PGP PUBLIC KEY BLOCK-----";
 /* Use this routine if your machine doesn't have strstr () or it's really 
    slow like SunOS */
 
-char	*mystrstr (char *s1, char *s2)
-
+char *
+mystrstr (char *s1, char *s2)
 {
 	char	*p, *q, *r;
 
@@ -218,8 +213,7 @@ static	byte	random_seed[RAND_SIZE];
    where X is any number (Applied Cryptography, first edition, page 264). We 
    check for these, even though they're extremely rare. */
 
-static	byte	idea_weak_key_mask [IDEA_KEY_SIZE] =
-
+static byte idea_weak_key_mask [IDEA_KEY_SIZE] =
 {
 	0xFF, 0xFF,
 	0xFF, 0xFF,
@@ -235,8 +229,8 @@ static	byte	idea_weak_key_mask [IDEA_KEY_SIZE] =
 
 /* Open a PGP data file. */
 
-static	FILE	*open_pgp_file (char *s, char *attr)
-
+static FILE *
+open_pgp_file (char *s, char *attr)
 {
 	char	temp[PATH_MAX];
 	char	*pgppath;
@@ -271,8 +265,8 @@ static	FILE	*open_pgp_file (char *s, char *attr)
 /* Copy a fifo into a buffer. We need this to interface between the
    PGP Tools code and our own buffer code. */
 
-static	void	fifo_to_buffer (struct fifo *f, BUFFER *b)
-
+static void
+fifo_to_buffer (struct fifo *f, BUFFER *b)
 {
 	int	n,sz;
 	char	buf [BUF_SIZE];
@@ -295,8 +289,8 @@ static	void	fifo_to_buffer (struct fifo *f, BUFFER *b)
 /* This function is called to update the PGP Tools random number seed
    each time we fill our buffer with random data. */
 
-static	void	update_pgptools_random(void)
-
+static void
+update_pgptools_random(void)
 {
 	struct	fifo	*f;
 
@@ -339,8 +333,8 @@ static	void	update_pgptools_random(void)
    will do fine if you don't want to duplicate the code.
 */
 
-byte	our_randombyte(void)
-
+byte
+our_randombyte(void)
 {
 	/* The first time through we need to initialise the random
 	   number generator. We don't do this in init_pgplib() because
@@ -359,8 +353,8 @@ byte	our_randombyte(void)
    shouldn't generally be called, particularly as it's specific to
    PGP Tools. */
 
-void	add_to_random (byte *d, int s)
-
+void
+add_to_random (byte *d, int s)
 {
 	int	n;
 
@@ -397,8 +391,8 @@ void	add_to_random (byte *d, int s)
    gives slightly more security than just using the array as read from the
    disk. */
 
-static	void	idea_privseed(int decryp)
-
+static void
+idea_privseed(int decryp)
 {
 	struct	timeb	timestamp;
 	int	pid;
@@ -461,8 +455,8 @@ static	void	idea_privseed(int decryp)
 
 /* Process a single /proc file */
 
-static	void	add_proc_file (char *s)
-
+static void
+add_proc_file (char *s)
 {
 	int	fd;
 	int	sz;
@@ -503,7 +497,7 @@ static	void	add_proc_file (char *s)
 
 /* List of files that we're going to check. Most of these change frequently. */
 
-static	char	*proc_files[] = {
+static char *proc_files[] = {
 	"apm",
 	"interrupts",
 	"loadavg",
@@ -519,8 +513,8 @@ static	char	*proc_files[] = {
 
 /* Loop around processing each file */
 
-static	void	add_proc_data (void)
-
+static void
+add_proc_data (void)
 {
 	char	**p = proc_files;
 
@@ -539,8 +533,8 @@ static	void	add_proc_data (void)
 
 #define AUDIO_BUFF	512
 
-static	int	merge_in_audio (byte *p)
-
+static int
+merge_in_audio (byte *p)
 {
 	byte	audio[AUDIO_BUFF];
 	int	audio_fd;
@@ -614,8 +608,8 @@ static	int	merge_in_audio (byte *p)
 
 /* Do what we can to reseed the random number generator */
 
-void	reseed_random (void)
-
+void
+reseed_random (void)
 {
 	int	i;
 
@@ -667,9 +661,9 @@ static	DB	*keyfile;
 
 /* Find a public key, given the userid */
 
-static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key, 
-			byte *trust)
-
+static int
+get_public_key (byte *id, byte *userid, struct pgp_pubkey *key, 
+		byte *trust)
 {
 	FILE	*pkr;
 	struct	fifo	*keyring = NULL;
@@ -814,8 +808,8 @@ static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key,
 /* get_md5() - we use this to get the MD5 of the passphrase, to keep
    all the crypto code in one file. */
 
-void	get_md5 (char *pass, byte *md5_val)
-
+void
+get_md5 (char *pass, byte *md5_val)
 {
 	MD5_CTX	context;
 
@@ -829,16 +823,16 @@ void	get_md5 (char *pass, byte *md5_val)
 /* Produce hex values for PGP Tools error messages. Could be a macro,
    though that would break hex_key() below. */
 
-static	char	hex_val (int i)
-
+static char
+hex_val (int i)
 {
 	return (i < 10) ? ('0' + i) : ('A' + i - 10);
 }
 
 /* Convert a PGP key id to hex */
 
-static	void	hex_key (char *p, byte *key)
-
+static void
+hex_key (char *p, byte *key)
 {
 	int	i;
 
@@ -855,9 +849,9 @@ static	void	hex_key (char *p, byte *key)
    distribution. This function destroys the input fifo (inf).
 */
 
-static	int	decrypt_fifo (struct fifo *inf, BUFFER *decrypted, 
-			BUFFER *signature, char *pass, byte *md5_pass)
-
+static int
+decrypt_fifo (struct fifo *inf, BUFFER *decrypted, 
+	      BUFFER *signature, char *pass, byte *md5_pass)
 {
 	int	ret_val;
 #define STRING_SIZE	256
@@ -1362,8 +1356,8 @@ static	int	decrypt_fifo (struct fifo *inf, BUFFER *decrypted,
    need it. Saves #ifdefs in the calling code.
 */
 
-void	update_random(void)
-
+void
+update_random(void)
 {
 #ifdef HAVE_PGPTOOLS
 	byte	low_byte;
@@ -1397,8 +1391,8 @@ void	update_random(void)
 /* This should be the first routine called, so that PGP Tools is set
    up properly before use. If we're using PGP it's a no-op. */
 
-void	init_pgplib(void)
-
+void
+init_pgplib(void)
 {
 #ifdef HAVE_PGPTOOLS
 	FILE	*fp;
@@ -1458,8 +1452,8 @@ void	init_pgplib(void)
 
 /* Here we close down the code and tidy up sensitive data. */
 
-void	close_pgplib(void)
-
+void
+close_pgplib(void)
 {
 #ifdef HAVE_PGPTOOLS
 	FILE	*fp;
@@ -1541,8 +1535,8 @@ void	close_pgplib(void)
 
 /* Clear all the output buffers */
 
-static	void	clear_output(void)
-
+static void
+clear_output(void)
 {
 	clear_buffer(&error_messages);
 	clear_buffer(&stdout_messages);
@@ -1553,16 +1547,16 @@ static	void	clear_output(void)
 
 /* Add a string to the stdout buffer. */
 
-static	void	add_to_std(byte *buf, int len)
-
+static void
+add_to_std(byte *buf, int len)
 {
 	add_to_buffer(&stdout_messages,buf,len);
 }
 
 /* Add a string to the error messages buffer */
 
-static	void	add_to_error(byte *buf, int len)
-
+static void
+add_to_error(byte *buf, int len)
 {
 	add_to_buffer(&error_messages,buf,len);
 }
@@ -1571,9 +1565,9 @@ static	void	add_to_error(byte *buf, int len)
    the specified data. If we're running PGP then we may also need to 
    give it a passphrase */
 
-int	run_program(char *prog, byte *message, int msg_len,
-		char **args, char *pass, BUFFER *ret)
-
+int
+run_program(char *prog, byte *message, int msg_len,
+	    char **args, char *pass, BUFFER *ret)
 {
 	int	fd_in[2],fd_err[2],fd_out[2],pass_fd[2];
 	int	from_pgp,to_pgp,pgp_error,pass_in;
@@ -1664,6 +1658,16 @@ int	run_program(char *prog, byte *message, int msg_len,
 			}
 #endif
 		}
+#ifdef HAVE_GNUPG
+		else {
+		    for(arg_ptr = args; *arg_ptr != NULL; arg_ptr++) {
+			if(!strcmp(*arg_ptr, "--passphrase-fd")) {
+			    *arg_ptr = '\0';
+			    break;
+			}
+		    }
+		}
+#endif
 
 #if 0
 		{
@@ -1892,9 +1896,9 @@ int	run_program(char *prog, byte *message, int msg_len,
    -1 if so. */
 
 #ifndef HAVE_PGPTOOLS
-static	int	run_pgp(byte *message, int msg_len, char **args,
-			char *pass)
-
+static int
+run_pgp(byte *message, int msg_len, char **args,
+	char *pass)
 {
 	return run_program(pgp_path(),message,msg_len,args,pass,NULL);
 }
@@ -1921,7 +1925,7 @@ static	char	*filter_argv[]={
 
 /* Message to tell the user that decryption failed. */
 
-static	char	fail_string[] = "\n\n******* DECRYPTION FAILED *******\n\n";
+static char	fail_string[] = "\n\n******* DECRYPTION FAILED *******\n\n";
 
 /* Longest that we expect an output line from PGP to be. Nothing
    too horrible will happen if this is too small, you may just
@@ -1932,9 +1936,9 @@ static	char	fail_string[] = "\n\n******* DECRYPTION FAILED *******\n\n";
 
 /* Decrypt a PGP message. */
 
-int	decrypt_message (BUFFER *message, BUFFER *decrypted, BUFFER *signature,
-		char *pass, int flags, byte *md5_pass)
-
+int
+decrypt_message (BUFFER *message, BUFFER *decrypted, BUFFER *signature,
+		 char *pass, int flags, byte *md5_pass)
 {
 	int	ret_val;
 #ifdef HAVE_PGPTOOLS
@@ -2355,9 +2359,9 @@ int	decrypt_message (BUFFER *message, BUFFER *decrypted, BUFFER *signature,
 
 /* Note: user is a list of users, not just one! */
 
-int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
+int
+encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 		int flags, char *pass, char *key_name, byte *md5_pass)
-
 {
 #ifdef HAVE_PGPTOOLS
 	FILE	*skr;
@@ -3016,7 +3020,7 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 			strcat(args[0],"t");
 			argv[arg++] = "+clearsig=on";
 #else
-			argv[arg++] = "--textmode";
+			/* argv[arg++] = "--textmode"; */
 			argv[arg++] = "--clearsign";
 #endif
 		}
@@ -3133,8 +3137,8 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 /* Look through the buffer to see if it contains an ASCII-armored PGP
    key. */
 
-int	buffer_contains_key (BUFFER *b)
-
+int
+buffer_contains_key (BUFFER *b)
 {
 	char	*s;
 
@@ -3165,8 +3169,8 @@ int	buffer_contains_key (BUFFER *b)
 
 /* Add a PGP key to the pubring.pgp file */
 
-int	add_key (BUFFER *m)
-
+int
+add_key (BUFFER *m)
 {
 	char	*s, *e;
 	char	*dir;
@@ -3421,4 +3425,3 @@ int	add_key (BUFFER *m)
 
 	return	ADD_OK;
 }
-

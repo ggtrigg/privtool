@@ -14,6 +14,9 @@
  *
  */
 
+#ifndef _DEF_H
+#define _DEF_H
+
 #ifndef TRUE
 #define TRUE	1
 #define FALSE	0
@@ -53,7 +56,7 @@
 #define MAX_SECURITY		4
 #define MIN_SECURITY		1
 
-extern char	*pgp_path();
+extern char	*pgp_path(void);
 
 #define DEFAULT_CHECK_TIME	300
 
@@ -84,3 +87,4 @@ extern	char	*mystrstr (char *, char *);
 #define ATTACH_SUN	2
 #define ATTACH_MIME	3
 
+#endif /* _DEF_H */

@@ -381,7 +381,7 @@ clear_display_footer(DISPLAY_WINDOW *w)
 /*----------------------------------------------------------------------*/
 
 void
-clear_display_window()
+clear_display_window(DISPLAY_WINDOW *w)
 {
     XmString	empty;
 
@@ -748,7 +748,7 @@ hide_header_frame()
 /*----------------------------------------------------------------------*/
 
 void
-lock_display_window()
+lock_display_window(DISPLAY_WINDOW *w)
 {
 }
 
@@ -1131,7 +1131,7 @@ shutdown_ui()
 /*----------------------------------------------------------------------*/
 
 void
-update_log_item(COMPOSE_WINDOW *w)
+update_log_item(COMPOSE_WINDOW *w, int flags)
 {
 }
 

@@ -19,6 +19,9 @@
 
 /* This structure defines a compose window */
 
+#ifndef _WINDOWS_H
+#define _WINDOWS_H
+
 #ifdef UI_MAIN
 
 
@@ -78,21 +81,10 @@ typedef	int	COMPOSE_WINDOW;
 typedef int	DISPLAY_WINDOW;
 #endif
 
-#if defined(HAVE_MOTIF)
-typedef struct _mail_header_field {
-    String	name;
-    Boolean	editable;
-} MAIL_HEADER_FIELD;
-#elif defined(HAVE_GTK)
-typedef struct _mail_header_field {
-    gchar	*name;
-    gboolean	editable;
-} MAIL_HEADER_FIELD;
-#endif
-
 /* Declare function */
 
-COMPOSE_WINDOW	*x_setup_send_window ();
-COMPOSE_WINDOW	*setup_send_window ();
-DISPLAY_WINDOW	*create_display_window ();
+COMPOSE_WINDOW	*x_setup_send_window (void);
+COMPOSE_WINDOW	*setup_send_window (void);
+DISPLAY_WINDOW	*create_display_window (void);
 
+#endif /* _WINDOWS_H */

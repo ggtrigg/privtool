@@ -28,6 +28,12 @@
 #include	"windows.h"
 #include	"gui.h"
 #include	"gtk_protos.h"
+#include	"main.h"
+
+typedef struct _mail_header_field {
+    gchar	*name;
+    gboolean	editable;
+} MAIL_HEADER_FIELD;
 
 /* Standard mail header field names, taken from rfc822. */
 MAIL_HEADER_FIELD standard_headers[] = {
@@ -119,9 +125,9 @@ static void	cell_change_cb(GtkWidget *, gint, gint, gpointer);
 static void	reply_cb(GtkWidget *, gpointer);
 
 static GtkItemFactoryEntry reply_ife[] = {
-    {"/Use Reply-To:", NULL, reply_cb, REPLY_TO, NULL},
-    {"/Use From:", NULL, reply_cb, FROM, NULL},
-    {"/Ask", NULL, reply_cb, ASK, NULL}};
+    {"/Use Reply-To:", NULL, (GtkItemFactoryCallback)reply_cb, REPLY_TO, NULL},
+    {"/Use From:", NULL, (GtkItemFactoryCallback)reply_cb, FROM, NULL},
+    {"/Ask", NULL, (GtkItemFactoryCallback)reply_cb, ASK, NULL}};
 
 /*----------------------------------------------------------------------*/
 
@@ -170,7 +176,7 @@ show_props()
 	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(proptop)->action_area),
 				    button);
 	gtk_object_set_user_data(GTK_OBJECT(button), (gpointer)OK);
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", proptop_cb,
+	gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)proptop_cb,
 			   proptop);
 	gtk_widget_show(button);
 
@@ -178,7 +184,7 @@ show_props()
 	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(proptop)->action_area),
 				    button);
 	gtk_object_set_user_data(GTK_OBJECT(button), (gpointer)APPLY);
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", proptop_cb,
+	gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)proptop_cb,
 			   proptop);
 	gtk_widget_show(button);
 
@@ -186,7 +192,7 @@ show_props()
 	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(proptop)->action_area),
 				    button);
 	gtk_object_set_user_data(GTK_OBJECT(button), (gpointer)CANCEL);
-	gtk_signal_connect(GTK_OBJECT(button), "clicked", proptop_cb,
+	gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)proptop_cb,
 			   proptop);
 	gtk_widget_show(button);
     }
@@ -199,7 +205,7 @@ proptop_cb(GtkWidget *w, gpointer data)
 {
     GtkWidget	*window = (GtkWidget *)data, *tgl;
     GList	*hdrlist;
-    int		numrows, i;
+    int		numrows, i, row, col;
     char	*newname, *alias_name, *buf, buf2[BUFSIZ], *temp;
     FILE	*nprivrc, *privrc;
     MAILRC	*m;
@@ -224,6 +230,10 @@ proptop_cb(GtkWidget *w, gpointer data)
 	fprintf(nprivrc, "#\n# Aliases\n#\n");
 	clear_aliases();
 	numrows = GTK_SHEET(propw.aliases)->maxrow + 1;
+	/* Be wary of the active cell, set it to
+	   make sure the contents have updated. */
+	gtk_sheet_get_active_cell(GTK_SHEET(propw.aliases), &row, &col);
+	gtk_sheet_set_active_cell(GTK_SHEET(propw.aliases), row, col);
 	for(i = 0; i < numrows; i++) {
 	    alias_name = gtk_sheet_cell_get_text(GTK_SHEET(propw.aliases),
 						 i, 0);
@@ -244,9 +254,9 @@ proptop_cb(GtkWidget *w, gpointer data)
 	hdrlist = gtk_container_children(GTK_CONTAINER(propw.hdr_list));
 	for(; hdrlist != NULL; hdrlist = g_list_next(hdrlist)) {
 	    tgl = (GtkWidget *)hdrlist->data;
+	    buf = (char *)gtk_widget_get_name(tgl);
 	    if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tgl))) {
 		/* Print the name of the widget. */
-		buf = (char *)gtk_widget_get_name(tgl);
 		fprintf(nprivrc, " %s", buf);
 		add_entry(&retain, buf );
 	    }
@@ -274,7 +284,7 @@ proptop_cb(GtkWidget *w, gpointer data)
 
 	temp = find_mailrc("retrieveinterval");
 	buf = gtk_entry_get_text(GTK_ENTRY(propw.check_interval));
-	i = strcmp(temp, buf);
+	i = temp? strcmp(temp, buf): 1;
 	if(*buf != '\0') {
 	    fprintf(nprivrc, "set retrieveinterval=%s\n", buf);
 	    replace_mailrc("retrieveinterval", buf);
@@ -348,6 +358,10 @@ proptop_cb(GtkWidget *w, gpointer data)
 
 	fprintf(nprivrc, "set filemenu2='");
 	numrows = GTK_SHEET(propw.mail_menu)->maxrow + 1;
+	/* Be wary of the active cell, set it to something else to
+	   make sure the contents have updated. */
+	gtk_sheet_get_active_cell(GTK_SHEET(propw.mail_menu), &row, &col);
+	gtk_sheet_set_active_cell(GTK_SHEET(propw.mail_menu), row, col);
 	for(i = 0; i < numrows; i++) {
 	    buf = gtk_sheet_cell_get_text(GTK_SHEET(propw.mail_menu), i, 0);
 	    if((buf == NULL) || (*buf == '\0'))
@@ -449,6 +463,10 @@ proptop_cb(GtkWidget *w, gpointer data)
 	/* Now pgp keys. */
 	fprintf(nprivrc, "#\n# PGP Settings\n#\n");
 	numrows = GTK_SHEET(propw.pgpkeys)->maxrow;
+	/* Be wary of the active cell, set it to something else to
+	   make sure the contents have updated. */
+	gtk_sheet_get_active_cell(GTK_SHEET(propw.pgpkeys), &row, &col);
+	gtk_sheet_set_active_cell(GTK_SHEET(propw.pgpkeys), row, col);
 	for(i = 0; i < numrows; i++) {
 	    buf = gtk_sheet_cell_get_text(GTK_SHEET(propw.pgpkeys), i, 0);
 	    if((buf == NULL) || (*buf == '\0'))
@@ -474,6 +492,10 @@ proptop_cb(GtkWidget *w, gpointer data)
 
 	/* Mail kill items. */
 	numrows = GTK_SHEET(propw.kill_list)->maxrow;
+	/* Be wary of the active cell, set it to something else to
+	   make sure the contents have updated. */
+	gtk_sheet_get_active_cell(GTK_SHEET(propw.kill_list), &row, &col);
+	gtk_sheet_set_active_cell(GTK_SHEET(propw.kill_list), row, col);
 	for(i = 0; i < numrows; i++) {
 	    buf = gtk_sheet_cell_get_text(GTK_SHEET(propw.kill_list), i, 0);
 	    if((buf == NULL) || (*buf == '\0'))
@@ -485,6 +507,10 @@ proptop_cb(GtkWidget *w, gpointer data)
 
 	/* Pseudonyms. */
 	numrows = GTK_SHEET(propw.pseudonyms)->maxrow;
+	/* Be wary of the active cell, set it to something else to
+	   make sure the contents have updated. */
+	gtk_sheet_get_active_cell(GTK_SHEET(propw.pseudonyms), &row, &col);
+	gtk_sheet_set_active_cell(GTK_SHEET(propw.pseudonyms), row, col);
 	for(i = 0; i < numrows; i++) {
 	    buf = gtk_sheet_cell_get_text(GTK_SHEET(propw.pseudonyms), i, 0);
 	    if((buf == NULL) || (*buf == '\0'))
@@ -599,7 +625,7 @@ create_mailer_page()
 				      "Folder Combo Items");
     gtk_sheet_hide_row_titles(GTK_SHEET(propw.mail_menu));
     gtk_sheet_set_column_width(GTK_SHEET(propw.mail_menu), 0, 200);
-    gtk_signal_connect(GTK_OBJECT(propw.mail_menu), "changed", cell_change_cb,
+    gtk_signal_connect(GTK_OBJECT(propw.mail_menu), "changed", (GtkSignalFunc)cell_change_cb,
 		       NULL);
     gtk_widget_show(propw.mail_menu);
     gtk_widget_show(swin);
@@ -776,7 +802,7 @@ create_alias_page()
     gtk_sheet_column_button_add_label(GTK_SHEET(propw.aliases), 1, "Address");
     gtk_sheet_set_column_width(GTK_SHEET(propw.aliases), 0, 150);
     gtk_sheet_set_column_width(GTK_SHEET(propw.aliases), 1, 300);
-    gtk_signal_connect(GTK_OBJECT(propw.aliases), "changed", cell_change_cb,
+    gtk_signal_connect(GTK_OBJECT(propw.aliases), "changed", (GtkSignalFunc)cell_change_cb,
 		       NULL);
 
     gtk_widget_show(propw.aliases);
@@ -841,7 +867,7 @@ create_pgp_page()
     gtk_sheet_column_button_add_label(GTK_SHEET(propw.pgpkeys), 1, "Keyname");
     gtk_sheet_set_column_width(GTK_SHEET(propw.pgpkeys), 0, 100);
     gtk_sheet_set_column_width(GTK_SHEET(propw.pgpkeys), 1, 300);
-    gtk_signal_connect(GTK_OBJECT(propw.pgpkeys), "changed", cell_change_cb,
+    gtk_signal_connect(GTK_OBJECT(propw.pgpkeys), "changed", (GtkSignalFunc)cell_change_cb,
 		       NULL);
     gtk_widget_show(propw.pgpkeys);
     gtk_widget_show(swin);
@@ -878,7 +904,7 @@ create_pgp_page()
     gtk_sheet_column_button_add_label(GTK_SHEET(propw.pseudonyms), 0,
 				      "PGP Pseudonyms");
     gtk_sheet_set_column_width(GTK_SHEET(propw.pseudonyms), 0, 180);
-    gtk_signal_connect(GTK_OBJECT(propw.pseudonyms), "changed", cell_change_cb,
+    gtk_signal_connect(GTK_OBJECT(propw.pseudonyms), "changed", (GtkSignalFunc)cell_change_cb,
 		       NULL);
     gtk_widget_show(propw.pseudonyms);
     gtk_widget_show(swin);
@@ -895,7 +921,7 @@ create_pgp_page()
 				      "Kill Mail Matching");
     gtk_sheet_set_column_width(GTK_SHEET(propw.kill_list), 0, 20);
     gtk_sheet_set_column_width(GTK_SHEET(propw.kill_list), 1, 180);
-    gtk_signal_connect(GTK_OBJECT(propw.kill_list), "changed", cell_change_cb,
+    gtk_signal_connect(GTK_OBJECT(propw.kill_list), "changed", (GtkSignalFunc)cell_change_cb,
 		       NULL);
     gtk_widget_show(propw.kill_list);
     gtk_widget_show(swin);
@@ -930,7 +956,7 @@ load_mailer_page()
     if( (rcval = find_mailrc("retrieveinterval")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.check_interval), rcval);
     else {
-	temp = g_strdup_printf("%ld", DEFAULT_CHECK_TIME);
+	temp = g_strdup_printf("%d", DEFAULT_CHECK_TIME);
 	gtk_entry_set_text(GTK_ENTRY(propw.check_interval), temp);
 	g_free(temp);
     }
@@ -938,7 +964,7 @@ load_mailer_page()
     if( (rcval = find_mailrc("folder")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.mail_dir), rcval);
 
-    if( (rcval = find_mailrc("filemenu2")) ) {
+    if( (rcval = find_mailrc("filemenu2")) && (*rcval != '\0')) {
 	temp = strdup(rcval);
 	ent = strtok(temp, " \n\r\t");
 	numrows = GTK_SHEET(propw.mail_menu)->maxrow;

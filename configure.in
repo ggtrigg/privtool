@@ -22,7 +22,6 @@ EXTRALIBS=
 
 dnl Set OS specific source variable.
 case "${host_os}" in
-   linux*) os_source='$(LINUX_SOURCE)'; os_cpp='$(LINUX_CPP)' ;;
    solaris2*) XCHECKLIBS="-lSM -lICE -lgen -lsocket -lnsl" ;;
 esac
 AC_SUBST(os_source)
@@ -574,6 +573,9 @@ AC_CHECK_TYPE(word32, unsigned long)
 AC_FUNC_VFORK
 AC_CHECK_FUNCS(ftime geteuid getlogin gettimeofday memcpy mktime putenv random select strchr strdup strerror strstr usleep)
 
+if test "$GCC" = "yes"; then
+  CFLAGS="${CFLAGS} -Wunused -Wstrict-prototypes -Wall"
+fi
 CPPFLAGS="${EXTRACPPFLAGS} ${CPPFLAGS}"
 LDFLAGS="${EXTRALDFLAGS} ${LDFLAGS}"
 LIBS="${EXTRALIBS} ${LIBS}"

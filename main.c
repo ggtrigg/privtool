@@ -35,6 +35,7 @@
 #ifdef HAVE_GETEUID
 #include <pwd.h>
 #endif
+#include <time.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -46,8 +47,12 @@
 
 #include "def.h"
 #include "buffers.h"
+#include "windows.h"
 #include "message.h"
 #include "mailrc.h"
+#include "gui.h"
+#include "pgplib.h"
+#include "mail_reader.h"
 
 char	default_mail_file[MAXPATHLEN];
 char    globRCfile[MAXPATHLEN];
@@ -142,8 +147,8 @@ static	char	*strip_quotes[] = {
 
 /* Create a mailrc entry */
 
-MAILRC	*new_mailrc(void)
-
+MAILRC *
+new_mailrc(void)
 {
 	MAILRC	*m;
 
@@ -162,8 +167,8 @@ MAILRC	*new_mailrc(void)
 
 /* Free a mailrc entry */
 
-void	free_mailrc(MAILRC *m)
-
+void
+free_mailrc(MAILRC *m)
 {
 	if (m) {
 
@@ -178,8 +183,8 @@ void	free_mailrc(MAILRC *m)
 
 /* Clear a list */
 
-void	clear_list(LIST *l)
-
+void
+clear_list(LIST *l)
 {
 	MAILRC	*m,*om;
 
@@ -200,8 +205,8 @@ void	clear_list(LIST *l)
 
 /* Clear the aliases list */
 
-void clear_aliases(void)
-
+void
+clear_aliases(void)
 {
 	clear_list (&alias);
 }
@@ -209,7 +214,6 @@ void clear_aliases(void)
 /* Add an entry to a list */
 void
 add_to_list(LIST *l, MAILRC *m)
-
 {
 	/* Update count of entries */
 
@@ -228,8 +232,8 @@ add_to_list(LIST *l, MAILRC *m)
 
 /* Move a mailrc entry to the top of the list */
 
-static	void move_to_top(LIST *l, MAILRC *m)
-
+static void
+move_to_top(LIST *l, MAILRC *m)
 {
 	if (l->start == m) 
 		return;
@@ -248,8 +252,8 @@ static	void move_to_top(LIST *l, MAILRC *m)
 	l->start = m;
 }
 
-static	MAILRC	*msearch_list(LIST *l, char *s)
-
+static MAILRC *
+msearch_list(LIST *l, char *s)
 {
 	MAILRC	*m;
 
@@ -264,7 +268,8 @@ static	MAILRC	*msearch_list(LIST *l, char *s)
 	return NULL;
 }
 
-static void remove_from_list(LIST *l, char *s)
+static void
+remove_from_list(LIST *l, char *s)
 {
     MAILRC	*m;
 
@@ -286,7 +291,8 @@ static void remove_from_list(LIST *l, char *s)
     }
 }
 
-void print_list(LIST *l)
+void
+print_list(LIST *l)
 {
     MAILRC	*m;
 
@@ -298,7 +304,8 @@ void print_list(LIST *l)
     }
 }
 
-static void replace_in_list(LIST *l, char *s, char *v)
+static void
+replace_in_list(LIST *l, char *s, char *v)
 {
     MAILRC	*m;
 
@@ -326,16 +333,16 @@ static void replace_in_list(LIST *l, char *s, char *v)
     }
 }
 
-void	clear_pgpkey (void)
-
+void
+clear_pgpkey (void)
 {
 	clear_list (&pgpkey);
 }
 
 /* Add an entry to the PGP keys list */
 
-void	add_pgpkey(char *s)
-
+void
+add_pgpkey(char *s)
 {
 	char	*n,*v;
 	MAILRC	*m;
@@ -375,25 +382,26 @@ void	add_pgpkey(char *s)
 	}
 }
 
-char    *search_templatename(char *s) 
+char *
+search_templatename(char *s) 
+{
+    MAILRC  *m,*n;
 
-{       MAILRC  *m,*n;
-
-        m = template_list.start;
-        n = template_list_fname.start ;
+    m = template_list.start;
+    n = template_list_fname.start ;
                 
-        while (m) {
-                if (!strcasecmp (m->name,s))
-                        return n->name;
-                m = m->next;
-                n = n->next ;
-        }
+    while (m) {
+	if (!strcasecmp (m->name,s))
+	    return n->name;
+	m = m->next;
+	n = n->next ;
+    }
                                                                         
-        return NULL;
+    return NULL;
 }
 
-static	char	*search_list(LIST *l, char *s)
-
+static char *
+search_list(LIST *l, char *s)
 {
 	MAILRC	*m;
 
@@ -403,59 +411,62 @@ static	char	*search_list(LIST *l, char *s)
 	return NULL;
 }
 
-char	*find_mailrc(char *s)
-
+char *
+find_mailrc(char *s)
 {
 	return search_list(&mailrc,s);
 }
 
-void	remove_mailrc(char *s)
+void
+remove_mailrc(char *s)
 {
     remove_from_list(&mailrc, s);
 }
 
-void	remove_retain(char *s)
+void
+remove_retain(char *s)
 {
     remove_from_list(&retain, s);
 }
 
-void	replace_mailrc(char *s, char *v)
+void
+replace_mailrc(char *s, char *v)
 {
     replace_in_list(&mailrc, s, v);
 }
 
-char	*find_alias(char *s)
-
+char *
+find_alias(char *s)
 {
 	return search_list(&alias,s);
 }
 
-char	*find_pgpkey(char *s)
-
+char *
+find_pgpkey(char *s)
 {
 	return search_list(&pgpkey,s);
 }
 
-int	ignore_line(char *s)
-
+int
+ignore_line(char *s)
 {
 	return (search_list(&ignore,s) != NULL);
 }
 
-int	retain_line(char *s)
-
+int
+retain_line(char *s)
 {
 	return (search_list(&retain,s) != NULL);
 }
 
-int	kill_user(char *s)
-
+int
+kill_user(char *s)
 {
 	return (search_list(&killu_l,s) != NULL);
 }
 
-int	kill_subject (char *s)
-
+int
+kill_subject (char *s)
 {
 	MAILRC	*m;
 
@@ -470,14 +481,14 @@ int	kill_subject (char *s)
 	return FALSE;
 }
 
-int	maybe_cfeed(char *s)
-
+int
+maybe_cfeed(char *s)
 {
 	return (search_list(&cfeed,s) != NULL);
 }
 
-void	add_entry(LIST *l, char *s)
-
+void
+add_entry(LIST *l, char *s)
 {
 	MAILRC	*m;
 
@@ -499,39 +510,39 @@ void	add_entry(LIST *l, char *s)
 	}
 }
 
-static	void add_cfeed(char *s)
-
+static void
+add_cfeed(char *s)
 {
 	add_entry(&cfeed,s);
 }
 
-void	clear_killu(void)
-
+void
+clear_killu(void)
 {
 	clear_list (&killu_l);
 }
 
-void	add_killu(char *s)
-
+void
+add_killu(char *s)
 {
 	add_entry(&killu_l,s);
 }
 
-static	void add_nym (char *s)
-
+static void
+add_nym (char *s)
 {
 	add_entry(&nym_list, s);
 }
 
-static  void add_template (char *s, char *sn)
-
+static void
+add_template (char *s, char *sn)
 {
         add_entry(&template_list, s);
         add_entry(&template_list_fname, sn);
 }
                 
-static	void default_nym (char *s)
-
+static void
+default_nym (char *s)
 {
 	MAILRC	*m;
 
@@ -546,20 +557,20 @@ static	void default_nym (char *s)
 	}
 }
 
-int32	nym_count(void)
-
+int32
+nym_count(void)
 {
 	return nym_list.number;
 }
 
-int32   template_count(void)
-
+int32
+template_count(void)
 {
         return template_list.number;
 }
 
-char	*nym_name(int n)
-
+char *
+nym_name(int n)
 {
 	MAILRC	*m;
 
@@ -576,8 +587,8 @@ char	*nym_name(int n)
 	return m->name;
 }
 
-char    *template_name(int n)
-
+char *
+template_name(int n)
 {
         MAILRC  *m;
         
@@ -594,32 +605,32 @@ char    *template_name(int n)
         return m->name;
 }
 
-char	*current_nym(void)
-
+char *
+current_nym(void)
 {
 	return our_nym;
 }
 
-void	set_current_nym(char *s)
-
+void
+set_current_nym(char *s)
 {
 	our_nym = s;
 }
 
-void	clear_kills(void)
-
+void
+clear_kills(void)
 {
 	clear_list (&kills_l);
 }
 
-void	add_kills(char *s)
-
+void
+add_kills(char *s)
 {
 	add_entry(&kills_l,s);
 }
 
-static	void add_ignore(char *s)
-
+static void
+add_ignore(char *s)
 {
 	char	*n;
 
@@ -649,7 +660,8 @@ static	void add_ignore(char *s)
 	}
 }
 
-static	void add_retain(char *s)
+static void
+add_retain(char *s)
 {
     char	*n;
 
@@ -679,8 +691,8 @@ static	void add_retain(char *s)
     }
 }
 
-static	void add_alias(char *s)
-
+static void
+add_alias(char *s)
 {
 	char	*n,*v;
 	MAILRC	*m;
@@ -708,8 +720,8 @@ static	void add_alias(char *s)
 	add_to_list(&alias,m);
 }
 
-static	void	read_contents(FILE *fp)
-
+static void
+read_contents(FILE *fp)
 {
 	char	line[1024],*s,*sfn,*n,*v;
 	int	c,i;
@@ -902,8 +914,8 @@ static	void	read_contents(FILE *fp)
 	}
 }
 
-void	read_mailrc(void)
-
+void
+read_mailrc(void)
 {
 	char	*loc;
 	char	path[MAXPATHLEN], path2[MAXPATHLEN];
@@ -974,8 +986,8 @@ void	read_mailrc(void)
 static	char	pgp_exec [] = PGPEXEC;
 #endif
 
+int
 main(int argc, char *argv[])
-
 {
 	char		*s;
 	int		i;
@@ -1068,7 +1080,7 @@ main(int argc, char *argv[])
 	    }
 	}
 
-	read_mail_file(default_mail_file,TRUE);
+	read_mail_file(default_mail_file);
 
 	s = getenv("PGPPASS");
 
@@ -1088,8 +1100,8 @@ main(int argc, char *argv[])
 
 /* Copy_to_nl() : Strip preceding spaces and trailing nls from a string */
 
-void	copy_to_nl(char *from, char *to)
-
+void
+copy_to_nl(char *from, char *to)
 {
 	if (from) {
 		while (*from == ' ')
@@ -1103,10 +1115,9 @@ void	copy_to_nl(char *from, char *to)
 }
 
 #ifndef HAVE_PGPTOOLS
-char	*pgp_path(void)
-
+char *
+pgp_path(void)
 {
-	static	char	pgp_path[MAXPATHLEN];
 	static	int	first = TRUE;
 
 	if (first) {
