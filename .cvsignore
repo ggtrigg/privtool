@@ -1,0 +1,6 @@
+privtool
+configure
+config.log
+config.cache
+config.status
+.depend
