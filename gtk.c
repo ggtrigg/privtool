@@ -2331,7 +2331,7 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype)
 	    strarry = g_strsplit(g_strstrip(b->message), "\n", -1);
 	    quoted = g_strconcat("> ", g_strjoinv("\n> ", strarry), NULL);
 	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
-			    quoted, strlen(quoted) - 2);
+			    quoted, -1/*strlen(quoted) - 2*/);
 	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL, "\n", 1);
 	    g_free(quoted);
 	    g_strfreev(strarry);
