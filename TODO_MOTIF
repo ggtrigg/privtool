@@ -1,0 +1,24 @@
+
+   Stuff to do for the Motif version of Privtool
+   ---------------------------------------------
+    $Id$
+
+- Finish off footer stuff.
+
+- Implement the compose mail and associated bits (reply etc.).
+
+- Implement the folder window.
+
+- Implement drag-and-drop.
+
+- Implement undelete.
+
+- Check encrypted mail stuff.
+
+- Update message list on initial display.
+
+- Keep selected message in list visible.
+
+- Check leaks from XmString's.
+
+- More help?

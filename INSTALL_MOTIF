@@ -1,0 +1,16 @@
+In this tar file there is:
+
+   privtool - the executable
+Privtool.ad - the resource file
+      *.xpm - various pixmaps
+
+privtool (the executable) should go somewhere in your path. (/usr/local/bin
+most likely).
+
+Privtool.ad should go somewhere in your XFILESEARCHPATH. If you don't have
+one then put this in /usr/local/app-defaults and setenv XFILESEARCHPATH
+to /usr/local/%T/%N.ad.
+
+The pixmaps should be put somewhere in your XBMLANGPATH. If you don't
+have one then put them in /usr/local/bitmaps and setenv XBMLANGPATH to
+/usr/local/bitmaps/%B.
