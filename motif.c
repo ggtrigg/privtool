@@ -77,9 +77,12 @@
 #include	<sys/mman.h>
 
 #include	"prev.xpm"
+#include	"prev_is.xpm"
 #include	"next.xpm"
+#include	"next_is.xpm"
 #include	"delete.xpm"
 #include	"undelete.xpm"
+#include	"undelete_is.xpm"
 #include	"folderwin.xpm"
 #include	"letter.xpm"
 #include	"dir.xpm"
@@ -96,6 +99,8 @@ static Widget		toplevel_, msgarea_, msgarea2_, mailslist_;
 static Widget		text_ = NULL, hdrtext_ = NULL, tbarframe_;
 static Widget		liteClue_, pp_window_ = NULL, abt_window_ = NULL;
 static Widget		foldwin_[2], fold_combo_, addkey_, attach_;
+static Widget		prevbtn_, nextbtn_, prevmi_, nextmi_;
+static Widget		undelbtn_, undelmi_, undellmi_;
 static XtAppContext	app_context_;
 static char		local_pp[2048];
 static COMPOSE_WINDOW	*compose_first = NULL;
@@ -197,6 +202,7 @@ static void		attach_proc(Widget, XtPointer, XtPointer);
 static void		hide_addkey();
 static void		hide_attach();
 static void		props_proc(Widget, XtPointer, XtPointer);
+static void		show_undelete(Boolean);
 
 static XtActionsRec actions[] = {
     {"view", (XtActionProc)viewAC},
@@ -475,6 +481,7 @@ delete_message_proc()
 	sync_list();
     }
     update_message_list();
+    show_undelete(True);
 } /* delete_message_proc */
 
 /*----------------------------------------------------------------------*/
@@ -559,14 +566,17 @@ display_message_sig(BUFFER *b)
 
     /* For now, just display the first line in the right hand message
        area. */
-    char	*sigmess = strdup(b->message), *ptr;
+    char	*sigmess, *ptr;
     DEBUG2(("display_message_sig: %s\n", b->message));
 
-    if((ptr = strchr(sigmess, '\n')) != NULL){
-	*ptr = '\0';
+    if(b->message != NULL){
+	sigmess = strdup(b->message);
+	if((ptr = strchr(sigmess, '\n')) != NULL){
+	    *ptr = '\0';
+	}
+	set_display_footer(NULL, sigmess);
+	free(sigmess);
     }
-    set_display_footer(NULL, sigmess);
-    free(sigmess);
 }
 
 /*----------------------------------------------------------------------*/
@@ -915,9 +925,12 @@ setup_ui(int level, int argc, char **argv)
 				     toplevel_, NULL);
 
     cache_pixmap_from_data(prev_xpm, "prev.xpm");
+    cache_pixmap_from_data(prev_is_xpm, "prev_is.xpm");
     cache_pixmap_from_data(next_xpm, "next.xpm");
+    cache_pixmap_from_data(next_is_xpm, "next_is.xpm");
     cache_pixmap_from_data(delete_xpm, "delete.xpm");
     cache_pixmap_from_data(undelete_xpm, "undelete.xpm");
+    cache_pixmap_from_data(undelete_is_xpm, "undelete_is.xpm");
     cache_pixmap_from_data(folderwin_xpm, "folderwin.xpm");
     cache_pixmap_from_data(dir_xpm, "dir.xpm");
     cache_pixmap_from_data(letter_xpm, "letter.xpm");
@@ -1546,17 +1559,17 @@ create_toolbar(Widget parent)
     XtManageChild(toolbar_);
     XtVaSetValues (parent, XmNcommandWindow, tbarframe_, NULL);
 
-    create_toolbar_button(toolbar_, "prev", "Previous message",
-			  prev_messageCB, NULL);
+    prevbtn_ = create_toolbar_button(toolbar_, "prev", "Previous message",
+				     prev_messageCB, NULL);
 
-    create_toolbar_button(toolbar_, "next", "Next message",
-			  next_messageCB, NULL);
+    nextbtn_ = create_toolbar_button(toolbar_, "next", "Next message",
+				     next_messageCB, NULL);
 
     create_toolbar_button(toolbar_, "delete", "Delete message",
 			  delete_message_proc, NULL);
 
-    create_toolbar_button(toolbar_, "undelete", "Undelete message",
-			  undeleteCB, NULL);
+    undelbtn_ = create_toolbar_button(toolbar_, "undelete", "Undelete message",
+				      undeleteCB, NULL);
 
     foldwin_[1] = create_toolbar_toggle(toolbar_, "folders", "Folder window",
 				       view_foldersCB, NULL);
@@ -1670,14 +1683,14 @@ create_edit_menu(Widget parent)
     XtAddCallback (button_, XmNactivateCallback,
 		   delete_message_proc, NULL);
 
-    button_ = XmCreatePushButtonGadget (menu_, "undelete", NULL, 0);
-    XtManageChild (button_);
-    XtAddCallback (button_, XmNactivateCallback,
+    undelmi_ = XmCreatePushButtonGadget (menu_, "undelete", NULL, 0);
+    XtManageChild (undelmi_);
+    XtAddCallback (undelmi_, XmNactivateCallback,
 		   undeleteCB, NULL);
 
-    button_ = XmCreatePushButtonGadget (menu_, "undel_last", NULL, 0);
-    XtManageChild (button_);
-    XtAddCallback (button_, XmNactivateCallback,
+    undellmi_ = XmCreatePushButtonGadget (menu_, "undel_last", NULL, 0);
+    XtManageChild (undellmi_);
+    XtAddCallback (undellmi_, XmNactivateCallback,
 		   undelete_last_proc, NULL);
 
     XtManageChild(XmCreateSeparatorGadget(menu_, "sep", NULL, 0));
@@ -1717,14 +1730,14 @@ create_view_menu(Widget parent)
     cascade_ = XmCreateCascadeButton (parent, "view", args, 1);
     XtManageChild (cascade_);
 
-    button_ = XmCreatePushButtonGadget (menu_, "next", NULL, 0);
-    XtManageChild (button_);
-    XtAddCallback (button_, XmNactivateCallback,
+    nextmi_ = XmCreatePushButtonGadget (menu_, "next", NULL, 0);
+    XtManageChild (nextmi_);
+    XtAddCallback (nextmi_, XmNactivateCallback,
 		   next_messageCB, NULL);
 
-    button_ = XmCreatePushButtonGadget (menu_, "prev", NULL, 0);
-    XtManageChild (button_);
-    XtAddCallback (button_, XmNactivateCallback,
+    prevmi_ = XmCreatePushButtonGadget (menu_, "prev", NULL, 0);
+    XtManageChild (prevmi_);
+    XtAddCallback (prevmi_, XmNactivateCallback,
 		   prev_messageCB, NULL);
 
     button_ = XmCreateCascadeButtonGadget(menu_, "sortby", NULL, 0);
@@ -2035,7 +2048,7 @@ void
 sync_list()
 {
     XmString	new_string;
-    int		topItem, numVisible;
+    int		topItem, numVisible, numItems;
 
     if(last_message_read == NULL)
 	return;
@@ -2050,13 +2063,33 @@ sync_list()
     XmListSelectPos(mailslist_, last_message_read->list_pos, 0);
 
     XtVaGetValues(mailslist_, XmNtopItemPosition, &topItem,
-		  XmNvisibleItemCount, &numVisible, NULL);
+		  XmNvisibleItemCount, &numVisible,
+		  XmNitemCount, &numItems, NULL);
+
     if(last_message_read->list_pos < topItem){
 	XtVaSetValues(mailslist_, XmNtopItemPosition,
 		      last_message_read->list_pos, NULL);
     }else if((last_message_read->list_pos + 1) > topItem + numVisible){
 	XtVaSetValues(mailslist_, XmNtopItemPosition,
 		      last_message_read->list_pos - numVisible + 1, NULL);
+    }
+    if(last_message_read->list_pos == 1) {
+	XtVaSetValues(prevbtn_, XmNsensitive, False, NULL);
+	XtVaSetValues(nextbtn_, XmNsensitive, True, NULL);
+	XtVaSetValues(prevmi_, XmNsensitive, False, NULL);
+	XtVaSetValues(nextmi_, XmNsensitive, True, NULL);
+    }
+    else if(last_message_read->list_pos == numItems) {
+	XtVaSetValues(prevbtn_, XmNsensitive, True, NULL);
+	XtVaSetValues(nextbtn_, XmNsensitive, False, NULL);
+	XtVaSetValues(prevmi_, XmNsensitive, True, NULL);
+	XtVaSetValues(nextmi_, XmNsensitive, False, NULL);
+    }
+    else {
+	XtVaSetValues(prevbtn_, XmNsensitive, True, NULL);
+	XtVaSetValues(nextbtn_, XmNsensitive, True, NULL);
+	XtVaSetValues(prevmi_, XmNsensitive, True, NULL);
+	XtVaSetValues(nextmi_, XmNsensitive, True, NULL);
     }
 } /* sync_list */
 
@@ -2305,6 +2338,7 @@ loadNewCB(Widget w, XtPointer clientdata, XtPointer calldata)
     display_new_message();
     sync_list();
     update_message_list();
+    show_undelete(False);
 } /* loadNewCB */
 
 /*----------------------------------------------------------------------*/
@@ -2447,6 +2481,7 @@ folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	display_new_message();
 	sync_list();
 	update_message_list();
+	show_undelete(False);
 	return;
     }
 
@@ -2490,6 +2525,7 @@ saveCb(Widget w, XtPointer clientdata, XtPointer calldata)
     display_new_message();
     sync_list();
     update_message_list();
+    show_undelete(False);
 } /* saveCb */
 
 /*----------------------------------------------------------------------*/
@@ -2884,3 +2920,13 @@ props_proc(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     show_props(toplevel_);
 } /* props_proc */
+
+/*----------------------------------------------------------------------*/
+
+static void
+show_undelete(Boolean show)
+{
+    XtVaSetValues(undelbtn_, XmNsensitive, show, NULL);
+    XtVaSetValues(undellmi_, XmNsensitive, show, NULL);
+    XtVaSetValues(undelmi_, XmNsensitive, show, NULL);
+} /* show_undelete */

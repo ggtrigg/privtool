@@ -180,13 +180,13 @@
 *toolbar.XmToggleButton.topOffset: 	3
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
-!*toolbar.prev.labelInsensitivePixmap:	prev_is.xpm
+*toolbar.prev.labelInsensitivePixmap:	prev_is.xpm
 *toolbar.prev.topAttachment:		attach_form
 *toolbar.prev.leftAttachment:		attach_form
 *toolbar.prev.leftOffset:		3
 *toolbar.next.labelType:		pixmap
 *toolbar.next.labelPixmap:		next.xpm
-!*toolbar.next.labelInsensitivePixmap:	next_is.xpm
+*toolbar.next.labelInsensitivePixmap:	next_is.xpm
 *toolbar.next.topAttachment:		attach_form
 *toolbar.next.leftAttachment:		attach_widget
 *toolbar.next.leftWidget:		prev
@@ -197,9 +197,11 @@
 *toolbar.delete.leftWidget:		next
 *toolbar.undelete.labelType:		pixmap
 *toolbar.undelete.labelPixmap:		undelete.xpm
+*toolbar.undelete.labelInsensitivePixmap: undelete_is.xpm
 *toolbar.undelete.topAttachment:	attach_form
 *toolbar.undelete.leftAttachment:	attach_widget
 *toolbar.undelete.leftWidget:		delete
+*toolbar.undelete.sensitive:		False
 *toolbar.folders.indicatorOn:		False
 *toolbar.folders.labelType:		pixmap
 *toolbar.folders.labelPixmap:		folderwin.xpm
