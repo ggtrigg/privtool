@@ -40,8 +40,8 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 #
 # Use the following lines if you don't have PGP Tools.
 #
-PGPLDFLAGS=
-PGPTOOLDIR=
+#PGPLDFLAGS=
+#PGPTOOLDIR=
 
 #
 # Use the following lines if you do have PGP Tools, and set PGPTOOLDIR
@@ -49,8 +49,8 @@ PGPTOOLDIR=
 # may want to simply create a link from this directory to the PGP Tools
 # directory.
 #
-#PGPTOOLDIR=./pgptools
-#PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+PGPTOOLDIR=/home/ggt/pgptools.linux
+PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
 
 #
 # Set the following to the path for your PGP executable - can be blank
@@ -84,6 +84,8 @@ OPENWINLDFLAGS=-L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I/usr/X11R6/include
 OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
 #OPENWINLIBS=-lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic -lXpm -lXext -lXmu -lXt -lX11
+#OPENWINLIBS=-L/cdrom/2.0.1/usr/X11R6/lib -Wl,-Bstatic -lXm -lXbae \
+	-Wl,-Bdynamic -lXpm -lXext -lXmu -lXt -lX11
 
 #OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 #OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
@@ -113,9 +115,9 @@ LDFLAGS= $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
 # pubring.pgp.
 #
 
-#PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
-	-DNO_ASM -DHIGHFIRST -DIDEA32 -DUSE_AUDIO
-PGPTOOLS=
+PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DSYSV -DIDEA32 \
+	-DUSE_AUDIO
+#PGPTOOLS=
 
 #
 # Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
@@ -150,14 +152,14 @@ PGPTOOLS=
 # at the beginning of the file name.
 #
 
-DEBUG=-g
-#DEBUG=-O6
+DEBUG=-g -Wunused
+#DEBUG=-O6 -Wuninitialized
 
 CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
 	$(DEFAULT_FONT) $(XRESOURCES) -D_POSIX_SOURCE -DNSA_ICON -DCOMPACT \
 	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux -DMAILER_LINE -Iliteclue \
-	-D_SVID_SOURCE
+	-D_SVID_SOURCE $(PGPTOOLS)
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -178,7 +180,7 @@ CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS)
 
 #CC=gcc
 #CC=cc -DNON_ANSI
-CC=cc -ansi -mpentium -DSYSV
+CC=cc -ansi -mpentium -DSYSV -DDONT_HAVE_TM_GMTOFF
 
 # Or, use acc for Solaris 2.x
 #CC=acc -DSYSV

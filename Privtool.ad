@@ -30,14 +30,22 @@
 !
 *.menu_bar*file_pane.load.labelString:	Load In-Box
 *.menu_bar*file_pane.load.mnemonic:	L
+*.menu_bar*file_pane.load.accelerator:	Ctrl<Key>l
+*.menu_bar*file_pane.load.acceleratorText: Ctrl-L
 *.menu_bar*save.labelString:		Save Changes
 *.menu_bar*save.mnemonic:		S
+*.menu_bar*save.accelerator:		Ctrl<Key>s
+*.menu_bar*save.acceleratorText:	Ctrl-S
 *.menu_bar*done.labelString:		Done
 *.menu_bar*done.mnemonic:		D
 *.menu_bar*qwsav.labelString:		Save & Quit
 *.menu_bar*qwsav.mnemonic:		Q
+*.menu_bar*qwsav.accelerator:		Ctrl<Key>q
+*.menu_bar*qwsav.acceleratorText:	Ctrl-Q
 *.menu_bar*quit.labelString:		Quit
 *.menu_bar*quit.mnemonic:		t
+*.menu_bar*quit.accelerator:		Ctrl<Key>c
+*.menu_bar*quit.acceleratorText:	Ctrl-C
 
 !
 ! Edit menu items
@@ -50,8 +58,12 @@
 *.menu_bar*edit_pane.copy.sensitive:	false
 *.menu_bar*delete.labelString:		Delete
 *.menu_bar*delete.mnemonic:		D
+*.menu_bar*delete.accelerator:		Ctrl<Key>d
+*.menu_bar*delete.acceleratorText:	Ctrl-D
 *.menu_bar*undelete.labelString:	Undelete
 *.menu_bar*undelete.mnemonic:		U
+*.menu_bar*undelete.accelerator:	Ctrl<Key>u
+*.menu_bar*undelete.acceleratorText:	Ctrl-U
 *.menu_bar*undel_last.labelString:	Undelete Last
 *.menu_bar*undel_last.mnemonic:		L
 *.menu_bar*addkey.labelString:		Add Key
@@ -60,23 +72,48 @@
 *.menu_bar*showattach.mnemonic:		S
 *.menu_bar*clearpp.labelString:		Clear Passphrase
 *.menu_bar*clearpp.mnemonic:		P
-*.menu_bar*clearpp.sensitive:		false
 
 !
 ! View menu items
 !
 *.menu_bar*next.labelString:		Next
 *.menu_bar*next.mnemonic:		N
+*.menu_bar*next.accelerator:		Ctrl<Key>n
+*.menu_bar*next.acceleratorText:	Ctrl-N
 *.menu_bar*prev.labelString:		Previous
 *.menu_bar*prev.mnemonic:		P
+*.menu_bar*prev.accelerator:		Ctrl<Key>p
+*.menu_bar*prev.acceleratorText:	Ctrl-P
 *.menu_bar*sortby.labelString:		Sort By
-*.menu_bar*sortby.sensitive:		false
+*.menu_bar*sortby.sensitive:		true
 *.menu_bar*sortby.mnemonic:		S
 *.menu_bar*showdel.labelString:		Show Deleted
 *.menu_bar*showdel.set:			true
 *.menu_bar*showdel.mnemonic:		D
+*.menu_bar*fullhdr.labelString:		Full Header
+*.menu_bar*fullhdr.mnemonic:		H
+*.menu_bar*fullhdr.accelerator:		Ctrl<Key>h
+*.menu_bar*fullhdr.acceleratorText:	Ctrl-H
 *.menu_bar*folders.labelString:		Folders...
 *.menu_bar*folders.mnemonic:		F
+*.menu_bar*folders.accelerator:		Ctrl<Key>f
+*.menu_bar*folders.acceleratorText:	Ctrl-F
+
+!
+! Sort sub-menu items
+!
+*.sort_pane.date.labelString:		Time & Date
+*.sort_pane.date.mnemonic:		T
+*.sort_pane.sender.labelString:		Sender
+*.sort_pane.sender.mnemonic:		S
+*.sort_pane.subject.labelString:	Subject
+*.sort_pane.subject.mnemonic:		b
+*.sort_pane.size.labelString:		Size
+*.sort_pane.size.mnemonic:		z
+*.sort_pane.status.labelString:		Status
+*.sort_pane.status.mnemonic:		t
+*.sort_pane.message.labelString:	Message
+*.sort_pane.message.mnemonic:		M
 
 !
 ! Folder menu items
@@ -101,6 +138,18 @@
 *.menu_bar*resend.mnemonic:		s
 
 !
+! Reply sub-menu items
+!
+*.repl_pane.sender.labelString:		Sender
+*.repl_pane.sender.mnemonic:		S
+*.repl_pane.sendincl.labelString:	Sender (include)
+*.repl_pane.sendincl.mnemonic:		d
+*.repl_pane.all.labelString:		All
+*.repl_pane.all.mnemonic:		A
+*.repl_pane.allincl.labelString:	All (include)
+*.repl_pane.allincl.mnemonic:		l
+
+!
 ! Help menu items
 !
 *.menu_bar*about.labelString:		About...
@@ -117,11 +166,13 @@
 *toolbar.XmToggleButton.topOffset: 	3
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
+!*toolbar.prev.labelInsensitivePixmap:	prev_is.xpm
 *toolbar.prev.topAttachment:		attach_form
 *toolbar.prev.leftAttachment:		attach_form
 *toolbar.prev.leftOffset:		3
 *toolbar.next.labelType:		pixmap
 *toolbar.next.labelPixmap:		next.xpm
+!*toolbar.next.labelInsensitivePixmap:	next_is.xpm
 *toolbar.next.topAttachment:		attach_form
 *toolbar.next.leftAttachment:		attach_widget
 *toolbar.next.leftWidget:		prev
@@ -147,7 +198,7 @@
 *toolbar.combo.rightAttachment:		attach_form
 *toolbar.combo.comboBoxType:		drop_down_combo_box
 *toolbar.combo.arrowSize:		18
-*toolbar.combo*List.visibleItemCount:	5
+*toolbar.combo*List.visibleItemCount:	6
 *toolbar.combo*ListSW.scrolledWindowMarginHeight: 2
 *toolbar.combo*ListSW.scrolledWindowMarginWidth:  2
 
@@ -210,17 +261,24 @@
 *.hdrtext.rows:					4
 
 *.msgtext.translations: #override\n\
-<Key> space:		next-page()\n\
-<Key> b:		previous-page()\n\
-<Key> n:		view(next)\n\
-<Key> p:		view(prev)
+<Key>space:		next-page()\n\
+<Key>b:			previous-page()\n\
+<Key>n:			view(next)\n\
+<Key>p:			view(prev)\n\
+<Key>c:			compose(new)\n\
+<Key>f:			compose(forward)\n\
+<Key>r,<Key>s:		compose(reply, sender, include)\n\
+<Key>r,<Key>a:		compose(reply, all, include)\n\
+<Key>d:			delete()
 
 *slist.listSizePolicy:			constant
-*slist.visibleItemCount:		5
+*slist.visibleItemCount:		6
 *slistSW.scrollingPolicy:		automatic
 
 *XmScrolledWindow.scrollingPolicy:		automatic
-*frame.panedwin.hdrtextSW.paneMinimum:		80
+*frame.panedwin.slistSW.paneMinimum:		74
+*frame.panedwin.hdrtextSW.paneMinimum:		65
+*frame.panedwin.msgtextSW.paneMinimum:		74
 ?.message.width:				600
 ?.message.height:				500
 
@@ -360,7 +418,7 @@ Not a regular file.
 ?.folder.width:				230
 ?.folder.height:			350
 !*.folderMain.scrollingPolicy:		automatic
-*.folderC.background:			white smoke
+*.folderC*background:			white smoke
 *.folderC.selectionPolicy:		browse_select
 *.folderC.spatialStyle:			cells
 *.folderC.spatialResizeModel:		grow_minor

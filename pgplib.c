@@ -36,6 +36,8 @@
 #include <stdio.h>
 #if defined(__FreeBSD__) || defined (SYSV)
 #include <signal.h>
+#include <sys/types.h>
+#include <limits.h>
 #else
 #include <vfork.h>
 #endif
@@ -234,9 +236,9 @@ static	FILE	*open_pgp_file (char *s, char *attr)
 
 	/* Try PGPPATH first */
 
-	if (pgppath = getenv("PGPPATH")) {
+	if ((pgppath = getenv("PGPPATH"))) {
 		sprintf (temp, "%s/%s", pgppath, s);
-		if (fp = fopen (temp, attr))
+		if ((fp = fopen (temp, attr)))
 			return fp;
 	}
 
@@ -1336,7 +1338,7 @@ void	init_pgplib(void)
 
 	/* Setup random number seeding, by reading from privseed file */
 
-	if (fp = open_pgp_file ("privseed.bin", "rb")) {
+	if ((fp = open_pgp_file ("privseed.bin", "rb"))) {
 		fread (privseed, RAND_SIZE, 1, fp);
 		fclose (fp);
 	}
@@ -1357,7 +1359,7 @@ void	init_pgplib(void)
 
 	/* We xor randseed.bin in just for luck (if we find it) */
 
-	if (fp = open_pgp_file ("randseed.bin", "rb")) {
+	if ((fp = open_pgp_file ("randseed.bin", "rb"))) {
 		byte	randseed[24];
 
 		/* Randseed.bin is always a multiple of 24 bytes. Size
@@ -1419,7 +1421,7 @@ void	close_pgplib(void)
 #ifdef MOST_SECURE
 	if (init_rand)
 #endif
-	if (fp = open_pgp_file ("privseed.bin", "rb")) {
+	if ((fp = open_pgp_file ("privseed.bin", "rb"))) {
 		fread (old_random, RAND_SIZE, 1, fp);
 		for (i = 0; i < RAND_SIZE; i++)
 			if (old_random [i] != privseed [i]) {
@@ -1432,7 +1434,7 @@ void	close_pgplib(void)
 	/* Finally, dump privseed to privseed.bin. We ignore errors,
 	   because we can't really do anything about them. */
 
-	if (fp = open_pgp_file ("privseed.bin", "wb")) {
+	if ((fp = open_pgp_file ("privseed.bin", "wb"))) {
 		fwrite (privseed, RAND_SIZE, 1, fp);
 		fclose (fp);
 	}

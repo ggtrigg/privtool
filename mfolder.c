@@ -16,12 +16,13 @@
 #include	<X11/X.h>
 #include	<X11/Xlib.h>
 #include	<X11/Intrinsic.h>
+#include	<Xm/CascadeB.h>
 #include	<Xm/Container.h>
 #include	<Xm/IconG.h>
 #include	<Xm/MainW.h>
-#include	<Xm/RowColumn.h>
-#include	<Xm/CascadeB.h>
+#include	<Xm/Protocols.h>
 #include	<Xm/PushBG.h>
+#include	<Xm/RowColumn.h>
 #include	<Xm/ScrolledW.h>
 #include	<Xm/TransferP.h>
 #include	<dirent.h>
@@ -37,17 +38,17 @@
 #include	"gui.h"
 #include	"debug.h"
 
-static void		fillin_folders(Widget container);
-static void		process_dir(char *dirname);
-static void		folderCb(Widget w, XtPointer clientdata, XtPointer calldata);
-static void		iconSelectCb(Widget w, XtPointer clientdata, XtPointer calldata);
-static void		resizeCb(Widget w, XtPointer clientdata, XEvent *event, Boolean *cont);
-static void		createFolderMenubar(Widget parent);
-static void		closeCb(Widget w, XtPointer clientdata, XtPointer calldata);
-static void		destinationCb(Widget w, XtPointer clientdata, XtPointer calldata);
-static void		transferProc(Widget w, XtPointer clientdata, XtPointer calldata);
-static void		fix_container_size(Widget container);
-static void		containerConvertCb(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		fillin_folders(Widget);
+static void		process_dir(char *);
+static void		folderCb(Widget, XtPointer, XtPointer);
+static void		iconSelectCb(Widget, XtPointer, XtPointer);
+static void		resizeCb(Widget, XtPointer, XEvent *, Boolean *);
+static void		createFolderMenubar(Widget);
+static void		closeCb(Widget, XtPointer, XtPointer);
+static void		destinationCb(Widget, XtPointer, XtPointer);
+static void		transferProc(Widget, XtPointer, XtPointer);
+static void		fix_container_size(Widget);
+static void		containerConvertCb(Widget, XtPointer, XtPointer);
 
 static char		*fullfolder;
 static Widget		folderwin = NULL, container;
@@ -65,6 +66,12 @@ show_mail_folders(Widget parent)
 					 parent,
 					 NULL);
 	XtManageChild(folderwin);
+
+	/* Window manager quit support */
+	XmAddWMProtocolCallback(folderwin,
+				XmInternAtom(XtDisplay(folderwin),
+					     "WM_DELETE_WINDOW", False),
+				closeCb, NULL);
 
 	/* Add editres protocol support */
 	XtAddEventHandler(folderwin, 0, True, _XEditResCheckMessages, NULL);
@@ -111,9 +118,6 @@ fillin_folders(Widget container)
 {
     char		*folder;	/* Directory containing mail folders. */
     char		*homedir;
-    DIR			*dirp;
-    struct dirent	*de;
-    Widget		icon;
 
     if ((folder = (char *)find_mailrc("folder"))){
 	if(strchr(folder, '/') != NULL){ /* Is a specified path. */
@@ -135,7 +139,7 @@ fillin_folders(Widget container)
 static void
 process_dir(char *dirname)
 {
-    char		*basename, *relname, pathname[MAXPATHLEN], *oldname;
+    char		pathname[MAXPATHLEN], *oldname;
     int			numkids, i;
     Widget		icon;
     WidgetList		kids;
@@ -144,6 +148,7 @@ process_dir(char *dirname)
     DIR			*dirp;
     struct dirent	*de;
     struct stat		statbuf;
+    Pixmap		pixmap;
 
     if((dirp = opendir(dirname)) == NULL){
 	perror(dirname);
@@ -179,6 +184,15 @@ process_dir(char *dirname)
 	icon = XmCreateIconGadget(container,
 				  (S_ISDIR(statbuf.st_mode))? "directory": "file",
 				  args, 2);
+#if 0
+	if((pixmap = get_cached_pixmap(icon,
+				       GetResourceString(icon,
+							 "largeIconPixmap",
+							 "LargeIconPixmap")
+				       )) != 0){
+	    XtVaSetValues(icon, XmNlargeIconPixmap, pixmap, NULL);
+	}
+#endif
 	XtManageChild(icon);
 	XmStringFree(xname);
     }
@@ -202,7 +216,6 @@ static void
 folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     XmContainerSelectCallbackStruct *cbs = (XmContainerSelectCallbackStruct *)calldata;
-    int		numobjs, is_dir;
     XmString	xname;
     char	*name, *dir, *c, *fullpath;
 
