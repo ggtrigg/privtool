@@ -9,6 +9,11 @@ dnl AC_REQUIRE([AM_PATH_GTK])
 
 AC_DEFINE_UNQUOTED(SYSTEM_TYPE, "$host")
 
+dnl Initialise some variables.
+HAVE_MOTIF=0
+HAVE_GTK=0
+HAVE_XVIEW=0
+
 dnl Define extra variables here for holding extra cpp flags, ldflags
 dnl and libraries.
 EXTRACPPFLAGS=
@@ -89,7 +94,7 @@ TRY_PGPTOOLS=1
 )
 
 dnl Check if a pgp executable is specified.
-AC_ARG_WITH(pgptools,
+AC_ARG_WITH(pgp,
 [  --with-pgp[=prog]       use the specified pgp executable. This can be
                           either empty, pgp or gpg.],
 [
@@ -268,7 +273,7 @@ AC_PATH_XTRA
 LDFLAGS="${X_LIBS} ${LDFLAGS}"
 AC_PATH_PROG(SENDMAIL_PATH, sendmail,
   NOT_FOUND,
-  /usr/sbin /usr/lib)
+  ${PATH}:/usr/sbin:/usr/lib)
 if test ${SENDMAIL_PATH} != "NOT_FOUND"; then
   AC_DEFINE_UNQUOTED(SENDMAIL_PATH, "${SENDMAIL_PATH}")
 else
@@ -276,9 +281,9 @@ else
 fi
 
 dnl Find uudecode.
-AC_PATH_PROG(UUDECODE_PATH, uudecode,
+AC_PATH_PROGS(UUDECODE_PATH, uudecode,
   NOT_FOUND,
-  /usr/bin /bin /usr/local/bin /usr/ucb)
+  ${PATH}:/usr/bin:/bin:/usr/local/bin:/usr/ucb)
 if test ${UUDECODE_PATH} != "NOT_FOUND"; then
   AC_DEFINE_UNQUOTED(UUDECODE_PATH, "${UUDECODE_PATH}")
 fi
@@ -286,14 +291,14 @@ fi
 dnl Find uudeview if uudecode isn't found.
 AC_PATH_PROG(UUDEVIEW_PATH, uudeview,
   NOT_FOUND,
-  /usr/bin /bin /usr/local/bin /usr/ucb)
+  ${PATH}:/usr/bin:/bin:/usr/local/bin:/usr/ucb)
 if test ${UUDEVIEW_PATH} != "NOT_FOUND"; then
   AC_DEFINE_UNQUOTED(UUDEVIEW_PATH, "${UUDEVIEW_PATH}")
 fi
 
 AC_PATH_PROG(LPR_PATH, lpr,
   NOT_FOUND,
-  /usr/bin /bin /usr/local/bin /usr/ucb)
+  ${PATH}:/usr/bin:/bin:/usr/local/bin:/usr/ucb)
 if test ${LPR_PATH} != "NOT_FOUND"; then
   AC_DEFINE_UNQUOTED(LPR_PATH, "${LPR_PATH}")
 else
@@ -302,16 +307,16 @@ fi
 
 AC_PATH_PROG(AUTODEP, autodep,
   NOT_FOUND,
-  /usr/bin /bin /usr/local/bin /usr/ucb)
+  ${PATH}:/usr/bin:/bin:/usr/local/bin:/usr/ucb)
 if test ${AUTODEP} = "NOT_FOUND"; then
-  AC_MSG_WARN(autodep executable not found.)
+  AC_MSG_WARN(autodep executable not found (don't worry).)
   AUTODEP=''
 fi
 
 if test ${TRY_MIXMASTER} -gt 0; then
   AC_PATH_PROG(MIXEXEC, mixmaster,
   NOT_FOUND,
-  $MIXBINDIR /bin /usr/bin /usr/local/bin)
+  ${MIXBINDIR}:${PATH}:/bin:/usr/bin:/usr/local/bin)
   if test ${MIXEXEC} != "NOT_FOUND"; then
     AC_DEFINE_UNQUOTED(MIXEXEC, "${MIXEXEC}")
     AC_DEFINE(HAVE_MIXMASTER)
@@ -323,7 +328,7 @@ fi
 if test ${TRY_PREMAIL} -gt 0; then
   AC_PATH_PROG(PREMAILEXEC, premail,
   NOT_FOUND,
-  $PMBINDIR /bin /usr/bin /usr/local/bin)
+  ${PMBINDIR}:${PATH}:/bin:/usr/bin:/usr/local/bin)
   if test ${PREMAILEXEC} != "NOT_FOUND"; then
     AC_DEFINE_UNQUOTED(PREMAILEXEC, "${PREMAILEXEC}")
     AC_DEFINE(HAVE_PREMAIL)
@@ -336,7 +341,7 @@ dnl Checks for libraries.
 
 dnl First check for gtk as it will include the other X11 libs.
 HAVE_GTK=0
-if test ${TRY_GTK} -gt 0; then
+if test "${TRY_GTK}" -gt 0; then
 AM_PATH_GTK(1.1.3,
    CPPFLAGS="${GTK_CFLAGS} ${CPPFLAGS}"
    LIBS="${GTK_LIBS} ${LIBS}"
@@ -348,7 +353,7 @@ AM_PATH_GTK(1.1.3,
 fi
 
 dnl Checking for -lgtksheet:
-if test ${HAVE_GTK} -gt 0; then
+if test "${HAVE_GTK}" -gt 0; then
   OLDCPPFLAGS=${CPPFLAGS}
   CPPFLAGS="${GTK_CFLAGS} ${CPPFLAGS}"
   AC_CHECK_LIB(gtksheet, gtk_sheet_new,
@@ -358,7 +363,7 @@ if test ${HAVE_GTK} -gt 0; then
   )
 fi
 
-if test ${HAVE_GTK} -eq 0; then
+if test "${HAVE_GTK}" -eq 0; then
 dnl Checking for -lX11:
   AC_CHECK_LIB(X11, XCreateWindow)
 
@@ -387,7 +392,7 @@ dnl Checking for -lXpm:
     -lX11 ${XCHECKLIBS}
   )
 
-if test ${TRY_MOTIF} -gt 0; then
+if test "${TRY_MOTIF}" -gt 0; then
 dnl Checking for -lXm:
   OLDCPPFLAGS=${CPPFLAGS}
   OLDLDFLAGS=${LDFLAGS}
@@ -401,7 +406,7 @@ dnl Checking for -lXm:
     HAVE_MOTIF=1; TRY_XVIEW=0; gui_source='$(MOTIF_SRC)';
     gui_cpp='$(MOTIF_CPP)',
     [
-      if test ${TRY_MOTIF} -gt 0 -a ${TRY_XVIEW} -gt 0; then
+      if test "${TRY_MOTIF}" -gt 0 && test "${TRY_XVIEW}" -gt 0; then
         AC_MSG_WARN(Can't find -lXm. Will try XView.)
       else
         AC_MSG_ERROR(Can't find -lXm, Motif was explicitly specified so I can't continue.)
@@ -413,7 +418,7 @@ dnl Checking for -lXm:
   LDFLAGS=${LDFLAGS}
 fi
 
-if test ${TRY_MOTIF} -gt 0; then
+if test "${TRY_MOTIF}" -gt 0; then
 dnl Checking for -lXbae:
   AC_CHECK_LIB(Xbae, XbaeMatrixAddRows,
     EXTRALIBS="-lXbae ${EXTRALIBS}",
@@ -422,7 +427,7 @@ dnl Checking for -lXbae:
   )
 fi
 
-if test ${TRY_XVIEW} -gt 0 ; then
+if test "${TRY_XVIEW}" -gt 0 ; then
 dnl Checking for -lolgx:
   OLDCPPFLAGS=${CPPFLAGS}
   OLDLDFLAGS=${LDFLAGS}
@@ -453,10 +458,10 @@ AC_SUBST(gui_cpp)
 AC_SUBST(AUTODEP)
 
 dnl Checking for -lXit:
-if test ${HAVE_MOTIF} -gt 0 -a ${TRY_XIT} -gt 0; then
+if test "${HAVE_MOTIF}" -gt 0 && test "${TRY_XIT}" -gt 0; then
 dnl First check for -ldl
   AC_CHECK_LIB(dl, dlopen, HAVE_DL=1)
-  if test ${HAVE_DL} -gt 0; then
+  if test "${HAVE_DL}" -gt 0; then
     OLDCPPFLAGS=${CPPFLAGS}
     OLDLDFLAGS=${LDFLAGS}
     CPPFLAGS="${CPPFLAGS} ${XITCPPFLAGS}"
@@ -493,7 +498,7 @@ fi
 
 dnl Checking for -lpgptools:
 HAVE_PGPTOOLS=0
-if test ${TRY_PGPTOOLS} -gt 0; then
+if test "${TRY_PGPTOOLS}" -gt 0; then
   OLDCPPFLAGS=${CPPFLAGS}
   OLDLDFLAGS=${LDFLAGS}
   CPPFLAGS="${PGPTCPPFLAGS} ${CPPFLAGS}"
@@ -510,7 +515,7 @@ if test ${TRY_PGPTOOLS} -gt 0; then
 fi
 
 dnl Check for pgp executable if -lpgptools wasn't found.
-if test ${HAVE_PGPTOOLS} -eq 0 -a ${TRY_PGP} -gt 0; then
+if test "${HAVE_PGPTOOLS}" -eq 0 && test "${TRY_PGP}" -gt 0; then
   if test x"${PGPEXE}" = x; then
     AC_PATH_PROG(pgpexec, pgp)
     if test x"${pgpexec}" != x; then
@@ -536,7 +541,7 @@ dnl if test ${HAVE_PGPTOOLS} -eq 0 -a x"${pgpexec}" = x; then
 dnl  AC_MSG_ERROR(Can't find pgptools or pgp, stopping.)
 dnl fi
 
-if test ${HAVE_MOTIF} -gt 0; then
+if test "${HAVE_MOTIF}" -gt 0; then
 dnl Checking for -lm:
   AC_CHECK_LIB(m, cos,
     EXTRALIBS="${EXTRALIBS} -lm",
