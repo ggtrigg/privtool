@@ -1,4 +1,4 @@
-
+	
    Stuff to do for the Motif version of Privtool
    ---------------------------------------------
     $Id$
@@ -36,7 +36,141 @@
 
 - Implement pixmap caching. - DONE (Unless I decide to implement a
 				    pixmap converter.)
+				   (Have implemented a pixmap converter now.)
 
 - Implement show_busy & clear_busy
 
 - Run purify.
+
+- Add a list of ignored mail files so the folder manager doesn't show them.
+
+Bugs/Suggestions from Greg.
+
+1.  Need a way to detach/reattach the mail reading panes from
+    the message list pane as a separate window. Sometimes its
+    useful to have a message window the whole height of the
+    screen.
+
+2.  Need to be able to turn on autoindent in the compose window.
+
+3.  Need a checkbox in the compose window to request a return
+    receipt.
+
+4.  Need to be able to set the Priority, Reply-to, Bcc and other headers,
+    including common X- RFC822 extensions.
+
+5.  The ability to show parts of a MIME multipart message 
+    and to show Sun attachments, and to compose those.
+
+6.  I like your idea of making hyperlinks in the text highlighted.
+    You could be a little bit clever and handle mailto: URLs
+    locally but ship off all others to Netscape using their
+    -remote option.
+    Also the URL in the About: window should be live.
+
+7.  To: field in the compose window needs to be a combobox containing
+    your personal aliases as well as a history list of the last
+    5 or so people you e-mailed.
+
+8.  Need a buzy cursor. You can have the animated cursor stuff if
+    you want.
+
+9.  I can also show you how to set up a semi-decent local help
+    system using the HTML widget from Mosaic.
+
+10. Menubar entries need to have their accelerators shown.
+
+11. Properties window - the Delete button is not greyed out when
+    there is nothing to delete
+
+12. Background of the XbaeMatrices should probably be white?
+
+13. The Add and Delete buttons for the Kill Mail Matching in
+    the Properties window are a different size to the others
+    in the same page.
+
+14. The Privtool page in the Properties window is too busy.
+
+15. Headers in the header window are displayed with their tags
+    bold and their bodies normal, thus:
+
+    <bold>From:</bold> Fred Bloggs
+
+    but this fails when a header is continued onto a second or
+    subsequent line using a leading TAB character (standard
+    RFC822 convention). Then it looks like this:
+
+    <bold>Received:</bold> by hawk.tpg.oz.au (SMI-8.6/SMI-SVR4)
+            <bold>id RAA27467; Thu, 17 Jul 1997 17:</bold>42:10 +1000
+
+   i.e. the line is bold up to the first colon.
+
+   - DONE
+
+
+16. Copy & paste out of the header window does not work:
+
+    x  selecting text in the header window does not ungrey the
+       Edit->Copy button. Perhaps there should be a separate
+       pullright for that window?
+
+    x  pasting using the standard X middle button does not work
+       in the compose window (although it does in an xterm)
+
+    x  pasting into xclipboard coredumps privtool! (this is the
+       second time I have typed this message!)
+
+17. Coredumping privtool does not leave any error recovery if you
+    had a long message partially typed in. There is no facility
+    to save the contents of the Compose window to file either
+    manually or automatically by time or on death, nor resume
+    from a file.
+
+18. How about toolbar icons for
+
+    Compose->New
+    Compose->Reply->All (include)
+
+19. The encoding mechanism for non-ASCII characters doesn't
+    seem to be working. Some of my messages are sprinkled
+    with =20 and other =xx where xx is two hex digits.
+
+20. > here's another
+
+> x  Type real useful work into a compose window for twenty minutes.
+> x  Get to the last line.
+> x  Accidentally press ESC while reaching for TAB key (next to each other
+>      on this keyboard)
+> x  Watch stunned while twenty minutes' work disappears into the ether.
+
+I guess that rates right up there with accidently tripping over the power
+cord...
+
+I suppose I could pop up an alert if you cancel and there's stuff
+in the text window.
+
+ - DONE
+
+21. > Damn Motif RETURN convention bit me again.
+
+> Anyway, I noticed there's no way to cause a selected area
+> of text in the compose window to be indented as if quoted.
+> So if you import a file or drag-n-drop a partial message
+> from the message window, you have to *manually* make it look
+> quoted. How about making the old textsw tool extra menu
+> work?
+
+Yeah that's something that I've been meaning to do. I'll make sure
+it's on the list.
+
+22. I could also add an alert for confirming a sent message with an empty
+    body, that might help deal with the Motif return problem.
+  - DONE
+
+23. > And another thing...I really want to be able to see the To:
+> header in the header window. So either a way to configure
+> which headers are visible by default (like I had configured in
+> mailtool) or second best, add the To: header to the default ones.
+
+I guess the nicest way would be to have a list of desired headers
+in the properites window.

@@ -60,11 +60,11 @@ cache_pixmap_from_data(char **data, char *name)
 /*----------------------------------------------------------------------*/
 
 Pixmap
-get_cached_pixmap(Widget w, char *name, Pixmap *arm_pixmap)
+get_cached_pixmap(Widget w, char *name, Pixmap *mask)
 {
     int		i;
     PMCEntry	*entry;
-    Pixmap	pixmap, mask;
+    Pixmap	pixmap, masktemp;
     Pixmap	armap, armask;
     char	*bgnd, *arm;
 
@@ -77,14 +77,16 @@ get_cached_pixmap(Widget w, char *name, Pixmap *arm_pixmap)
     for(entry = first_entry; entry != NULL; entry = entry->next){
 	if(!strcmp(name, entry->name)){
 
-	    for(i = 0; i < entry->image->ncolors; i++){
+	    if(mask == NULL) {
+		for(i = 0; i < entry->image->ncolors; i++){
 
-		/* Set the background color (defined by color name "None"
-		   to the background color of the widget. */
-		if( !strcmp(entry->image->colorTable[i].c_color, "None")){
-		    free(entry->image->colorTable[i].c_color);
-		    entry->image->colorTable[i].c_color = strdup(bgnd);
-		    break;
+		    /* Set the background color (defined by color name "None"
+		       to the background color of the widget. */
+		    if( !strcmp(entry->image->colorTable[i].c_color, "None")){
+			free(entry->image->colorTable[i].c_color);
+			entry->image->colorTable[i].c_color = strdup(bgnd);
+			break;
+		    }
 		}
 	    }
 
@@ -92,20 +94,8 @@ get_cached_pixmap(Widget w, char *name, Pixmap *arm_pixmap)
 					RootWindowOfScreen(XtScreenOfObject(w)),
 					entry->image,
 					&pixmap,
-					&mask,
+					mask,
 					NULL);
-	    if(arm){
-		free(entry->image->colorTable[i].c_color);
-		entry->image->colorTable[i].c_color = strdup(arm);
-		XpmCreatePixmapFromXpmImage(XtDisplayOfObject(w),
-					    RootWindowOfScreen(XtScreenOfObject(w)),
-					    entry->image,
-					    &armap,
-					    &armask,
-					    NULL);
-		if(arm_pixmap != NULL)
-		    *arm_pixmap = armap;
-	    }
 	    return pixmap;
 	}
     }

@@ -255,12 +255,21 @@ void	set_message_description(MESSAGE *m)
 	if (layout_compact) {
 		sprintf(mess_desc,
 #ifdef MOTIF
-			"%3.3s %4d %-20.20s %17.16s %4d %s",
+			"%3.3s %4d %-20.20s %17.16s %4d ",
 #else
 			"%3.3s %4d %-20.20s %17.16s %4d %-64.64s",
 #endif
 			mess_type,m->number,m->email,m->date,
-			m->lines,m->subject ? m->subject : "");
+			m->lines
+#ifndef MOTIF
+			,m->subject ? m->subject : ""
+#endif
+			);
+#ifdef MOTIF
+		if(m->subject != NULL) {
+		    strncat(mess_desc, m->subject, 255 - strlen(mess_desc));
+		}
+#endif
 	}
 	else {
 		sprintf(mess_size,"%4d/%-6d",m->lines,m->size);

@@ -50,3 +50,5 @@ typedef struct {
 	int32	number;
 
 } LIST;
+
+extern	void	add_to_list(LIST *l, MAILRC *m);

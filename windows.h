@@ -37,7 +37,7 @@ typedef struct _compose_window {
 	Panel_item	send_bcc_item;
 	Panel_item	compose_extra_headerlines[MAX_EXTRA_HEADERLINES];
 #else
-    Widget	deliver_frame, send_to, send_cc, send_subject;
+    Widget	deliver_frame, send_to, send_cc, send_subject, menu;
     Widget	send_bcc, text, sign, encrypt, log, raw, remail;
     Widget	extra_headers[MAX_EXTRA_HEADERLINES];
 #endif
@@ -69,6 +69,13 @@ typedef struct _display_window {
 #else
 typedef	int	COMPOSE_WINDOW;
 typedef int	DISPLAY_WINDOW;
+#endif
+
+#ifdef MOTIF
+typedef struct _mail_header_field {
+    String	name;
+    Boolean	editable;
+} MAIL_HEADER_FIELD;
 #endif
 
 /* Declare function */

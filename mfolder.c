@@ -18,6 +18,7 @@
 #include	<X11/Intrinsic.h>
 #include	<Xm/CascadeB.h>
 #include	<Xm/Container.h>
+#include	<Xm/ContainerP.h>
 #include	<Xm/IconG.h>
 #include	<Xm/MainW.h>
 #include	<Xm/Protocols.h>
@@ -39,17 +40,21 @@
 #include	"debug.h"
 
 static void		fillin_folders(Widget);
-static void		process_dir(char *);
+static void		process_dir(Widget, char *, Widget);
+static void		sort_container(Widget);
+static int		widcomp(Widget, Widget);
 static void		folderCb(Widget, XtPointer, XtPointer);
 static void		iconSelectCb(Widget, XtPointer, XtPointer);
 static void		resizeCb(Widget, XtPointer, XEvent *, Boolean *);
 static void		createFolderMenubar(Widget);
 static void		closeCb(Widget, XtPointer, XtPointer);
+static void		fdeleteCb(Widget, XtPointer, XtPointer);
 static void		destinationCb(Widget, XtPointer, XtPointer);
 static void		transferProc(Widget, XtPointer, XtPointer);
 static void		fix_container_size(Widget);
 static void		containerConvertCb(Widget, XtPointer, XtPointer);
 static void		cDragProc(Widget, XtPointer, XtPointer);
+static char		*full_name(Widget);
 
 static char		*fullfolder;
 static Widget		folderwin = NULL, container;
@@ -59,6 +64,7 @@ static Widget		folderwin = NULL, container;
 void
 show_mail_folders(Widget parent)
 {
+    Arg		args[5];
     Widget	mainwin;
     int		i;
 
@@ -83,7 +89,9 @@ show_mail_folders(Widget parent)
 
 	createFolderMenubar(mainwin);
 
-	container = XmCreateContainer(mainwin, "folderC", NULL, 0);
+	i = 0;
+	XtSetArg(args[i], XmNselectionPolicy, XmBROWSE_SELECT); i++;
+	container = XmCreateContainer(mainwin, "folderC", args, i);
 	XtVaSetValues (mainwin, XmNworkWindow, container, NULL);
 	XtManageChild(container);
 
@@ -93,12 +101,12 @@ show_mail_folders(Widget parent)
 		      (XtCallbackProc) iconSelectCb, NULL);
 	XtAddCallback(container, XmNdestinationCallback,
 		      (XtCallbackProc) destinationCb, NULL);
-#if 0
 	XtAddCallback(container, XmNconvertCallback,
 		      (XtCallbackProc) containerConvertCb, NULL);
-#endif
+#if 0
 	XtAddEventHandler(mainwin, StructureNotifyMask, False,
 			  resizeCb, container);
+#endif
 
 	i = 0;
 #if 0
@@ -140,16 +148,21 @@ fillin_folders(Widget container)
 	    strcat(fullfolder, folder);
 	}
 
-	process_dir(fullfolder);
+	process_dir(container, fullfolder, NULL);
+	/*sort_container(container);*/
     }
 } /* fillin_folders */
 
 /*----------------------------------------------------------------------*/
 
+/* Fill the container with icon gadgets, representing the files and
+   directories in the given starting directory. This descends into
+   subdirectories recursively until the entire sub-tree is covered.
+ */
 static void
-process_dir(char *dirname)
+process_dir(Widget container, char *dirname, Widget entry_parent)
 {
-    char		pathname[MAXPATHLEN], *oldname;
+    char		pathname[MAXPATHLEN];
     int			numkids, i;
     Widget		icon;
     WidgetList		kids;
@@ -165,13 +178,16 @@ process_dir(char *dirname)
 	return;
     }
 
-    /* Clean out any existing iconGadgets (except OutlineButton(s)) */
-    XtVaGetValues(container, XmNchildren, &kids,
-		  XmNnumChildren, &numkids, NULL);
-    XtUnmanageChildren(kids, numkids);
-    for(i = 0; i < numkids; i++){
-	if(XtClass(kids[i]) == xmIconGadgetClass)
-	    XtDestroyWidget(kids[i]);
+    /* Clean out any existing iconGadgets (except OutlineButton(s))
+       (but only if we're at the top i.e entry_parent == NULL) */
+    if(entry_parent == NULL) {
+	XtVaGetValues(container, XmNchildren, &kids,
+		      XmNnumChildren, &numkids, NULL);
+	XtUnmanageChildren(kids, numkids);
+	for(i = 0; i < numkids; i++){
+	    if(XmIsIconGadget(kids[i]))
+		XtDestroyWidget(kids[i]);
+	}
     }
 
     /* Now fill with new ones. */
@@ -179,8 +195,8 @@ process_dir(char *dirname)
 
 	if(!strcmp(de->d_name, ".")) /* No need for this. */
 	    continue;
-	if(!(strcmp(de->d_name, "..") || strcmp(dirname, fullfolder)))
-	    continue;		/* No '..' if already at top of folder dir. */
+	if(!strcmp(de->d_name, ".."))
+	    continue;		/* No '..'. */
 
 	xname = XmStringGenerate(de->d_name, NULL, XmCHARSET_TEXT, NULL);
 	i = 0;
@@ -191,83 +207,111 @@ process_dir(char *dirname)
 	strcat(pathname, de->d_name);
 	stat(pathname, &statbuf);
 	XtSetArg(args[i], XmNuserData, (XtPointer)S_ISDIR(statbuf.st_mode)); i++;
+	XtSetArg(args[i], XmNentryParent, entry_parent); i++;
 
 	icon = XmCreateIconGadget(container,
 				  (S_ISDIR(statbuf.st_mode))? "directory": "file",
-				  args, 2);
+				  args, i);
 
-#if 0
-	if((pixmap = get_cached_pixmap(icon,
-				       GetResourceString(icon,
-							 "largeIconPixmap",
-							 "LargeIconPixmap")
-				       )) != 0){
-	    XtVaSetValues(icon, XmNlargeIconPixmap, pixmap, NULL);
-	}
-#endif
 	XtManageChild(icon);
 	XmStringFree(xname);
+	if(S_ISDIR(statbuf.st_mode)) { /* recurse into sub-directory */
+	    process_dir(container, pathname, icon);
+	}
     }
     closedir(dirp);
-
-    XtVaGetValues(container, XmNuserData, &oldname, NULL);
-    if(oldname != NULL){
-	XtFree(oldname);
-    }
-    oldname = XtMalloc(strlen(dirname));
-    strcpy(oldname, dirname);
-    XtVaSetValues(container, XmNuserData, oldname, NULL);
-
-    /* Do a re-layout. */
-    fix_container_size(container);
 } /* process_dir */
+
+/*----------------------------------------------------------------------*/
+
+static void
+sort_container(Widget container)
+{
+    int		i, numcwids;
+    WidgetList	items;
+
+    XtVaGetValues(container, XmNchildren, &items,
+		  XmNnumChildren, &numcwids, NULL);
+    qsort(items, numcwids, sizeof(XmContainerRec), widcomp);
+    for(i = 0; i < numcwids; i++) {
+	XtVaSetValues(items[i], XmNpositionIndex, i, NULL);
+    }
+    XmContainerReorder(container, items, numcwids);
+} /* sort_container */
+
+/*----------------------------------------------------------------------*/
+
+static int
+widcomp(Widget a, Widget b)
+{
+    char	*namea, *nameb;
+    int		val;
+    XmString	xname;
+
+    if( ! XmIsIconGadget(a))
+	return -1;
+
+    XtVaGetValues(a, XmNlabelString, &xname, NULL);
+    XmStringGetLtoR(xname, XmFONTLIST_DEFAULT_TAG, &namea);
+    XmStringFree(xname);
+    XtVaGetValues(b, XmNlabelString, &xname, NULL);
+    XmStringGetLtoR(xname, XmFONTLIST_DEFAULT_TAG, &nameb);
+    XmStringFree(xname);
+
+    val = strcmp(namea, nameb);
+    XtFree(namea);
+    XtFree(nameb);
+
+    return val;
+} /* widcomp */
 
 /*----------------------------------------------------------------------*/
 
 static void
 folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
-    XmContainerSelectCallbackStruct *cbs = (XmContainerSelectCallbackStruct *)calldata;
-    XmString	xname;
-    char	*name, *dir, *c, *fullpath;
+    XmContainerSelectCallbackStruct *cbs =
+	(XmContainerSelectCallbackStruct *)calldata;
+    unsigned char	ostate;
+    char		*name, *fullpath;
 
     if(cbs->selected_item_count < 1)
 	return;
 
-    XtVaGetValues(cbs->selected_items[0], XmNlabelString, &xname, NULL);
-    XtVaGetValues(container, XmNuserData, &dir, NULL);
-
-    XmStringGetLtoR(xname, XmFONTLIST_DEFAULT_TAG, &name);
-    fullpath = XtMalloc(strlen(dir) + strlen(name) + 2);
-    if(!strcmp(name, "..")){
-	if((c = strrchr(dir, '/')) != NULL){
-	    *c = '\0';
-	}
-	else{
-	    *dir = '\0';
-	}
-	strcpy(fullpath, dir);
-    }
-    else{
-	strcpy(fullpath, dir);
-	strcat(fullpath, "/");
-	strcat(fullpath, name);
-    }
 
     if(!strcmp(XtName(cbs->selected_items[0]), "file")){ /* It's a file (folder). */
+	name = full_name(cbs->selected_items[0]);
+	fullpath = XtMalloc(strlen(fullfolder) + strlen(name) + 2);
+	strcpy(fullpath, "+/");
+	strcat(fullpath, name);
+	add_to_combo(fullpath);
+
+	strcpy(fullpath, fullfolder);
+	strcat(fullpath, "/");
+	strcat(fullpath, name);
+	XtFree(name);
+
 	deleteAllMessages();
 	load_file_proc(fullpath);
-	display_message(last_message_read = messages.start);
+	display_new_message();
 	sync_list();
 	update_message_list();
+
+	/* Cleanup time. */
+	XtFree(fullpath);
     }else{			/* It's a directory. */
-	process_dir(fullpath);
+	XtVaGetValues(cbs->selected_items[0],
+		      XmNoutlineState, &ostate, NULL);
+	if(ostate == XmCOLLAPSED) {
+	    XtVaSetValues(cbs->selected_items[0],
+			  XmNoutlineState, XmEXPANDED, NULL);
+	}
+	else {
+	    XtVaSetValues(cbs->selected_items[0],
+			  XmNoutlineState, XmCOLLAPSED, NULL);
+	}
     }
 
-    /* Cleanup time. */
-    XtFree(fullpath);
-    XmStringFree(xname);
-    XtFree(name);
 } /* folderCb */
 
 /*----------------------------------------------------------------------*/
@@ -275,28 +319,21 @@ folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 void
 iconSelectCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
-    XmContainerSelectCallbackStruct *cbs = (XmContainerSelectCallbackStruct *)calldata;
-    XmString	xname;
-    char	*name, *dir, abbrevdir[MAXPATHLEN];
+    XmContainerSelectCallbackStruct *cbs =
+	(XmContainerSelectCallbackStruct *)calldata;
+    char	*name, *abbrevdir;
 
     if(cbs->auto_selection_type == XmAUTO_NO_CHANGE){
 	if(cbs->selected_item_count == 1 &&
 	   !strcmp(XtName(cbs->selected_items[0]), "file")){
-	    XtVaGetValues(cbs->selected_items[0], XmNlabelString, &xname, NULL);
-	    XmStringGetLtoR(xname, XmFONTLIST_DEFAULT_TAG, &name);
-	    XmStringFree(xname);
-	    XtVaGetValues(container, XmNuserData, &dir, NULL);
-	    if(!strncmp(dir, fullfolder, strlen(fullfolder))){
-		strcpy(abbrevdir, "+");
-		strcat(abbrevdir, dir + strlen(fullfolder));
-	    }
-	    else{
-		strcpy(abbrevdir, dir);
-	    }
-	    strcat(abbrevdir, "/");
+	    name = full_name(cbs->selected_items[0]);
+
+	    abbrevdir = XtMalloc(strlen(name) + 3);
+	    strcpy(abbrevdir, "+/");
 	    strcat(abbrevdir, name);
 	    update_combo(abbrevdir);
 	    XtFree(name);
+	    XtFree(abbrevdir);
 	}
     }
 } /* iconSelectCb */
@@ -335,6 +372,18 @@ createFolderMenubar(Widget parent)
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   closeCb, NULL);
+
+    menu_ = XmCreatePulldownMenu (menubar_, "edit_pane", NULL, 0);
+    XtSetArg (args[0], XmNsubMenuId, menu_);
+    cascade_ = XmCreateCascadeButton (menubar_, "edit", args, 1);
+    XtManageChild (cascade_);
+
+    button_ = XmCreatePushButtonGadget (menu_, "newdir", NULL, 0);
+    XtManageChild (button_);
+    button_ = XmCreatePushButtonGadget (menu_, "delete", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   fdeleteCb, NULL);
 } /* createFolderMenubar */
 
 /*----------------------------------------------------------------------*/
@@ -548,3 +597,140 @@ cDragProc(Widget w, XtPointer clientdata, XtPointer calldata)
 	cbs->dropSiteStatus = XmDROP_SITE_VALID;
     }
 } /* cDragProc */
+
+/*----------------------------------------------------------------------*/
+
+static char *
+full_name(Widget ig)
+{
+    int		len;
+    char	*name, *fullname = NULL;
+    XmString	xname;
+    Widget	ep, curr;
+
+    if( ! XmIsIconGadget(ig))
+	return NULL;
+
+    curr = ig;
+    do{
+	XtVaGetValues(curr, XmNlabelString, &xname,
+		      XmNentryParent, &ep,
+		      NULL);
+	XmStringGetLtoR(xname, XmFONTLIST_DEFAULT_TAG, &name);
+	XmStringFree(xname);
+	if( fullname == NULL) {
+	    fullname = name;
+	}
+	else {
+	    len = strlen(name);
+	    fullname = XtRealloc(fullname, strlen(fullname) + len + 2);
+	    memmove(fullname + len + 1, fullname, strlen(fullname) + 1);
+	    strcpy(fullname, name);
+	    fullname[len] = '/';
+	    XtFree(name);
+	}
+	curr = ep;
+    } while( ep != NULL);
+
+    return fullname;
+} /* full_name */
+
+/*----------------------------------------------------------------------*/
+
+void
+check_folder_icon(char *folder)
+{
+    int		numcwids, i;
+    char	*ftemp, *c, *name, *basename;
+    Widget	pwid, icon;
+    WidgetList	cwids;
+    XmString	xname;
+    Arg		args[6];
+
+    if(folderwin == NULL || folder == NULL || (strlen(folder) < 3) ||
+       *folder != '+' || folder[1] != '/')
+	return;
+
+    ftemp = strdup(&folder[2]);	/* Skip the initial "+/". */
+
+    /* Get basename of folder to ensure all intermediate directories
+       are present. */
+    if((basename = strrchr(ftemp, '/')) == NULL) {
+	basename = ftemp;
+    }
+    else {
+	basename++;
+    }
+
+    /* Split ftemp into path components, checking each component for
+       existance of an associated IconGadget. */
+    if((c = strtok(ftemp, "/")) == NULL)
+	return;
+
+    pwid = NULL;
+    do {
+	numcwids = XmContainerGetItemChildren(container, pwid, &cwids);
+	for(i = 0; i < numcwids; i++) {
+	    XtVaGetValues(cwids[i], XmNlabelString, &xname, NULL);
+	    XmStringGetLtoR(xname, XmFONTLIST_DEFAULT_TAG, &name);
+	    if(strcmp(name, c) == 0){
+		pwid = cwids[i];
+		XtFree(name);
+		break;
+	    }
+	    XtFree(name);
+	}
+	XtFree(cwids);
+	if(i >= numcwids) {	/* Haven't already got this component. */
+	    Boolean isdir = (strcmp(c, basename) != 0);
+	    xname = XmStringGenerate(c, NULL, XmCHARSET_TEXT, NULL);
+	    i = 0;
+	    XtSetArg(args[i], XmNlabelString, xname); i++;
+
+	    /* TODO: How to know if this is a directory or a file? */
+	    XtSetArg(args[i], XmNuserData, (XtPointer)isdir); i++;
+	    XtSetArg(args[i], XmNentryParent, pwid); i++;
+
+	    icon = XmCreateIconGadget(container, isdir? "directory": "file",
+				      args, i);
+
+	    XtManageChild(icon);
+	    XmStringFree(xname);
+	}
+    }while((c = strtok(NULL, "/")) != NULL);
+} /* check_folder_icon */
+
+/*----------------------------------------------------------------------*/
+
+static void
+fdeleteCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    int		numitems;
+    WidgetList	selwids;
+    char	*fullpath, *c;
+
+    XtVaGetValues(container, XmNselectedObjectCount, &numitems,
+		  XmNselectedObjects, &selwids, NULL);
+
+    if(numitems < 1)
+	return;
+
+    if(strcmp(XtName(selwids[0]), "file") == 0) {
+	if(alert(folderwin, "reallydel", 2) != XmCR_OK)
+	    return;
+
+	c = full_name(selwids[0]);
+	fullpath = XtMalloc(strlen(fullfolder) + strlen(c) + 2);
+	strcpy(fullpath, fullfolder);
+	strcat(fullpath, "/");
+	strcat(fullpath, c);
+	XtFree(c);
+
+	unlink(fullpath);
+	XtVaSetValues(container, XmNselectedObjectCount, 0, NULL);
+	XtDestroyWidget(selwids[0]);
+    }
+    else {
+	alert(folderwin, "nodeldir", 1);
+    }
+} /* fdeleteCb */

@@ -1,17 +1,54 @@
-
+! -*-xrdb-*-
 ! Resources for motif privtool.
 ! $Id$
 
-!?.iconPixmap:				privtool.xpm
-*.background:				lightsteelblue2
-*.XcgLiteClue.background:		linen
-*.menu_bar*background:  		lightsteelblue3
-*.menu_bar*foreground:  		black
+!
+! Color resources, modify to your heart's content.
+!
+*.background:					lightsteelblue2
+*.XcgLiteClue.background:			linen
+*.menu_bar*background:  			lightsteelblue3
+*.menu_bar*foreground:  			black
+*.XmCSText.background:				white smoke
+*.XmText.background:				white smoke
+*.XmList.background:				white smoke
+*ClipWindow*background:				white smoke
+*.folderC*background:				white smoke
+*compose*XmTextField.background:		white smoke
+*props*XmTextField.background:			white smoke
+*props.XmNotebook.backPageForeground:		lightsteelblue2
+*props.XmNotebook.backPageBackground:		lightsteelblue2
+*props.XmNotebook*XbaeMatrix.textBackground:	white smoke
+*XmToggleButton.selectColor:			goldenrod
 
-*.validCursorForeground:		forestgreen
-*.invalidCursorForeground:		red
-*.noneCursorForeground:			orange
+*.validCursorForeground:			forestgreen
+*.invalidCursorForeground:			red
+*.noneCursorForeground:				orange
 
+! LiteClue font. It's a weird little widget
+*.XcgLiteClue.fontSet:         -*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-1
+
+!
+! Main geometry
+!
+?.width:				540
+?.allowShellResize:			true
+
+!
+! Separate message window resources
+!
+?.message*hdrtextSW.rightAttachment:	attach_form
+?.message*hdrtextSW.leftAttachment:	attach_form
+?.message*hdrtextSW.topAttachment:	attach_form
+?.message*msgtextSW.topAttachment:	attach_widget
+?.message*msgtextSW.topWidget:		hdrtextSW
+?.message*msgtextSW.rightAttachment:	attach_form
+?.message*msgtextSW.leftAttachment:	attach_form
+?.message*msgtextSW.bottomAttachment:	attach_form
+
+!
+! Menubar & menu resources.
+!
 *.menu_bar*file.labelString:		File
 *.menu_bar*file.mnemonic:		F
 *.menu_bar*edit.labelString:		Edit
@@ -40,6 +77,10 @@
 *.menu_bar*save.mnemonic:		S
 *.menu_bar*save.accelerator:		Ctrl<Key>s
 *.menu_bar*save.acceleratorText:	Ctrl-S
+*.menu_bar*print.labelString:		Print
+*.menu_bar*print.mnemonic:		P
+*.menu_bar*print.accelerator:		Ctrl<Key>p
+*.menu_bar*print.acceleratorText:	Ctrl-P
 *.menu_bar*done.labelString:		Done
 *.menu_bar*done.mnemonic:		D
 *.menu_bar*qwsav.labelString:		Save & Quit
@@ -107,6 +148,8 @@
 *.menu_bar*showtbar.set:		True
 *.menu_bar*showtbar.accelerator:	Ctrl<Key>t
 *.menu_bar*showtbar.acceleratorText:	Ctrl-T
+*.menu_bar*detach.labelString:		Detach Message Window
+*.menu_bar*detach.mnemonic:		W
 
 *.menu_bar*folders.labelString:		Folders...
 *.menu_bar*folders.mnemonic:		F
@@ -178,6 +221,9 @@
 *toolbar.XmToggleButton.highlightThickness: 0
 *toolbar.XmPushButton.topOffset: 	3
 *toolbar.XmToggleButton.topOffset: 	3
+*toolbar.XmSeparatorGadget.orientation:	vertical
+*toolbar.XmSeparatorGadget.topAttachment:	attach_form
+*toolbar.XmSeparatorGadget.bottomAttachment:	attach_form
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
 *toolbar.prev.labelInsensitivePixmap:	prev_is.xpm
@@ -202,12 +248,26 @@
 *toolbar.undelete.leftAttachment:	attach_widget
 *toolbar.undelete.leftWidget:		delete
 *toolbar.undelete.sensitive:		False
+*toolbar.sep1.leftAttachment:		attach_widget
+*toolbar.sep1.leftWidget:		undelete
+*toolbar.compose_new.labelType:		pixmap
+*toolbar.compose_new.labelPixmap:	compose.xpm
+*toolbar.compose_new.topAttachment:	attach_form
+*toolbar.compose_new.leftAttachment:	attach_widget
+*toolbar.compose_new.leftWidget:	sep1
+*toolbar.reply.labelType:		pixmap
+*toolbar.reply.labelPixmap:		reply.xpm
+*toolbar.reply.topAttachment:		attach_form
+*toolbar.reply.leftAttachment:		attach_widget
+*toolbar.reply.leftWidget:		compose_new
+*toolbar.sep2.leftAttachment:		attach_widget
+*toolbar.sep2.leftWidget:		reply
 *toolbar.folders.indicatorOn:		False
 *toolbar.folders.labelType:		pixmap
 *toolbar.folders.labelPixmap:		folderwin.xpm
 *toolbar.folders.topAttachment:		attach_form
 *toolbar.folders.leftAttachment:	attach_widget
-*toolbar.folders.leftWidget:		undelete
+*toolbar.folders.leftWidget:		sep2
 *toolbar.folders.shadowThickness:	2
 *toolbar.combo.leftAttachment:		attach_none
 *toolbar.combo.topAttachment:		attach_form
@@ -218,6 +278,7 @@
 *toolbar.combo*ListSW.scrolledWindowMarginHeight: 2
 *toolbar.combo*ListSW.scrolledWindowMarginWidth:  2
 
+!
 ! Resources to make the sash sensible (combined with the ConfigureNotify
 ! handling in the source).
 !
@@ -225,6 +286,10 @@
 *frame.panedwin.sashIndent:			0
 *frame.panedwin.sashShadowThickness:		1
 *frame.panedwin.separatorOn:			false
+*message.msgpane.sashHeight:			3
+*message.msgpane.sashIndent:			0
+*message.msgpane.sashShadowThickness:		1
+*message.msgpane.separatorOn:			false
 
 !
 ! Mail item list resources
@@ -257,7 +322,6 @@
 !
 *.XmCSText.columns:				80
 *.XmCSText.rows:				24
-*.XmCSText.background:				white smoke
 *.XmCSText.wordWrap:				true
 *.XmCSText.scrollHorizontal:			false
 *.XmCSText.editMode:				MULTI_LINE_EDIT
@@ -265,14 +329,11 @@
 *.XmCSText.cursorPositionVisible:		false
 *.XmText.columns:				80
 *.XmText.rows:					24
-*.XmText.background:				white smoke
 *.XmText.wordWrap:				true
 *.XmText.scrollHorizontal:			false
 *.XmText.editMode:				MULTI_LINE_EDIT
 *.XmText.editable:				false
 *.XmText.cursorPositionVisible:			false
-
-*.XmList.background:				white smoke
 
 *.hdrtext.rows:					4
 
@@ -287,14 +348,17 @@
 <Key>r,<Key>a:		compose(reply, all, include)\n\
 <Key>d:			delete()
 
-*slist.listSizePolicy:			constant
-*slist.visibleItemCount:		6
-*slistSW.scrollingPolicy:		automatic
+*slist.listSizePolicy:				constant
+*slist.visibleItemCount:			6
+*slistSW.scrollingPolicy:			automatic
 
 *XmScrolledWindow.scrollingPolicy:		automatic
 *frame.panedwin.slistSW.paneMinimum:		74
 *frame.panedwin.hdrtextSW.paneMinimum:		65
+*frame.panedwin.hdrtextSW.positionIndex:	1
+?.message*hdrtextSW.positionIndex:		0
 *frame.panedwin.msgtextSW.paneMinimum:		74
+*frame.panedwin.msgtextSW.positionIndex:	2
 ?.message.width:				600
 ?.message.height:				500
 
@@ -429,27 +493,50 @@ Not a regular file.
 *.notregfile_alert.symbolPixmap:	xm_warning
 *.notregfile_alert_popup.title:		Alert
 
+*.noprops_alert.messageString:	\
+Can't write to .privrc file.
+*.noprops_alert.symbolPixmap:		xm_warning
+*.noprops_alert.dialogType:		DIALOG_ERROR
+*.noprops_alert_popup.title:		Alert
+
+*.reallydel_alert.messageString:	\
+Really delete this mail file?
+*.reallydel_alert.symbolPixmap:		xm_warning
+*.reallydel_alert.dialogType:		DIALOG_ERROR
+*.reallydel_alert_popup.title:		Alert
+
+*.nodeldir_alert.messageString:	\
+Deleteing directories not supported yet.
+*.nodeldir_alert.symbolPixmap:		xm_warning
+*.nodeldir_alert_popup.title:		Alert
+
+*.emptysend_alert.messageString:	\
+Sending an empty message body.
+*.emptysend_alert.symbolPixmap:		xm_warning
+*.emptysend_alert_popup.title:		Alert
+
+*.fullcan_alert.messageString:		\
+Cancelling a non-empty message body.
+*.fullcan_alert.symbolPixmap:		xm_warning
+*.fullcan_alert_popup.title:		Alert
+
 !
 ! Folder manager resources
 !
-*ClipWindow*background:			white smoke
 ?.folder.title:				Privtool - Folders
 ?.folder.width:				230
 ?.folder.height:			350
 *.folderMain.scrollingPolicy:		automatic
 *.folderMain.scrollBarDisplayPolicy:	as_needed
-*.folderC*background:			white smoke
-*.folderC.selectionPolicy:		browse_select
-*.folderC.entryViewType:		large_icon
-*.folderC.spatialStyle:			cells
-*.folderC.spatialResizeModel:		grow_minor
-*.folderC.spatialSnapModel:		center
-*.folderC.largeCellWidth:		70
-*.folderC.directory.largeIconPixmap:	dir.xpm
-*.folderC.file.largeIconPixmap:		letter.xpm
+*.folderC.layoutType:			outline
+*.folderC.outlineIndentation:		20
+*.folderC.entryViewType:		small_icon
 *.folderC*shadowThickness:		0
-*.folderC.dropSiteType:			drop_site_composite
-!*.folderC.XmIconGadget.animationStyle:	drag_under_shadow_in
+*.folderC*highlightThickness:		1
+*.folderC.directory.smallIconPixmap:	dir.xpm
+*.folderC.file.smallIconPixmap:		letter.xpm
+*.folderC.expandedStatePixmap:		expanded.xpm
+*.folderC.collapsedStatePixmap:		collapsed.xpm
 
 !
 ! Folder window menu
@@ -458,12 +545,18 @@ Not a regular file.
 *.folder_menu_bar*file.mnemonic:	F
 *.folder_menu_bar*close.labelString:	Close
 *.folder_menu_bar*close.mnemonic:	C
+*.folder_menu_bar*edit.labelString:	Edit
+*.folder_menu_bar*edit.mnemonic:	E
+*.folder_menu_bar*newdir.labelString:	New Directory
+*.folder_menu_bar*newdir.mnemonic:	N
+*.folder_menu_bar*delete.labelString:	Delete
+*.folder_menu_bar*delete.mnemonic:	D
 
 !
 ! Compose window resources
 !
-*compose.width:					512
-*compose.height:				545
+?.compose.width:				512
+?.compose.height:				545
 ?.compose.title:				Privtool - Compose
 *compose*OK.labelString:			Send
 *compose*ctrl.topAttachment:			attach_form
@@ -480,7 +573,6 @@ Not a regular file.
 !*compose*tbox.rightAttachment:			attach_form
 *compose*tbox.sign.labelString:			Sign
 *compose*tbox.XmToggleButton.indicatorOn:	indicator_check_box
-*XmToggleButton.selectColor:			goldenrod
 *compose*tbox.encrypt.labelString:		Encrypt
 *compose*tbox.log.labelString:			Log
 *compose*tbox.raw.labelString:			Raw
@@ -499,8 +591,6 @@ Not a regular file.
 
 *compose.*.to.comboBoxType:			drop_down_combo_box
 
-*compose*XmTextField.background:		white smoke
-
 *XbaeCaption.labelTextAlignment:		alignment_end
 *compose.*.tocap.labelString:			To:
 *compose.*.subjcap.labelString:			Subject:
@@ -508,6 +598,15 @@ Not a regular file.
 *compose.*.bcccap.labelString:			BCC:
 *.stext.editable:				true
 *.stext.cursorPositionVisible:			true
+*.stext.baseTranslations: #override \n\
+<Btn2Up>:		set-insertion-point() copy-to()\n\
+<Btn3Down>:		ComposeMenu()\n
+
+!
+! Compose window popup menu strings
+!
+*compose*stext*comptext_pane.indent.labelString:	Indent region
+*compose*stext*comptext_pane.format.labelString:	Format region
 
 *XmFileSelectionBox.resizePolicy:		resize_grow
 
@@ -516,22 +615,19 @@ Not a regular file.
 !
 ?.props_popup.title:				Privtool - Properties
 
+*props.autoUnmanage:				False
 *props.apply.labelString:			Apply
 *props.XmNotebook*XbaeMatrix.allowColumnResize:	True
 
-*props*XmTextField.background:			white smoke
 *props.XmNotebook.orientation:			vertical
 *props.XmNotebook.bindingType:			none
 *props.XmNotebook.backPagePlacement:		top_right
 *props.XmNotebook.backPageSize:			1
-*props.XmNotebook.backPageForeground:		lightsteelblue2
-*props.XmNotebook.backPageBackground:		lightsteelblue2
 
 *props.XmNotebook.guibtn.labelString:		User Interface
 *props.XmNotebook.aliasbtn.labelString:		Alias
 *props.XmNotebook.mailbtn.labelString:		Mail Filing
 *props.XmNotebook.pgpbtn.labelString:		Privtool
-*props.XmNotebook*XbaeMatrix.textBackground:	white smoke
 *props.XmNotebook*XbaeMatrix.gridType:		grid_shadow_in
 *props.XmNotebook*XmPushButton.alignment:	alignment_center
 
@@ -547,6 +643,12 @@ Not a regular file.
 *props.XmNotebook*menugrid.rows:		10
 *props.XmNotebook*menugrid.visibleRows:		10
 *props.XmNotebook*menuctrl.orientation:		horizontal
+*props*guipage*frame.shadowType:		shadow_etched_in
+*props*guipage.menuctrl.entryVerticalAlignment:	alignment_baseline_top
+*props*detached.labelString:			Detached Message Window
+*props*guipage*flabel.frameChildType:		frame_title_child
+*props*guipage*flabel.labelString:		Window Layout
+*props*btnctrl.marginHeight:			15
 
 !
 ! Alias page
@@ -556,7 +658,9 @@ Not a regular file.
 *props.XmNotebook*aliasgrid.rows:		8
 *props.XmNotebook*aliasgrid.visibleRows:	8
 *props.XmNotebook*aliasgrid.columnWidths:	12, 40
+*props.XmNotebook*aliasgrid.columnMaxLengths:	30,160
 *props.XmNotebook*aliasgrid.columnLabels:	Name, Address
+*props.XmNotebook*aliaspage.btn_ctrl.marginHeight: 23
 
 *props.XmNotebook*add.labelString:		Add
 *props.XmNotebook*delete.labelString:		Delete
@@ -601,3 +705,27 @@ Not a regular file.
 *props.XmNotebook*security.spinBoxChildType:	numeric
 *props.XmNotebook*security.minimumValue:	1
 *props.XmNotebook*security.maximumValue:	4
+*props*keyctrl.btnctrl.marginHeight:		41
+
+!
+! Modern toolbar button style translations.
+!
+*toolbar*XmPushButton.baseTranslations:	#override\n\
+<Btn1Down>:	CustomShadows(on) Arm()\n\
+<EnterNotify>:  CustomShadows(on) Enter()\n\
+<LeaveNotify>:  CustomShadows(off) Leave()\n\
+<MapNotify>:	MapCheck()
+
+*toolbar*XmToggleButton.baseTranslations:	#override\n\
+<Btn1Down>:	CustomShadows(on) Arm()\n\
+<Btn1Up>:	Select() Disarm() CustomShadows(check)\n\
+<EnterNotify>:  CustomShadows(on) Enter()\n\
+<LeaveNotify>:  CustomShadows(off) Leave()\n\
+<MapNotify>:	MapCheck()
+
+!
+! Separate message window resources.
+!
+?.message.msgpane.hdrtextSW.paneMinimum:	70
+?.message.msgpane.msgtextSW.paneMinimum:	100
+?.message.msgpane.msgtextSW.positionIndex:	1

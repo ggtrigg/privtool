@@ -183,8 +183,8 @@ void clear_aliases(void)
 }
 
 /* Add an entry to a list */
-
-static	add_to_list(LIST *l, MAILRC *m)
+void
+add_to_list(LIST *l, MAILRC *m)
 
 {
 	/* Update count of entries */
