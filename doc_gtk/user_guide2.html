@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!--$Id$-->
+<HTML>
+<HEAD>
+   <TITLE>Privtool - Gtk+ Usage Guide (2)</TITLE>
+   <META NAME="Author" CONTENT="Glenn Trigg">
+   <META NAME="Keywords" CONTENT="Privtool, motif, mail tool, PGP">
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<H2 ALIGN=CENTER><U><FONT COLOR="#CC3232">Privtool</FONT></U><BR>
+<FONT COLOR="#6495ED">Gtk+ Usage Guide</FONT></H2>
+<P ALIGN=center>
+<SMALL><A HREF="user_guide1.html#reading_mail">[Reading mail]</A> 
+<A HREF="user_guide2.html#writing_mail">[Writing mail]</A> <A HREF="user_guide2.html#folders">[Folders]</A></SMALL>
+<P ALIGN=center>
+<A HREF="user_guide1.html">Previous page</A>
+<P>
+<TABLE CELLSPACING=5 WIDTH="100%" >
+<TR>
+<TD WIDTH="30%" VALIGN=top>
+<H3><A NAME="writing_mail">Writing Mail</A></H3>
+<P>
+<A HREF="compose.png"><IMG SRC="compose_mini.png" ALT="Compose window (small)" ALIGN=left BORDER="1"></A>
+<TD ALIGN=left VALIGN=top>The compose window is shown when one of the <STRONG>compose</STRONG> menu items is selected. The window allows you to fill out the header lines (as specified in your <TT>.privrc</TT>), select signing &amp; encryption etc. options and write your message (of course).
+<P>
+Multiple compose windows can be open at any time.
+<P>
+When selecting one of the <STRONG>Reply</STRONG> menu items which specifies "(include)" will cause the currently displayed message to be inserted in the message indented with the <EM>indent string</EM> specified in your <TT>.privrc</TT> (or "<TT>&gt; </TT>" otherwise).
+<TR><TD ALIGN=right VALIGN=top><U>Including files</U>
+<TD>Arbitrary files can be included by clicking on the <STRONG>Insert...</STRONG> button. This will show a filer which enables you to select a file to insert into the message.
+<TR><TD ALIGN=right VALIGN=top><U>Including messages</U>
+<TD>Any message can be included into the message area of a compose window. To achieve this simply select the message you want included from the message list (which becomes a primary selection) and paste it into the compose_message area by clicking the middle button (the default action for pasting a primary selection).
+<P>
+It is also possible to drag the message from the message list and drop it into the compose_message area.
+<TR><TD ALIGN=left VALIGN=middle COLSPAN=2>
+<HR>
+<TR><TD ALIGN=left VALIGN=top><H3><A NAME="folders">Folders</A></H3>
+<P>
+<A HREF="folderb.png"><IMG SRC="folderb_mini.png" ALT="Folder browser (small)" ALIGN=left BORDER="1"></A>
+<TD>Selecting <STRONG>Folders</STRONG> from the <STRONG>View</STRONG> menu will cause a folder browser to be displayed. This allows a hierarchical structure of mail folders to be browsed and a current folder to be specified for loading, copying or moving mail into.
+<P>
+In addition to the Folder Browser, the combobox in the toolbar contains the list of commonly accessed mail folders as specified in the <TT>.privrc</TT> file.
+<P>
+When a folder is clicked on in the Folder Browser, the folder name is inserted into the combobox and that folder becomes the <EM>current folder</EM>. Also any name can be typed in the combobox to allow messages to be saved to an arbitrary file.
+<TR><TD ALIGN=right VALIGN=top><U>Loading folders</U>
+<TD>When there is a current folder specified, selecting <STRONG>Load folder</STRONG> from the <STRONG>Folder</STRONG> menu will cause the current folder to be loaded, replacing the currently displayed messages with the contents of that folder.
+<P>
+An alternate method is to double click on the folder icon in the Folder Browser.
+<TR><TD ALIGN=right VALIGN=top><U>Saving to a folder</U>
+<TD>Selecting <STRONG>Copy to folder</STRONG> or <STRONG>Move to folder</STRONG> from the <STRONG>Folder</STRONG> menu will cause the currently selected message(s) to be saved to the current folder. If move was selected then the original messages will be deleted as well.
+</TABLE>
+<HR>
+<P ALIGN=center>
+<SMALL>Image manipulation done using the <A HREF="http://www.gimp.org">gimp</A>.</SMALL>
+</BODY>
+</HTML>

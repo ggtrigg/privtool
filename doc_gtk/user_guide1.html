@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!--$Id$-->
+<HTML>
+<HEAD>
+   <TITLE>Privtool - Gtk+ Usage Guide</TITLE>
+   <META NAME="Author" CONTENT="Glenn Trigg">
+   <META NAME="Keywords" CONTENT="Privtool, motif, mail tool, PGP">
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+
+<H2 ALIGN=CENTER><U><FONT COLOR="#CC3232">Privtool<BR>
+</FONT></U><FONT COLOR="#6495ED">Gtk+ Usage Guide</FONT></H2>
+
+<CENTER><P><FONT SIZE=-1><A HREF="user_guide1.html#reading_mail">[Reading
+mail]</A> <A HREF="user_guide2.html#writing_mail">[Writing mail]</A> <A HREF="user_guide2.html#folders">[Folders]</A></FONT>
+</P></CENTER>
+
+<TABLE CELLSPACING=5 WIDTH="100%" >
+<TR>
+<TD WIDTH="30%" VALIGN=top>
+<H3><A NAME="reading_mail"></A>Reading Mail</H3>
+
+<P><A HREF="main.png"><IMG SRC="main_mini.png" ALT="Main window (small)" ALIGN=left BORDER="1"></A>
+</P>
+</TD>
+
+<TD ALIGN=left VALIGN=top>The main window has a standard application layout,
+which consists of a <B>menubar</B>, a <B>toolbar</B>, a <B>work area</B>
+and a <B>status area</B>. 
+<P>The <B>menubar</B> provides access to all the functionality of privtool
+which can be discovered by browsing through the menus. Specific menu functions
+will be mentioned as appropriate in this guide. </P>
+
+<P>The <B>toolbar</B> contains buttons which allow quick access to commonly
+used functions. The buttons currently available are:<BR>
+</P>
+
+<CENTER><TABLE CELLSPACING=0 CELLPADDING=0 WIDTH="60%" >
+<TR>
+<TD><IMG SRC="prev.gif" ALT="Previous toolbar button" HEIGHT=24 WIDTH=24>
+</TD>
+
+<TD>&nbsp;Previous mail message. </TD>
+</TR>
+
+<TR>
+<TD><IMG SRC="next.gif" ALT="Next toolbar button" HEIGHT=24 WIDTH=24> </TD>
+
+<TD>&nbsp;Next mail message. </TD>
+</TR>
+
+<TR>
+<TD><IMG SRC="delete.gif" ALT="Delete toolbar button." HEIGHT=24 WIDTH=24>
+</TD>
+
+<TD>&nbsp;Delete selected messages. </TD>
+</TR>
+
+<TR>
+<TD><IMG SRC="undelete.gif" ALT="Undelete toolbar button" HEIGHT=24 WIDTH=24>
+</TD>
+
+<TD>&nbsp;Undelete selected messages. </TD>
+</TR>
+
+<TR>
+<TD><IMG SRC="folderwin.gif" ALT="Folderwin toolbar button" HEIGHT=24 WIDTH=24>
+</TD>
+
+<TD>&nbsp;Raise/Lower folder window. </TD>
+</TR>
+</TABLE></CENTER>
+
+<P>The righthand side of the toolbar contains a combo box where a folder
+name (or filename) can be selected or typed. This defines the current folder
+for folder operations (<I>copy to</I>, <I>move to</I> or <I>load folder</I>
+from the <B>Folder</B> menu). </P>
+</TD>
+</TR>
+
+<TR>
+<TD ALIGN=right VALIGN=top><U>Work area</U> </TD>
+
+<TD VALIGN=top>The <B>work area</B> is divided into three parts, the mail
+summary (message) list, the mail header area and the mail body area. 
+<P>The different areas can be resized by dragging the horizontal sash lines
+that separate the areas. </P>
+</TD>
+</TR>
+
+<TR>
+<TD ALIGN=right VALIGN=top><U>Message list<BR>
+<BR>
+<A HREF="message_list.png"><IMG SRC="message_list_mini.png" ALT="Message list (small)" ALIGN=left BORDER="1"></A></U>
+</TD>
+
+<TD VALIGN=top>The currently displayed message <B>always</B> has its summary
+line displayed in bold. When you reply to a message it is the <U>currently
+displayed message</U> that you reply to. 
+<P>A message can be displayed by double-clicking on its summary line, by
+clicking on the <I>Previous</I> or <I>Next</I> <B>toolbar</B> buttons or
+by selecting <I>Previous</I> or <I>Next</I> from the <B>View</B> menu.
+</P>
+
+<P>Other messages can be selected at times and these summary lines are
+shown in reverse (white text on black background). Selected messages can
+be deleted and undeleted (more than one at a time is possible). There are
+also some other actions possible with selected messages which will be discussed
+later. </P>
+</TD>
+</TR>
+
+<TR>
+<TD ALIGN=right VALIGN=top><U>Keyboard Accelerators</U> </TD>
+
+<!--<TD VALIGN=top>When the keyboard focus is in the message body window (shown
+by Motif as a black border around the text window), the following keyboard
+accelerators are available:<BR>
+
+<CENTER><TABLE CELLSPACING=0 CELLPADDING=0 WIDTH="80%" >
+<TR>
+<TD>
+<DIV ALIGN=right>n </DIV>
+</TD>
+
+<TD>- next message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>p </DIV>
+</TD>
+
+<TD>- previous message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>&lt;space&gt; </DIV>
+</TD>
+
+<TD>- page down the current message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>b </DIV>
+</TD>
+
+<TD>- page up the current message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>d </DIV>
+</TD>
+
+<TD>- delete message(s) </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>c </DIV>
+</TD>
+
+<TD>- compose new message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>f </DIV>
+</TD>
+
+<TD>- forward message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>rs </DIV>
+</TD>
+
+<TD>- reply to sender, include message </TD>
+</TR>
+
+<TR>
+<TD>
+<DIV ALIGN=right>ra </DIV>
+</TD>
+
+<TD>- reply to all, include message </TD>
+</TR>
+</TABLE></CENTER>
+
+<P>In addition, there are also keyboard accelerators on some of the menu
+items. These can be determined by browsing the menus. </P>
+-->
+<TD><P>Each toolbar button has a tooltip to give a brief hint about the function of the button.
+</TD>
+</TR>
+
+<TR>
+<TD ALIGN=right VALIGN=top><U>Deleted messages<BR>
+<BR>
+<A HREF="deleted.png"><IMG SRC="deleted_mini.png" ALT="Deleted messages (small)" ALIGN=left BORDER="1"></A></U>
+</TD>
+
+<TD VALIGN=top>Messages can be deleted by selecting the messages you want
+deleted and either pressing the delete toolbar button or selecting delete
+from the <B>Edit</B> menu. 
+<P>Deleted messages can be displayed in the message list by selecting the
+<I>Show Deleted</I> toggle in the <B>View</B> menu. When they are visible
+in the list they are represented as a greyed out message summary. </P>
+
+<P>A deleted message can still be read by double clicking on its summary
+line, however the previous and next operations will skip deleted messages.
+</P>
+
+<P>To undelete messages simply select the messages you want undeleted and
+select the undelete toolbar button or select <I>Undelete</I> from the <B>Edit</B>
+menu. </P>
+
+<P>If you don't have deleted messages displayed then selecting <I>Undelete
+Last</I> from the <B>Edit</B> menu will undelete the last deleted message.
+</P>
+
+<P>Deleted messages are unrecoverable when a folder is loaded or <I>Save
+Changes</I> is selected from the <B>File</B> menu. </P>
+</TD>
+</TR>
+</TABLE>
+
+<CENTER><P><A HREF="user_guide2.html">Next page</A> </P></CENTER>
+
+</BODY>
+</HTML>
