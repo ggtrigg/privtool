@@ -40,6 +40,22 @@ Known Bugs:
 
 	Mail file menu doesn't work!
 
+	Don't check trust level or for revoked keys.
+
+	In-Reply-To: handled incorrectly with multiple compose windows.
+
+	Many properties updates from the properties window don't take effect 
+	until you exit the program and restart.
+
+	Nym selection should be per-compose window, not global.
+
+	'Add Key' button only adds the first key in the message.
+
+	The code in x.c breaks on versions of GCC if compiled with 
+	optimization enabled. If you can't 'save attachments' then
+	recompile x.c without optimization.
+
+
 Unimplemented features:
 
 	When you save changes to the mail file, it throws away the
@@ -66,6 +82,48 @@ Unimplemented features:
 	Not very well tested on Solaris 2.x, FreeBSD or SunOS.
 
 	Limited support for attachments (either Sun, uuencode or MIME).
+
+Changes for 0.90:
+
+	Code now compiles on SGI IRIX!
+
+	Mixmaster code now checks reliability before sending the
+	message.
+
+	I'm now shipping a modified version of Premail which doesn't
+	verify signatures on decoded messages, but instead leaves them
+	in place for Privtool to process.
+
+	Fixed failure to strip prepending - marks when clearsigned
+	message has bad signature.
+
+	Changed scrollbar setting when opening a new mailbox or
+	saving changes; we now display the first unread message if
+	there are no new messages.
+
+	Moved 'Print' button to reduce accidental printouts.
+
+	Updating kill filters and pgp key mappings in the properties
+	window now works without restarting the program.
+
+Changes for 0.89:
+
+	Initial Motif implementation from Glenn Trigg.
+
+	Initial support for nymserver using Raph Levien's Premail, 
+	decode only.
+
+	Fixed annoying beeps when displaying messages.
+
+	Further ANSIfication.
+
+	Optionally use /dev/random to improve key generation.
+
+	Joerg Mainzer (mainzer@mainzer.langen.bull.de) added limited
+	MIME support.
+
+	Initial support for GDBM keyring files. Hopefully this will
+	be properly implemented for the next release.
 
 Changes for 0.88:
 

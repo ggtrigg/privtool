@@ -29,6 +29,27 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
 
 #
+# For Berkeley DB database.
+#
+
+#DBLDFLAGS = -ldb
+#DB_FLAGS = -DBDB -I./dbinc
+
+#
+# For GNU database
+#
+
+#DBLDFLAGS = -lgdbm
+#DB_FLAGS = -DGDBM
+
+#
+# For no database.
+#
+
+DBLDFLAGS =
+DB_FLAGS =
+
+#
 # Use the following lines if you don't have PGPTools.
 #
 #PGPLDFLAGS=
@@ -55,7 +76,23 @@ PGPEXEC=/usr/local/bin/pgp
 #
 
 MIXEXEC=$(HOME)/bin/mixmaster
-MIXPATH=$(HOME)/Mix
+MIXPATH=$(HOME)/.mix
+
+#
+# The following control Mixmaster remailing. The MAXMIX value specifies
+# the maximum number of remailers to use, MINMIX the minimum number of
+# remailers, MINMIXREL the minimum remailer reliability and MINMIXPATHREL
+# the minimum reliability of the remailer path. Reliability is expressed 
+# as a percentage multiplied by 100; i.e. 10000 = 100%, 100 = 1%.
+#
+
+MIXFLAGS=-DMINMIX=3 -DMAXMIX=4 -DMINMIXREL=9500 -DMINMIXPATHREL=9000
+
+#
+# Set the following to the path for your Premail executable.
+#
+
+PREMAILEXEC=$(HOME)/bin/premail.privtool
 
 #
 # Set the version number to claim in encrypted/signed messages if using
@@ -86,7 +123,7 @@ OPENWINCPPFLAGS=-I/cdrom/usr/openwin/include
 #	$(PGPLDFLAGS)
 
 LDFLAGS=$(OPENWINLDFLAGS) -L/usr/X11/lib -lxview -lolgx -lX11 -lm \
-	$(PGPLDFLAGS) 
+	$(PGPLDFLAGS) $(DBLDFLAGS)
 
 #
 # If you have PGP Tools, use the first line, otherwise use the
@@ -100,9 +137,12 @@ LDFLAGS=$(OPENWINLDFLAGS) -L/usr/X11/lib -lxview -lolgx -lX11 -lm \
 # signature verification for small messages when you have a large
 # pubring.pgp.
 #
+# Remove -DDEV_RANDOM if you don't have /dev/random on your machine.
+# The code will still work if you don't remove this.
+#
 
 PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX \
-	-DIDEA32 -DSYSV -DUSE_AUDIO
+	-DIDEA32 -DSYSV -DUSE_AUDIO -DDEV_RANDOM 
 #PGPTOOLS=
 
 #
@@ -127,9 +167,10 @@ MAIL_SPOOL_DIR=
 
 #
 # Use -g for debugging, change to -O for production use. Add -DNO_MIXMASTER
-# if you do not have the Mixmaster software. For Linux you will probably
-# want to add -DCOMPACT, to compact the layout somewhat. If you have a 
-# large screen (e.g. 800x600 upwards) then remove it.
+# if you do not have the Mixmaster software and -DNO_PREMAIL if you do not
+# have the Premail software. For Linux you will probably want to add 
+# -DCOMPACT, to compact the layout somewhat. If you have a large screen 
+# (e.g. 800x600 upwards) then remove it.
 #
 # If you're concerned about the icon that Privtool uses, then remove
 # the -DNSA_ICON, and you may also want to add -DXSAFEMAIL. If you
@@ -148,13 +189,14 @@ MAIL_SPOOL_DIR=
 # be correct for your OS, as they are taken from the OS include files.
 #
 
-#DEBUG=-g
-DEBUG=-O2
+DEBUG=-g
+#DEBUG=-O2
 
 CFLAGS= $(DEBUG) -DSTART_OPEN -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
+	-DPREMAILEXEC=\"$(PREMAILEXEC)\" \
 	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT \
-	-DUSE_XBM $(MAIL_SPOOL_DIR)
+	-DUSE_XBM $(MAIL_SPOOL_DIR) $(DB_FLAGS) -DSETGID
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -203,6 +245,9 @@ all:		 privtool
 
 privtool:	$(OFILES)
 		$(CC) $(OFILES) -o privtool $(LDFLAGS)
+
+pgpdat:		pgpdat.o
+		$(CC) pgpdat.o -o pgpdat $(LDFLAGS)
 
 .c.o:	
 		$(CC) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)

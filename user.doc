@@ -24,6 +24,7 @@ Second column:
 Third column:
 	'E' - message is encrypted.
 	'D' - message has been successfully decrypted.
+	'P' - pseudonymous message from a nymserver.
 
 When you double click on a message, it will be displayed in the display
 window. Unlike the mailtool, the subject will be placed in the window
@@ -74,6 +75,20 @@ copy of Mixmaster, and have set up the Makefile appropriately when
 compiling Privtool. Privtool selects the remailers from the type2.list
 file, and only uses the first one hundred if more that one hundred
 are available.
+
+Optionally you may give Privtool reliability information for the
+remailers, in which case it will only use remailers which are at
+least 75% reliable and will preferentially use the more reliable
+remailers (remailers not included on this list are assumed to be
+90% reliable). To do this you will need to save a copy of Raph's mixmaster
+reliability page to MIXPATH/reliability. A simple way to do this is to
+use your Web browser to go to:
+
+	http://kiwi.cs.berkeley.edu/mixmaster-list.html
+
+and save this page. You do not need to strip out the HTML or headers and
+footers. Future versions of Privtool will extract this information
+automatically.
 
 3. Security Levels
 ------------------
@@ -247,7 +262,8 @@ the time required to access them.
 Currently there is a limited support for retaining secret keys on a floppy
 disk as a 'physical token'. This works on SunOS and Linux, with some
 limitations. In particular it requires global read access to /dev/fd0, which
-you may prefer to avoid.
+you may prefer to avoid; this will also allow other users on your machine
+to read the secret key file from the disk.
 
 If you would like to try it, take the following steps:
 
@@ -318,9 +334,14 @@ result an attacker would need to know the internal state of the
 random number routine, the contents of the privseed array, *and*
 the MD5 of the message in order to crack the key. Clearly, if the
 attacker knows the MD5 of the message, they probably know the message
-itself and don't need the key. IDEA has some weak keys, and although
-they are very rare we check for them and create a new key if we find
-one.
+itself and don't need the key. 
+
+If you have a /dev/random random number generator and compile in
+support then the generated key will be XOR-ed with 128 bits read from 
+/dev/random. Otherwise it will be XOR-ed with 128 bits from the stack, which 
+may or may not give another couple of random bits. IDEA has some weak keys, 
+and although they are very rare we check for them and create a new key if 
+we find one. 
 
 Finally, on exit the privseed array is again IDEA-encrypted to prevent
 state information leaking, and XOR-ed with the old contents of the

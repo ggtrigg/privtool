@@ -37,7 +37,6 @@
 #include	"motif_protos.h"
 #include	<Xm/AtomMgr.h>
 #include	<Xm/CSText.h>
-#include	<Xm/CSTextP.h>
 #include	<Xm/CascadeB.h>
 #include	<Xm/CascadeBG.h>
 #include	<Xm/ComboBox.h>
@@ -88,6 +87,7 @@
 #include	"dir.xpm"
 
 extern char		*our_userid;
+extern char		*current_nym(void);
 
 void			update_message_list(void);
 void			set_foldwin_toggles(Boolean);

@@ -3,7 +3,7 @@
  *	$RCSfile$	$Revision$ 
  *	$Date$
  *
- *	(c) Copyright 1993-1996 by Mark Grant, and by other
+ *	(c) Copyright 1993-1997 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -224,9 +224,31 @@ static	move_to_top(LIST *l, MAILRC *m)
 	l->start = m;
 }
 
+static	MAILRC	*msearch_list(LIST *l, char *s)
+
+{
+	MAILRC	*m;
+
+	m = l->start;
+
+	while (m) {
+		if (!strcasecmp (m->name,s))
+			return m;
+		m = m->next;
+	}
+
+	return NULL;
+}
+
+void	clear_pgpkey (void)
+
+{
+	clear_list (&pgpkey);
+}
+
 /* Add an entry to the PGP keys list */
 
-static	add_pgpkey(char *s)
+void	add_pgpkey(char *s)
 
 {
 	char	*n,*v;
@@ -250,13 +272,21 @@ static	add_pgpkey(char *s)
 	while (*v == ' ')
 		v++;
 
-	m = new_mailrc();
+	/* Update if necessary */
 
-	m->name = strdup(n);
-	m->value = strdup(v);
-	m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
+	m = msearch_list (&pgpkey, n);
 
-	add_to_list(&pgpkey,m);
+	if (m) {
+		free_string (m->value);
+		m->value = strdup (v);
+	}
+	else {
+		m = new_mailrc();
+		m->name = strdup(n);
+		m->value = strdup(v);
+		m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
+		add_to_list(&pgpkey,m);
+	}
 }
 
 char    *search_templatename(char *s) 
@@ -281,14 +311,9 @@ static	char	*search_list(LIST *l, char *s)
 {
 	MAILRC	*m;
 
-	m = l->start;
-
-	while (m) {
-		if (!strcasecmp (m->name,s))
-			return m->value;
-		m = m->next;
-	}
-
+	m = msearch_list (l, s);
+	if (m)
+		return m->value;
 	return NULL;
 }
 
@@ -344,18 +369,27 @@ int	maybe_cfeed(char *s)
 	return (search_list(&cfeed,s) != NULL);
 }
 
-static	add_entry(LIST *l, char *s)
+static	void	add_entry(LIST *l, char *s)
 
 {
 	MAILRC	*m;
 
-	m = new_mailrc();
+	m = msearch_list (l, s);
+	if (m)  {
+		m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
+	}
+	else {
+		m = new_mailrc();
 
-	m->name = strdup(s);
-	m->value = "";
-	m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
+		/* Have to strdup() both as clear_list() will free
+		   them! */
 
-	add_to_list(l,m);
+		m->name = strdup(s);
+		m->value = strdup("");
+		m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
+
+		add_to_list(l,m);
+	}
 }
 
 static	add_cfeed(char *s)
@@ -364,7 +398,13 @@ static	add_cfeed(char *s)
 	add_entry(&cfeed,s);
 }
 
-static	add_killu(char *s)
+void	clear_killu(void)
+
+{
+	clear_list (&killu_l);
+}
+
+void	add_killu(char *s)
 
 {
 	add_entry(&killu_l,s);
@@ -459,7 +499,13 @@ void	set_current_nym(char *s)
 	our_nym = s;
 }
 
-static	add_kills(char *s)
+void	clear_kills(void)
+
+{
+	clear_list (&kills_l);
+}
+
+void	add_kills(char *s)
 
 {
 	add_entry(&kills_l,s);

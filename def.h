@@ -1,9 +1,8 @@
 
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$
  *
- *	(c) Copyright 1993-1996 by Mark Grant. All right reserved.
+ *	(c) Copyright 1993-1997 by Mark Grant. All right reserved.
  *	The author assumes no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.

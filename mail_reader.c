@@ -1,16 +1,15 @@
 
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$ 
  *
- *	(c) Copyright 1993-1996 by Mark Grant, and by other
+ *	(c) Copyright 1993-1997 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
  *
- *	NOTE: It is recommended that you compile this file with SAFE
+ *	NOTE: I recommend you compile this file with SAFE
  *	defined until you are sure that it is not going to trash your
  *	mail files !
  *
@@ -87,7 +86,7 @@ extern	char	default_mail_file [];
 extern	FILE	*mail_fp;
 extern	char	*our_userid;
 
-static	void	set_real ()
+static	void	set_real (void)
 
 {
 #ifdef SETGID
@@ -95,7 +94,7 @@ static	void	set_real ()
 #endif
 }
 
-static	void	set_mail ()
+static	void	set_mail (void)
 
 {
 #ifdef	SETGID
@@ -103,7 +102,7 @@ static	void	set_mail ()
 #endif
 }
 
-#ifndef linux
+#if !defined(linux) && !defined(__sgi)
 #ifdef SYSV
 #ifdef NON_ANSI
 void	usleep(n)
@@ -125,7 +124,7 @@ void	usleep (int n)
 
 /* Unfortunately, we have to cope with people who use very, very long lines */
 
-static	update_line (i)
+static	update_line (int i)
 
 {
 	while  (i >= (line_length - 16)) {
@@ -136,10 +135,7 @@ static	update_line (i)
 
 /* Read a line from the file */
 
-static	read_line(fp,header)
-
-FILE	*fp;
-int	header;
+static	read_line(FILE *fp, int header)
 
 {
 	int	c,i=0;
@@ -189,10 +185,7 @@ read_loop:
 
 /* Count the number of lines in a buffer */
 
-static	int	count_lines(b,n)
-
-byte	*b;
-int	n;
+static	int	count_lines(byte *b, int n)
 
 {
 	int	l;
@@ -223,9 +216,7 @@ MESSAGE_LIST	deleted;
 
 /* Return message structure, given message number */
 
-MESSAGE	*message_from_number(number)
-
-int	number;
+MESSAGE	*message_from_number(int number)
 
 {
 	MESSAGE	*m = messages.start;
@@ -248,9 +239,7 @@ int	number;
 
 /* Add a message to the deleted list */
 
-add_to_deleted(om) 
-
-MESSAGE	*om;
+add_to_deleted(MESSAGE *om) 
 
 {
 	om->dnext = deleted.start;
@@ -270,10 +259,7 @@ MESSAGE	*om;
 
 /* Add a string to the header of the specified message */
 
-static	void	add_header(m,s)
-
-MESSAGE	*m;
-char	*s;
+static	void	add_header(MESSAGE *m, char *s)
 
 {
 	if (!m->header)
@@ -284,10 +270,7 @@ char	*s;
 
 /* Add a string to the body of the specified message */
 
-static	void	add_body(m,s)
-
-MESSAGE	*m;
-char	*s;
+static	void	add_body(MESSAGE *m, char *s)
 
 {
 	if (!m->body)
@@ -304,15 +287,14 @@ static	char	ret_string[] = "\n";
 
 static	char	pgp_signed[] = "-----BEGIN PGP SIGNED MESSAGE";
 static	char	pgp_encrypted[] = "-----BEGIN PGP MESSAGE";
+static	char	nym_mess[] = "**";
 
 /*
  * Take the string and work out the email address. Usually there
- * Are two forms, either foo@bar.com (Foobar) or Foobar <foo@bar.com>
+ * are two forms, either foo@bar.com (Foobar) or Foobar <foo@bar.com>
  */
 
-static	char	*get_email (s)
-
-char	*s;
+static	char	*get_email (char *s)
 
 {
 	char	address[256];
@@ -352,10 +334,7 @@ char	*s;
 
 /* Do so for the Reply-To line */
 
-static	get_reply_to_address (m, line)
-
-MESSAGE	*m;
-char	*line;
+static	get_reply_to_address (MESSAGE *m, char *line)
 
 {
 	m->reply_to = get_email (line);
@@ -363,9 +342,7 @@ char	*line;
 
 /* And for the sender */
 
-static	get_email_address(m)
-
-MESSAGE	*m;
+static	get_email_address(MESSAGE *m)
 
 {
 	char	*address;
@@ -385,9 +362,7 @@ MESSAGE	*m;
 	}
 }
 
-static	char	*header_strdup(s)
-
-char	*s;
+static	char	*header_strdup(char *s)
 
 {
 	char	*temp;
@@ -413,10 +388,7 @@ char	*s;
 
 static	int	lines;
 
-static	copy_and_join(s,d)
-
-char	*s;
-char	*d;
+static	copy_and_join(char *s, char *d)
 
 {
 
@@ -434,10 +406,7 @@ char	*d;
 
 /* Process a line from a message header */
 
-static	process_header_line(line,m)
-
-char	*line;
-MESSAGE	*m;
+static	process_header_line(char *line, MESSAGE *m)
 
 {
 	static	char	*temp = NULL;
@@ -563,14 +532,35 @@ MESSAGE	*m;
 	else if (!strncasecmp(line,"Encrypted: PGP",14)) {
 		m->flags |= MESS_ENCRYPTED;
 	}
+	
+	/* Check for mime encoded mail */
+	
+	else if (!strncasecmp(line, "Mime-Version:", strlen("Mime-Version:")))
+	{
+		float version;
+		sscanf(line+strlen("Mime-Version:"),"%f",&version);
+		if (version == 1.0)
+			m->is_mime = 1;
+	}
+	
+	/* check for content-transfer-encoding */
+	
+	else if (!strncasecmp(line, "Content-Transfer-Encoding:",
+				strlen("Content-Transfer-Encoding:")))
+	{
+
+		if (!strncasecmp(line + strlen("Content-Transfer-Encoding: "),
+				"quoted-printable",
+				strlen("quoted-printable")))
+			m->content_transfer_encoding =
+			CONTENT_ENCODING_PRINTABLE;
+	}
 }
 
 /* I think all of these should use header_date rather than date, but I
    don't have the machines available to test that. */
 
-static	time_t	get_time (m)
-
-MESSAGE	*m;
+static	time_t	get_time (MESSAGE *m)
 
 {
 #ifdef __FreeBSD__
@@ -630,9 +620,7 @@ MESSAGE	*m;
 #endif
 }
 
-MESSAGE	*message_from_message(m)
-
-MESSAGE	*m;
+MESSAGE	*message_from_message(MESSAGE *m, BUFFER *b)
 
 {
 	MESSAGE	*newm;
@@ -648,7 +636,9 @@ MESSAGE	*m;
 	i=0;
 	no_from = FALSE;
 
-	if (m->decrypted)
+	if (b && b->message)
+		m_in = (char *) b->message;
+	else if (m->decrypted)
 		m_in = (char *) m->decrypted->message;
 	else
 		m_in = (char *)message_contents(m)->message;
@@ -756,9 +746,13 @@ MESSAGE	*m;
 					strlen(pgp_signed))) {
 					newm->flags |= MESS_SIGNED;
 				}
-				if (!strncmp(line,pgp_encrypted,
+				else if (!strncmp(line,pgp_encrypted,
 					strlen(pgp_encrypted))) {
 					newm->flags |= MESS_ENCRYPTED;
+				}
+				else if (!strncmp (line, nym_mess,
+					strlen (nym_mess) + 1)) {
+					newm->flags |= MESS_NYM;
 				}
 				for (i = 0; line[i]; i++)
 					if (line[i] != ' ' && line[i] != '\n')
@@ -801,11 +795,14 @@ MESSAGE	*m;
 static	time_t	last_mail_read;
 static	long	last_pos;
 static	char	last_file [MAXPATHLEN];
+#if 0
 
-read_mail_from_file(fp,kill_messages)
+/* This code doesn't seem to work... */
 
-FILE	*fp;
-int	kill_messages;
+static	char	pine_lock [MAXPATHLEN];
+#endif
+
+read_mail_from_file(FILE *fp, int kill_messages)
 
 {
 	int	i;
@@ -997,9 +994,13 @@ int	kill_messages;
 						strlen(pgp_signed))) {
 						m->flags |= MESS_SIGNED;
 					}
-					if (!strncmp(line,pgp_encrypted,
+					else if (!strncmp(line,pgp_encrypted,
 						strlen(pgp_encrypted))) {
 						m->flags |= MESS_ENCRYPTED;
+					}
+					else if (!strncmp (line, nym_mess,
+						strlen (nym_mess) + 1)) {
+						m->flags |= MESS_NYM;
 					}
 					for (i = 0; line[i]; i++)
 						if (line[i] != ' ' && line[i] != '\n')
@@ -1054,9 +1055,29 @@ int	kill_messages;
 	free_buffer (mb);
 }
 
+void	remove_pine_lock ()
+
+{
+#if 0
+	int	pid;
+	FILE	*fp;
+
+	if (read_only)
+		return;
+	fp = fopen (pine_lock, "rt");
+	if (!fp)
+		return;
+	fscanf (fp, "%d\n", &pid);
+	fclose (fp);
+
+	if (pid == getpid())
+		unlink (pine_lock);
+#endif
+}
+
 /* Check to see if there's any new mail in the mail file */
 
-is_new_mail ()
+int is_new_mail (void)
 
 {
 	struct	stat	s_buf;
@@ -1074,7 +1095,7 @@ is_new_mail ()
    mailtool program seems to ignore locks.
 */
 
-close_mail_file ()
+int close_mail_file (void)
 
 {
 	if (mail_fp) {
@@ -1088,21 +1109,60 @@ close_mail_file ()
 		fclose (mail_fp);
 		mail_fp = NULL;
 
+		remove_pine_lock ();
+
 		/*bzero (last_file, MAXPATHLEN);*/
 	}
 }
 
-int	read_mail_file(s)
-
-char	*s;
+int	read_mail_file(char *s)
 
 {
+	char	*p, *q;
+	FILE	*fp;
+
 	close_mail_file ();
 
+	/* We now lock the mail file for compatibility with Pine; this
+	   will also work for multiple copies of Privtool. */
+
 	strcpy (last_file, s);
+#if 0
+	strcpy (pine_lock, "/tmp/.");
+	p = s;
+	q = pine_lock + 6;
+	do {
+		if (*p == '/')
+			*q++ = '\\';
+		else
+			*q++ = *p;
+		
+	} while (*p++);
+
+	/* Now check the lock file for Pine */
+
+	p = "r+t";
+	if (!access (pine_lock, F_OK) || 
+		((fp = fopen (pine_lock, "wt")) == NULL)) {
+		p = "rt";
+		read_only = TRUE;
+	}
+	else {
+		read_only = FALSE;
+		fprintf (fp, "%d\n", getpid ());
+		fclose (fp);
+	}
+#else
+	p = "r+t";
+	read_only = FALSE;
+#endif
 
 	errno = 0;
-	mail_fp = fopen(s, "r+t");
+	mail_fp = fopen(s, p);
+
+	/* This is redundant if the lock file was there, but that's
+	   not a big deal. */
+
 	if (!mail_fp) {
 		mail_fp = fopen (s, "rt");
 		if (!mail_fp) {
@@ -1110,8 +1170,6 @@ char	*s;
 		}
 		read_only = TRUE;
 	}
-	else
-		read_only = FALSE;
 
 #ifdef USE_LOCKING
 #ifdef USE_LOCKF
@@ -1133,7 +1191,7 @@ char	*s;
 	return 0;
 }
 
-read_new_mail()
+void	read_new_mail(void)
 
 {
 	if (!mail_fp)
@@ -1144,11 +1202,7 @@ read_new_mail()
 	read_mail_from_file(mail_fp, reading_file (default_mail_file));
 }
 
-int	write_buffer_to_mail_file(b,to,cc,sub,s)
-
-BUFFER	*b;
-char	*to,*sub;
-char	*s,*cc;
+int	write_buffer_to_mail_file(BUFFER *b, char *to, char *cc, char *sub, char *s)
 
 {
 	FILE	*fp;
@@ -1186,11 +1240,7 @@ char	*s,*cc;
 	return 1;
 }
 
-int	append_message(m,fp,save_all)
-
-MESSAGE	*m;
-FILE	*fp;
-int	save_all;
+int	append_message(MESSAGE *m, FILE *fp, int save_all)
 
 {
 	char	*m_in,*l,*d;
@@ -1276,11 +1326,7 @@ int	save_all;
 /* Here we append a message to a mail file, and deal with suitable
    errors */
 
-int	append_message_to_file(m,s,save_all)
-
-MESSAGE	*m;
-char	*s;
-int	save_all;
+int	append_message_to_file(MESSAGE *m, char *s, int save_all)
 
 {
 	FILE	*fp;
@@ -1346,9 +1392,7 @@ int	save_all;
 
 /* Replace the specified message with the new one */
 
-void	replace_message_with_message(m,newm)
-
-MESSAGE	*m,*newm;
+void	replace_message_with_message(MESSAGE *m, MESSAGE *newm)
 
 {
 	if (m->prev) 
@@ -1371,9 +1415,7 @@ MESSAGE	*m,*newm;
 
 /* Is the buffer passed in a valid mail message ? */
 
-int	is_mail_message(b)
-
-BUFFER	*b;
+int	is_mail_message(BUFFER *b)
 
 {
 	char	*i,*l;
@@ -1397,15 +1439,13 @@ BUFFER	*b;
 	return FALSE;
 }
 
-int	reading_file (s)
-
-char	*s;
+int	reading_file (char *s)
 
 {
 	return !strcmp(s, last_file);
 }
 
-int	save_changes ()
+int	save_changes (void)
 
 {
 	char	tmp_file [MAXPATHLEN];
@@ -1529,13 +1569,13 @@ int	save_changes ()
 	return 0;
 }
 
-char	*current_mail_file ()
+char	*current_mail_file (void)
 
 {
 	return	last_file;
 }
 
-int	is_mail_file_open ()
+int	is_mail_file_open (void)
 
 {
 	if (mail_fp)

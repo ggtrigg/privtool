@@ -1,14 +1,12 @@
 
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$ 
  *
- *	Gui.c : This file well contain most of the user-interface code, 
- *	allowing the compilatio of privtool on different operating systems 
- *	and with UI toolkits by 'simply' replacing the lowest level of 
- *	functionality.
+ *	Gui.c : This file will contain most of the user-interface code, 
+ *	allowing compilation on different operating systems and other 
+ *	UI toolkits by 'simply' replacing the lowest level of functionality.
  *
- *	(c) Copyright 1993-1996 by Mark Grant, and by other
+ *	(c) Copyright 1993-1997 by Mark Grant, and by other
  *	authors as appropriate. All rights reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -45,6 +43,9 @@
 #ifdef SYSV
 #include <unistd.h>
 #endif
+#ifdef linux
+#include <paths.h>
+#endif
 
 #include "def.h"
 #include "buffers.h"
@@ -55,7 +56,31 @@
 
 /* Maximum number of remailers to use */
 
-#define MAXMIX	6
+#ifndef MAXMIX
+#define MAXMIX	4
+#endif
+
+/* Minimum number of remailers to use */
+
+#ifndef MINMIX
+#define MINMIX  3
+#endif
+
+/* Minimum reliabilty * 100 */
+
+#ifndef MINMIXREL
+#define MINMIXREL	7500
+#endif
+
+/* Minimum path reliability * 100 */
+
+#ifndef MINMIXPATHREL
+#define MINMIXPATHREL	5000
+#endif
+
+/* Maximum number of tries to find a reliable path */
+
+#define MAX_MIX_TRIES	4
 
 /* Local variables */
 
@@ -65,10 +90,14 @@ static	time_t	last_displayed = 0;
 static	char	*mail_args[] =
 
 {
-#if defined(__FreeBSD__) || defined(linux)
+#if defined(__FreeBSD__)
 	"/usr/sbin/sendmail",
 #else
+#ifdef linux
+	_PATH_SENDMAIL,
+#else
 	"/usr/lib/sendmail",
+#endif
 #endif
 	"-t",
 	NULL
@@ -109,6 +138,26 @@ static	char	*remail_args[32] =
 	"-f",
 	"-to"
 };
+
+static	char	mix_path[] = MIXPATH;
+#endif
+
+#ifndef NO_PREMAIL
+static	char	premail_exec[] = PREMAILEXEC;
+
+static	char	*premail_send_args[3] =
+{
+	premail_exec,
+	"-t",
+	NULL,
+};
+
+static	char	*premail_decode_args[3] =
+{
+	premail_exec,
+	"-decode",
+	NULL,
+};
 #endif
 
 /* Titles for passphrase windows */
@@ -119,11 +168,12 @@ static	char	decrypt_passphrase[]="Passphrase entry (Decryption)";
 /* Global variables */
 
 char	*passphrase;
-int	show_deleted = 0;
+int     show_deleted = 0;
 void	(*callback_proc)();
 COMPOSE_WINDOW	*callback_win;
 
 extern	char	*our_userid;
+extern char	*current_nym(void);
 
 #ifdef PGPTOOLS
 static	byte	md5_pass[16];
@@ -138,6 +188,8 @@ int	layout_compact = TRUE;
 int	layout_compact = FALSE;
 #endif
 
+extern	char	*current_nym (void);
+
 /* Program name */
 
 #ifdef XSAFEMAIL
@@ -146,13 +198,11 @@ char	prog_name[] = "XSafeMail";
 char	prog_name[] = "Privtool";
 #endif
 
-char	prog_ver [] = "V0.88 BETA";
+char	prog_ver [] = "V0.90 BETA";
 
 /* Set the description of the message for the message list */
 
-void	set_message_description(m)
-
-MESSAGE	*m;
+void	set_message_description(MESSAGE *m)
 
 {
 	char	mess_desc[256];
@@ -195,6 +245,9 @@ MESSAGE	*m;
 			mess_type[2] = 'D';
 		else
 			mess_type[2] = 'E';
+	}
+	else if (m->flags & MESS_NYM) {
+		mess_type[2] = 'P';
 	}
 
 	/* Create message size string */
@@ -493,7 +546,7 @@ MESSAGE	*m;
 
 			/* Replace the old message with the decrypted one */
 
-			newm = message_from_message(m);
+			newm = message_from_message(m, NULL);
 			replace_message_with_message(m,newm);
 			last_message_read = newm;
 
@@ -537,6 +590,111 @@ MESSAGE	*m;
 			show_attach (w);
 
 		clear_busy ();
+	}
+
+#ifndef NO_PREMAIL
+	/* Deal with mail to a nym */
+
+	else if (m->flags & MESS_NYM) {
+		BUFFER	*b, *mc, *fm;
+		MESSAGE	*newm;
+
+		/* Use premail to decode a nym message */
+
+		show_busy ();
+		set_display_footer (w, "Decoding nym message.");
+
+		mc = message_contents (m);
+		if (mc) {
+			b = new_buffer ();
+			fm = new_buffer ();
+
+			add_to_buffer (fm, m->header->message,
+				m->header->length);
+			add_to_buffer (fm, "\n", 1);
+			add_to_buffer (fm, mc->message,
+				mc->length);
+
+			if (!run_program (premail_decode_args[0],
+				fm->message, fm->length,
+				premail_decode_args, NULL, b) && 
+				is_mail_message (b)) {
+
+				/* Replace the old message with the decrypted 
+				   one */
+
+				newm = message_from_message(m, b);
+				replace_message_with_message(m, newm);
+				last_message_read = newm;
+
+				newm->status = MSTAT_READ;
+				if (m->status == MSTAT_NONE) {
+					messages.new--;
+					update_message_list();
+				}
+				if (m->status == MSTAT_UNREAD) {
+					messages.unread--;
+					update_message_list();
+				}
+
+				/* Update message list */
+
+				newm -> flags |= MESS_SELECTED;
+				set_message_description(newm);
+				display_message_description(newm);
+
+				/* Then go back round the loop */
+
+				free_message(m);
+				free_buffer (b);
+				free_buffer (fm);
+	
+				clear_display_footer (w);
+				clear_busy ();
+
+				/* Just for safety; don't run premail
+				   a second time as we could end up in
+				   a loop. */
+
+				m = newm;
+				if (!(newm->flags & MESS_NYM))
+					display_message(newm);
+				else
+					goto display_plaintext;
+	
+				return;
+			}
+			else {
+				free_buffer (fm);
+				free_buffer (b);
+			}
+		}
+		clear_display_footer (w);
+		clear_busy ();
+
+		goto	display_plaintext;
+	}
+#endif
+
+	else if (m->is_mime)
+	{
+		switch (m->content_transfer_encoding)
+		{
+			case CONTENT_ENCODING_PRINTABLE:
+			{
+				BUFFER *encoded, *decoded;
+				decoded = new_buffer();
+				encoded = message_contents (m);
+				
+				mime_decode_printable(encoded, decoded);
+				display_message_body(decoded, w);
+		
+				free_buffer(decoded);
+			}
+				break;
+			default:
+				goto display_plaintext; /* arrgh my first goto */
+		}
 	}
 	else {
 
@@ -897,10 +1055,7 @@ void	decrypt_with_passphrase()
 	sync_list();
 }
 
-void	set_flags_from_decryption(m,i)
-
-MESSAGE	*m;
-int	i;
+void	set_flags_from_decryption(MESSAGE *m, int i)
 
 {
 	m->flags |= MESS_VERIFIED;
@@ -943,7 +1098,7 @@ int	i;
 static	char	*replying_message_id;
 static	char	*replying_message_sender;
 
-COMPOSE_WINDOW	*setup_send_window()
+COMPOSE_WINDOW	*setup_send_window(void)
 
 {
 	if (replying_message_id) {
@@ -961,9 +1116,7 @@ COMPOSE_WINDOW	*setup_send_window()
 
 /* Set up reply variables from the message we're replying to */
 
-void	set_reply (m)
-
-MESSAGE	*m;
+void	set_reply (MESSAGE *m)
 
 {
 	if (replying_message_id) {
@@ -984,9 +1137,7 @@ MESSAGE	*m;
 	}
 }
 
-static	int	remove_duplicates (list)
-
-char	**list;
+static	int	remove_duplicates (char **list)
 
 {
 	int	i, j;
@@ -1028,10 +1179,7 @@ char	**list;
 	return j;
 }
 
-static	add_list_to_header (b, l)
-
-BUFFER	*b;
-char	**l;
+static	add_list_to_header (BUFFER *b, char **l)
 
 {
 	int	i;
@@ -1053,9 +1201,7 @@ char	**l;
 
 /* Support folder specification */
 
-char	*expand_filename (s)
-
-char	*s;
+char	*expand_filename (char *s)
 
 {
 	char	*folder;
@@ -1130,21 +1276,27 @@ char	*s;
 }
 
 #ifndef NO_MIXMASTER
-static	setup_remail_args(addrs, subject, temp)
-
-char	*addrs, *subject;
-char	*temp;
+static	setup_remail_args(char *addrs, char *subject, char *temp)
 
 {
-	int	i, j;
+	int	i, j, a, a2;
 	int	l;
-	int	c;
+	int	c, cnt;
+	int	mix;
 	FILE	*mix_fp;
-	char	mix_path[1024];
+	int	tot_reliable;
+	int	path_reliable = 0;
+	char	file_path[1024];
+	char	line[1024];
 	static	char	n[MAXMIX][5];
 	char	used[100];
+	char	name[100][64];
+	int	reliable[100];
+	char	found_mix = FALSE;
+	char	reading_mix = FALSE;
+	char	*p, *q;
 
-	i = 5;
+	a = 5;
 
 #ifndef MIXMASTER_STDIN
 	remail_args[2] = temp;
@@ -1152,29 +1304,100 @@ char	*temp;
 
 	/* Pass subject if neccesary */
 
-	remail_args[i++] = addrs;
+	remail_args[a++] = addrs;
 
-	remail_args[i++] = "-s";
+	remail_args[a++] = "-s";
 	if (subject && *subject) 
-		remail_args[i++] = subject;
+		remail_args[a++] = subject;
 	else
-		remail_args[i++] = "None";
+		remail_args[a++] = "None";
 
 	/* Open type2.list */
 
-	sprintf(mix_path, "%s/type2.list", MIXPATH);
+	sprintf(file_path, "%s/type2.list", mix_path);
 
-	mix_fp = fopen(mix_path, "rt");
+	mix_fp = fopen(file_path, "rt");
 	if (!mix_fp)
 		return FALSE;
 
-	/* Count number of lines in type2.list */
+	/* Count number of lines in type2.list and copy names over */
 
 	l = 0;
-	while (!feof(mix_fp)) {
-		c = fgetc(mix_fp);
-		if (c == '\n')
-			l++;
+	while (!feof(mix_fp) && l < 100) {
+		p = name[l];
+
+		do {
+			*p++ = c = fgetc(mix_fp);
+		} while (c != EOF && c != '\n' && c != ' ');
+		p[-1] = 0;
+
+		while (c != '\n' && c!= EOF)
+			c = fgetc (mix_fp);
+
+		reliable[l++] = 9500;
+	}
+
+	fclose (mix_fp);
+
+	sprintf(file_path, "%s/reliability", mix_path);
+	mix_fp = fopen(file_path, "rt");
+	if (!mix_fp)
+		return FALSE;
+
+	/* Process the reliability data. First look for mixmaster
+	   followed by long line of dashes. */
+
+	while (!feof (mix_fp) && l < 100) {
+		p = line;
+		do {
+			*p++ = c = fgetc (mix_fp);
+		} while (c != EOF && c != '\n');
+		p [-1] = 0;
+
+		if (!found_mix) {
+			if (!strncmp (line, "mixmaster", 9)) {
+				found_mix = TRUE;
+			}
+		}
+		else if (!reading_mix) {
+			p = line;
+			while (*p == '-') p++;
+			if (*p)
+				found_mix = FALSE;
+			else
+				reading_mix = TRUE;
+		}
+		else {
+			int	r = 0;
+
+			p = line;
+			if (*p == '<' || !*p)
+				break;
+
+			for (i = 0; i < l; i++) {
+
+				if (!strncasecmp (line, name[i], 
+					strlen (name[i]))) {
+
+					/* Column starts around character
+					   37 */
+
+					p = line + 37;
+					while (isspace (*p)) p++;
+
+					while (*p && *p != '%') {
+						if (*p != '.') {
+							r *= 10;
+							r += *p - '0';
+						}
+						p++;
+					}
+
+					reliable[i] = r;
+					break;
+				}
+			}
+		}
 	}
 
 	fclose (mix_fp);
@@ -1182,40 +1405,76 @@ char	*temp;
 	/* Ok, we now know how many remailers are available. We only
 	   select from first 100 */
 
-	if (!l)
-		return FALSE;
+	a2 = a;
 
-	if (l > 100)
-		l = 100;
+	for (cnt = 0; cnt < MAX_MIX_TRIES && path_reliable < MINMIXPATHREL; 
+		cnt++) {
 
-	for (c = 0; c < l; c++)
-	 	used[c] = FALSE;
+		path_reliable = 10000;
+		tot_reliable = 0;
+		i = 0;
+		a = a2;
 
-	c = l;
-	if (c > MAXMIX)
-		c = MAXMIX;
+		for (c = 0; c < l; c++) {
+			if (reliable[c] > MINMIXREL) {
+		 		used[c] = FALSE;
+				tot_reliable += reliable [c];
+				i++;
+			}
+			else
+				used[c] = TRUE;
+		}
+	
+		/* If too few remailers with reliability above 75%, abort */
 
-	remail_args[i++] = "-l";
+		if (i <= MINMIX)
+			return FALSE;
 
-	/* This isn't absolutely secure, but it's not *that* important */
+		c = (i - 1);
+		if (c > MAXMIX)
+			c = MAXMIX;
 
-	do {
+		remail_args[a++] = "-l";
+
+		/* This isn't absolutely secure, but it's not *that* 
+		   important */
+
 		do {
+
+			/* We basically scale the probability of choosing a 
+			   remailer by the reliability. */
+
 #ifdef PGPTOOLS
-			j = our_randombyte() * 256 + our_randombyte();
+			j = our_randombyte() * 65536 + 
+				our_randombyte() * 256 + our_randombyte();
 #else
-			j = random();
+			j = (random() & 0xFF) * 65536 + random();
 #endif
-			j %= l;
-		} while (used[j]);
+			j %= tot_reliable;
 
-		used[j] = TRUE;
-		sprintf(n[c], "%d", j + 1);
+			for (i = 0; i < l && j > 0; i++) {
+				if (!used[i]) {
+					j -= reliable[i];
+				}
+			}
 
-		remail_args[i++] = n[c];
-	} while (--c);
+			/* Update the path reliability */
 
-	return TRUE;
+			path_reliable *= reliable [i-1];
+			path_reliable /= 10000;
+
+			tot_reliable -= reliable[i-1];
+			used[i-1] = TRUE;
+			sprintf(n[c], "%d", i);
+
+			remail_args[a++] = n[c];
+		} while (--c);
+	}
+
+	if (path_reliable >= MINMIXPATHREL) 
+		return TRUE;
+
+	return FALSE;
 }
 #endif
 
@@ -1611,7 +1870,7 @@ try_again:
 			char	temp[1024];
 			FILE	*mix_fp;
 
-			sprintf(temp, "%s/temp.mix", MIXPATH);
+			sprintf(temp, "%s/temp.mix", mix_path);
 			mix_fp = fopen(temp, "wt");
 
 			if (!mix_fp)
@@ -1669,10 +1928,15 @@ remail_error_exit:
 
 			i = 0;
 			while (cc_addrs && cc_addrs[i]) {
-				if (setup_remail_args(cc_addrs[i], subject))
+				if (setup_remail_args(cc_addrs[i], subject,
+					temp))
 					run_program(remail_args[0],
 						mail_message->message,
+#ifndef MIXMASTER_STDIN
 						mail_message->length,
+#else
+						0,
+#endif
 						remail_args,
 						NULL, NULL);
 				else 
@@ -1682,10 +1946,15 @@ remail_error_exit:
 
 			i = 0;
 			while (bcc_addrs && bcc_addrs[i]) {
-				if (setup_remail_args(bcc_addrs[i], subject))
+				if (setup_remail_args(bcc_addrs[i], subject,
+					temp))
 					run_program(remail_args[0],
 					mail_message->message,
+#ifndef MIXMASTER_STDIN
 					mail_message->length,
+#else
+					0,
+#endif
 					remail_args,
 					NULL, NULL);
 				else
@@ -2262,8 +2531,27 @@ undelete(MESSAGE *m)
 	    m = m->next;
     }
 
-    update_message_list ();
-    sync_list();
+	while (p && (p->flags & MESS_DELETED)) {
+		p = p->prev;
+	}
+
+	if (p)
+		l = p->list_pos + 1;
+	else
+		l = 1;
+
+	while (m) {
+		m->list_pos = l++;
+		set_message_description (m);
+		display_message_description (m);
+
+		m = m->next;
+		while (m && (m->flags & MESS_DELETED))
+			m = m->next;
+	}
+
+	update_message_list ();
+	sync_list();
 } /* undelete */
 
 static	char	dec_mess [] = "Decrypted message reads :\n\n";
@@ -2523,3 +2811,65 @@ BUFFER	*b;
 	return FALSE;
 }
 
+
+int mime_decode_printable(BUFFER *encoded, BUFFER *decoded)
+{
+	char *from;
+	int len, i;
+	
+	/* be paranoid */
+	if (!encoded || !decoded)
+		return 0;
+
+	from = encoded->message;
+	len = encoded->length;
+	
+	for (i = 0; i < len; i++)
+	{
+		if (from[i] != '=')
+		{
+			/* copy all chars that are not '=' */
+			add_to_buffer(decoded, from+i, 1);
+			continue;
+		}
+		
+		/* decode rfc1341 says "=0A" is linefeed; "=20" is space blabla */
+		if (++i < len)
+		{
+			char hex[2];
+			unsigned char val;
+			
+			if (from[i] == '\n')
+			{
+				/* ignore softline break */
+				continue;
+			}
+			else
+				/* get the first hex char */
+				hex[0] = toupper(from[i]);
+
+			/* get the second hex char */				
+			if (++i < len)
+				hex[1] = toupper(from[i]);
+			else
+				continue;
+
+			/* wow turn hex to decimal */
+			if (isdigit(hex[0]))
+				val = 16 * (hex[0] - '0');
+			else
+				val = 16 * (hex[0] - 'A' + 10);
+		
+			if (isdigit(hex[1]))
+				val += (hex[1] - '0');
+			else
+				val += (hex[1] - 'A' + 10);
+			
+
+			/* and add the poor mans decoded value to the buffer */
+			add_to_buffer(decoded, &val, 1);
+		}
+	}
+
+	return 1;
+}

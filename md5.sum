@@ -11,37 +11,79 @@ the md5sum program supplied with PGP.
 
 8ca43cbc842c2336e835926c2166c28b  COPYING
 75c61bd34ba2ef181312f5d44a4121dd  Credits
-b2214cedb766cb26588eea4b7099587c  Makefile
+d36be9c728fd7abd07a08e505e1eeed1  INSTALL_MOTIF
+fe4cd6e3d787272f847d5ab1295209c6  Makefile
 fd1590ef3fd327022ca3b847c29d6f8f  Makefile.FreeBSD
-067676c94ff707cfb3979e3ad8fdeffb  Makefile.linux
+1031f6504759f9fce0dd36dcecd9ebcc  Makefile.linux
+eaeb82e8615af1136e48f9bdfcf09178  Makefile.motif
+bcad4519ed61bf150af77a74480c3e4b  Makefile.motif.orig
 93e7341f75a4d96760d0d152ad3389b3  Privrc.test
-b40270e464f1157bc7661c353f4c1fea  README
-6b5c37fecbd44b13ec223f92a3f66f34  README.1ST
+9639dcc612baea3d8f59f3140bcdba9f  Privtool.ad
+8305c6a1ce2dc81a9bf9bf336bce7822  README
+aa01250d174473caee2c696e16725026  README.1ST
 d32ca305c33d9d08308084cce8f1c904  README.FREEBSD
+67cf3341576e6f0f5cf818ba6904d83c  TODO_MOTIF
 5c16867d2a2680231ca31a9439673614  buffers.c
 023e161badd91683984dcc5976c732f3  buffers.h
-1b99b0253c45ab412a6df9cf1bebeb4d  def.h
+907aa72e88b89e8bab52517f8be2a0fe  debug.h
+49bbd277af5fb3c002e58ddedaf7f5ad  def.h
 76fa42415e7eae613b0b1b4438256653  floppy.c
 0f011f84eec81f58f44fdd0aee794a18  floppy.h
-a3f756f49289f008cd5b954015f1066a  gui.c
-71924b17dccf3d0d81fc2a75b0191c4e  gui.h
-a3fc173c5c30a492a03c82a4e08b16d1  keys.asc
-6b9a20e6d7fc25e45b80f9714a0e3691  mail_reader.c
-f422b789df8cda50c799b88bad9b701e  mailrc.h
-baec5afec68b7ca58368fe6dbeb3debe  main.c
-fc81685a379f37f1ab4ab975c9157311  message.h
-6f71315fdd6186888271095e15fc0630  messages.c
+14f74e0b49452da99cbe895df70d5b81  gui.c
+01d4345188f974e8b4d7704605057b6e  gui.h
+c25abd44edff26a0f167ab80793b5bc1  keys.asc
+e128310336e16921a75a9ebbb7d67661  m_util.c
+c14a859e90c97f233eb024ffec1b43aa  m_util.h
+fcde6995251b818bf6e0943925d499b1  mail_reader.c
+7bda440d09e4c91b804e7bcc2e09ee01  mailrc.h
+b2e908374d512fdc46af7fa49e1f8036  main.c
+d281b90e04d2ac4ca83f189bec0f758b  message.h
+93add3bc2758a5a3c62f98e6f842aa55  messages.c
+4dea7de26c96a7c45394fc9017f99a6a  mfolder.c
+fea642b25e4d5465cdca4cf6bf828772  mfolder.h
+c7a3963f549bba60fde58c5c0bfe2017  motif.c
+d3e085c8cc07c9d14e481aafab19177c  motif_protos.h
 c2acaea27dcd68d6a65cc1cba003421e  my_malloc.c
 7be6dd40ca57e0dadac437b8ffb65b27  pgp-exit.h
-b977fb2a48c357ad283fbb2ba8589c99  pgplib.c
-f79d3ada3ebb31d7a564d4a1ca226561  privtool-0.88-1.spec
+73ed650bddceedc7bb2965fadbd6dc3b  pgpdat.c
+e360ccd82b62b58c1646b03a3e31fe64  pgplib.c
+c209ba387b7c2cb593b9265d4a8f64dd  pixmapcache.c
+bd2ef35cf81a7354c0b3d314dd37f185  pixmapcache.h
+ed7444e4c6915f9f00af8d532b2761ca  privtool-0.90-1.spec
 132d676ea53566df50003ed317c4411d  redhat.privtool.patch
-457426ad0cd74c3981f6b217f8ceee9c  user.doc
-9ac85eb921e49ddb9377fc366aeb96e4  windows.h
-a58a7a2ef7cebdef0d07e705c800832f  x.c
-05734f174d11c31866cf8c60533d0886  xprops.c
+2939e842ded938c169d8d1dddb1961c4  user.doc
+152400a10a6bf139e011f3f332bb0ab8  windows.h
+d749ef0d336a2e81fcfa1bbd7d226690  x.c
+ac62b2bdcaae81faf47c2103abdbd1fe  xprops.c
 9980cb3597c76ffba1b23dcdf6c4dbed  FreeBSD/mailname.c
 6d9d3378a390c4470b5abf302d1b51eb  FreeBSD/parsedate.c
+ecd9a9bff94938f6188c80235b8ead34  doc_motif/compose.gif
+572ce1128b700fab286336f7159700d7  doc_motif/compose_mini.gif
+d70cd9519535c8b1221c38e486576e5a  doc_motif/delete.gif
+0bd0cb22aca988e239309b0187b1ae02  doc_motif/deleted.gif
+967a5c9120a7e260891fa389893e6962  doc_motif/deleted_mini.gif
+5e387d8f99ea57156ad64df24c66a9ee  doc_motif/folderb.gif
+e0c5854d270b9f4b1e972ada767a9687  doc_motif/folderb_mini.gif
+8c2bfff8de036ed47ba946d5bc80f3bf  doc_motif/folderwin.gif
+edfb609e2bd7940fdcc3f1df2862af88  doc_motif/main.gif
+ec8b0a55d66ec1e0138cd75f617ffae1  doc_motif/main_mini.gif
+220583978f5cf15b369b67edeaddcb18  doc_motif/message_list.gif
+ce2ae8713f723155c3c90d4bc685f24b  doc_motif/message_list_mini.gif
+6a4fa7274a9a31ddd49105294bff6934  doc_motif/msg.gif
+d487c751e4a177e14c59f776bb3d7a5e  doc_motif/next.gif
+d26405228742293fbc5f185f2bccd3ab  doc_motif/prev.gif
+87db21f674dbc11742dc7e81cf1a91e9  doc_motif/undelete.gif
+61b6abb9da283005325dff462d986987  doc_motif/user_guide1.html
+ea6ec74f469bc4cd96355327d8c344d6  doc_motif/user_guide2.html
+fa6e7927e93344d61dcbbe999fa94467  doc_motif/user_guide3.html
+bbb2c35e014807954a4b1d5ed14d26f1  images/delete.xpm
+7a65a9e98e06b52634dc5708c791e495  images/dir.xpm
+28e9a824e864d895ff5ec8ddb9836ffa  images/folderwin.xpm
+d3c0aaa13c35d011ac33bc8cfb1e302d  images/letter.xpm
+051b7ec5a93ebeee8e58586309005bc6  images/next.xpm
+6d69d336024ab7604f9958a32c121733  images/next_is.xpm
+352d849b14ce352b2e1522ddc3439c4a  images/prev.xpm
+c0fbf919ea38ede1dab0de7240d8f86f  images/prev_is.xpm
 ccc801ee61f65025ffa80e0e5d9258eb  images/privtool-mask.icon
 8d54db7dda6c5c6766f48a3fa5fb3d26  images/privtool-mask.xbm
 b64da18d9e2ea88c086656543f0b1ce0  images/privtool-new.icon
@@ -54,6 +96,7 @@ bb31aa4b8804cb159c7e26bc82c596ce  images/privtool-new.xbm
 860579b2f726e6ae8d9e562b72390a1e  images/privtool_empty_mask.xbm
 c1d16768c25b472558ac822ab426d21f  images/privtool_new.xbm
 3ddeb306facee76c22c09b69fe4f95bf  images/privtool_new_mask.xbm
+d97b50802190186937ff71d520745789  images/undelete.xpm
 457e198140bd9f58a5a1659e2ad92bea  linux/COPYRIGHT
 73f975341a88a1b02d81af7ffaa2c26c  linux/clibrary.h
 9b52f0a74b0660995a13593c53089162  linux/configdata.h
@@ -62,17 +105,23 @@ c1d16768c25b472558ac822ab426d21f  images/privtool_new.xbm
 5d87349d8495ea6800696c622e78080c  linux/libinn.h
 acd44c77ce55e77d21a63f55f3dee91d  linux/macros.h
 bed893d6b3791ad09ddcfa8440799b58  linux/parsedate.c
-63b19b0da1a3721015885a26c71a7911  linux/parsedate.o
+c23cf0aeba92a04d19c6735bebb23e6c  liteclue/LiteClue.c
+623809dec287cbbff8e29c320ef9f9bb  liteclue/LiteClue.h
+1e2c6e05d56e9774b2988b38fcdfd27d  liteclue/LiteClueP.h
+15fabd031d057b2b4983304178ceb16d  premail-0.45mg/CHANGES
+33b2e49794c7a0563aebbc7ac4b401f3  premail-0.45mg/README
+db4f24843bf66c565485d8d13fd16e9e  premail-0.45mg/doc-0.45.html
+6dc9536ed818883895cd1f1ff7f1ec5b  premail-0.45mg/doc-0.45.txt
+db16995d0e9b50921ab86d806c920495  premail-0.45mg/preferences
+50867c9fd397c2d77322b107b1082166  premail-0.45mg/premail.privtool
 
 -----BEGIN PGP SIGNATURE-----
-Version: 2.6.3i
+Version: 2.6.2
 Charset: noconv
 
-iQEVAwUBMyLoK1VvaTo9kEQVAQE0kQf8DNp3HlOpk6n8jWvp/nqHQqwlFqQh4pcL
-xr55S5cYTm+JF4UzTV+oKhQS4gpXq9mhHIay7sW3pPD6tOvh+Weg/GP/OzUIJu7d
-MHLLKseFB6J7219SgZgk0pehWTWcUWay/2ah+a8Q8cVIm3F2TE0y73MK76eWJAeu
-NJwMwVbg1K8PCfAsL3akAuda0x7XNCpuwDxaox2aGroZIranHZfXyQDuwAtXCSiI
-cIelKv/DWj60HddBqraTziOXGfibRYDFxPt4+23Yq3CHfnFebpdx2eFrvEVUPfE/
-iCLqUuTo5Cy/W8Jhpli1ufCMFU3ryosGCgdr5AhMd0gMsGtHuRwU0A==
-=cRHs
+iQC1AwUBM4Ad4arJT5JmwV0FAQGntAUAhhQCIgdrpYTOa/AHs23XKX/ntZ+28PF7
+QBpu4TYD8u2C6Ul+Iyb8MPz263WjQ9pt//wz8I5hm0s/i2MTzxA0kWJYuLRt6czp
+qhJNRn30BQtUldQLIZAEASJ2QJWGUdIVxZWrEgwFrVxuQLF2OHq1/sdJautuhfsQ
+y/PP0BA94pT2FxZmrHE37PCtT0x8ER6beWtbKLtPtBxQTg1nC5ph/w==
+=GPJf
 -----END PGP SIGNATURE-----

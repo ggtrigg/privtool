@@ -1,7 +1,6 @@
 
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$
  *
  *	(c) Copyright 1993-1997 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -43,6 +42,8 @@ typedef struct _message {
 	long	offset;
 	int	data_type;
 	int	attachment_type;
+	int 	is_mime;
+	int	content_transfer_encoding;
 
 	/* Info read from header */
 
@@ -74,8 +75,6 @@ typedef struct _message {
 
 } MESSAGE;
 
-extern	MESSAGE	*new_message();
-
 #define MESS_SIGNED		0x0001
 #define MESS_ENCRYPTED		0x0002
 #define MESS_VERIFIED		0x0004
@@ -84,6 +83,7 @@ extern	MESSAGE	*new_message();
 #define MESS_DIGEST		0x0020
 #define MESS_CFEED		0x0040
 #define MESS_DELETED		0x0080
+#define MESS_NYM		0x0100
 
 #define DT_NONE		0x0000
 #define DT_MEM		0x0001
@@ -104,6 +104,17 @@ typedef struct {
 
 } MESSAGE_LIST;
 
-extern	MESSAGE	*message_from_message();
-extern	BUFFER	*message_contents();
-extern	MESSAGE	*message_from_number();
+#define CONTENT_ENCODING_PRINTABLE	1
+
+extern	MESSAGE	*message_from_message(MESSAGE *m, BUFFER *b);
+extern	MESSAGE	*message_from_number(int number);
+extern	void	free_string(char *s);
+extern	MESSAGE	*new_message(void);
+extern	void	free_message(MESSAGE *b);
+extern	void	add_to_message_list_start(MESSAGE_LIST *l, MESSAGE *m);
+extern	void	add_to_message_list_end(MESSAGE_LIST *l, MESSAGE *m);
+extern	BUFFER	*message_contents(MESSAGE *m);
+extern	void	set_mem_message (MESSAGE *m);
+extern	void	set_file_message (MESSAGE *m);
+extern	void	init_messages (void);
+extern	void	close_messages (void);

@@ -1,7 +1,6 @@
 
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$
  *
  *	(c) Copyright 1993-1997 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -32,9 +31,7 @@
 
 extern	FILE	*mail_fp;
 
-void	free_string(s)
-
-char	*s;
+void	free_string(char *s)
 
 {
 	if (s) {
@@ -43,7 +40,7 @@ char	*s;
 	}
 }
 
-MESSAGE	*new_message()
+MESSAGE	*new_message(void)
 
 {
 	MESSAGE	*m;
@@ -74,6 +71,8 @@ MESSAGE	*new_message()
 	m->offset = 0;
 	m->data_type = DT_NONE;
 	m->attachment_type = 0;
+	m->is_mime = 0;
+	m->content_transfer_encoding = 0;
 	m->unique_id = id++;
 
 	m->flags = 0;
@@ -81,9 +80,7 @@ MESSAGE	*new_message()
 	return m;
 }
 
-free_message(b)
-
-MESSAGE	*b;
+void	free_message(MESSAGE *b)
 
 {
 	if (b->body)
@@ -119,10 +116,7 @@ MESSAGE	*b;
 
 /* Add a message to the specified message list */
 
-void	add_to_message_list_start(l,m)
-
-MESSAGE_LIST	*l;
-MESSAGE		*m;
+void	add_to_message_list_start(MESSAGE_LIST *l, MESSAGE *m)
 
 {
 	if (l->start) {
@@ -150,10 +144,7 @@ MESSAGE		*m;
 		l->encrypted++;
 }
 
-void	add_to_message_list_end(l,m)
-
-MESSAGE_LIST	*l;
-MESSAGE		*m;
+void	add_to_message_list_end(MESSAGE_LIST *l, MESSAGE *m)
 
 {
 	if (l->end) {
@@ -185,9 +176,7 @@ MESSAGE		*m;
 
 static	BUFFER	*messb = NULL;
 
-BUFFER	*message_contents(m)
-
-MESSAGE	*m;
+BUFFER	*message_contents(MESSAGE *m)
 
 {
 	static	word32 	last_id = 0;
@@ -236,28 +225,24 @@ MESSAGE	*m;
 	}
 }
 
-set_mem_message (m)
-
-MESSAGE	*m;
+void	set_mem_message (MESSAGE *m)
 
 {
 	m->data_type = DT_MEM;
 }
 
-set_file_message (m)
-
-MESSAGE	*m;
+void	set_file_message (MESSAGE *m)
 
 {
 	m->data_type = DT_FILE;
 }
 
-init_messages ()
+void	init_messages (void)
 
 {
 }
 
-close_messages ()
+void	close_messages (void)
 
 {
 	if (messb)

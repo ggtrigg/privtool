@@ -121,7 +121,7 @@ LDFLAGS= $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
 #
 
 PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DSYSV -DIDEA32 \
-	-DUSE_AUDIO
+	-DDEV_RANDOM -DDYN_ALLOC -DNO_ASM -DHIGHFIRST
 #PGPTOOLS=
 
 #
@@ -164,7 +164,7 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
 	$(DEFAULT_FONT) $(XRESOURCES) -D_POSIX_SOURCE -DNSA_ICON -DCOMPACT \
 	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux -DMAILER_LINE -Iliteclue \
-	-D_SVID_SOURCE $(PGPTOOLS) -Iimages
+	-D_SVID_SOURCE $(PGPTOOLS) -Iimages -DNO_PREMAIL
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -187,8 +187,9 @@ CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS)
 #CC=cc -DNON_ANSI
 CC=cc -ansi -mpentium -DSYSV -DDONT_HAVE_TM_GMTOFF
 
-# Or, use acc for Solaris 2.x
+# Or, use acc or gcc for Solaris 2.x
 #CC=acc -DSYSV
+#CC=gcc -DSYSV
 
 # For Linux, you should use the following :
 #CC=gcc -Ilinux -DSYSV -DDONT_HAVE_TM_GMTOFF

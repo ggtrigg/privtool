@@ -760,6 +760,12 @@ Event		*event;
 {	int 	n,i;
 	char 	buf[BUFLEN],str[STRLEN],*p;
 
+	/* Clear current list */
+
+	clear_pgpkey ();
+
+	/* And add new list */
+
 	buf[0] = 0;
 	n = (int) xv_get(pgpkeyxlat_list,PANEL_LIST_NROWS);
 	for (i = 0 ; i < n; i=i+1)
@@ -768,7 +774,9 @@ Event		*event;
 	    strcat(buf,"#@pgpkey ");
 	    strcat(buf,strtok(str,"="));
 	    strcat(buf,"=");
-	    strcat(buf,strtok(NULL,"\n"));
+            p = strtok(NULL,"\n");
+	    add_pgpkey (p);
+	    strcat(buf,p);
 	    strcat(buf,"\n");
 	  }
 	replace_in_file("#@pgpkey ", buf);
@@ -1070,20 +1078,35 @@ static 	void	save_priv2props (item,event)
 Panel_item	item;
 Event		*event;
 
-{	int 	n,i,num;
+{	int 	n,i,num, kills = FALSE;
 	char 	buf[BUFLEN],str[STRLEN],*p;
+
+	/* Clear current list */
+
+	clear_kills ();
+	clear_killu ();
 
 	buf[0] = 0;
 	n = (int) xv_get(pgpkill_list,PANEL_LIST_NROWS);
 	for (i = 0 ; i < n; i=i+1)
 	  {
 	    strcpy(str,(char *) xv_get(pgpkill_list,PANEL_LIST_STRING,i));
-	    if (strncmp(strtok(str," "),"From:",5)==0)
+	    if (strncmp(strtok(str," "),"From:",5)==0) 
 	      strcat(buf,"#@killu ");
-	    else
+	    else {
 	      strcat(buf,"#@kills ");
-	    strcat(buf,strtok(NULL,"\n "));
+              kills = TRUE;
+            }
+	    p = strtok(NULL, "\n");
+	    strcat(buf,p);
 	    strcat(buf,"\n");
+
+	    /* Update the internal lists */
+
+	    if (kills)
+	       add_kills(p);
+	    else
+	       add_killu(p);
 	  }
 	replace_in_file("#@kill", buf);
 

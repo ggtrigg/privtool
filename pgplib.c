@@ -1,7 +1,6 @@
 
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$ 
  *
  *	pgplib.c, (mostly) by Mark Grant 1993-1997
  *
@@ -36,8 +35,6 @@
 #include <stdio.h>
 #if defined(__FreeBSD__) || defined (SYSV)
 #include <signal.h>
-#include <sys/types.h>
-#include <limits.h>
 #else
 #include <vfork.h>
 #endif
@@ -45,9 +42,9 @@
 #include <string.h>
 #if defined(__FreeBSD__) || defined (linux)
 #include <stdlib.h>
-#include <limits.h>
 #else
 #include <malloc.h>
+#include <limits.h>
 #endif
 #include <sys/types.h>
 #include <unistd.h>
@@ -57,6 +54,13 @@
 #include <sys/timeb.h>
 #include <sys/resource.h>
 #include <ctype.h>
+#ifdef GDBM
+#include <gdbm.h>
+#endif
+#ifdef BDB
+#include <fcntl.h>
+#include <db.h>
+#endif
 
 #include "def.h"
 
@@ -84,6 +88,10 @@
    specific, or we should include the right SunOS header file. */
 
 extern	char	*getenv();
+
+#ifdef __sgi
+#define vfork fork
+#endif
 
 /* BUF_SIZE is the general size of stack buffers. Should this ever be used 
    on DOS, you might want to reduce the value of BUF_SIZE, or replace the 
@@ -650,6 +658,13 @@ void	reseed_random (void)
 #endif
 }
 
+#ifdef GDBM
+static	GDBM_FILE	keyfile = 0;
+#endif
+#ifdef BDB
+static	DB	*keyfile;
+#endif
+
 /* Find a public key, given the userid */
 
 static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key, 
@@ -662,12 +677,66 @@ static	int	get_public_key (byte *id, byte *userid, struct pgp_pubkey *key,
 	int	revoked;
 	int	found = FALSE;
 	byte	our_uid [256];
+#ifdef GDBM
+	datum	data, idkey;
+#endif
+#ifdef BDB
+	DBT	data, idkey;
+#endif
 
 	/* First check the hash table */
 
 #ifdef USE_HASH
 	if (pgp_hash_get (id, userid, key, trust))
 		return TRUE;
+#endif
+
+#if defined(GDBM) || defined (BDB)
+	if (!keyfile) {
+		char	file[PATH_MAX];
+		char	*pgpp;
+
+		pgpp = getenv ("PGPPATH");
+		if (pgpp) {
+#ifdef GDBM
+			sprintf (file, "%s/pubring.dbm", pgpp);
+			keyfile = gdbm_open (file, 512, GDBM_READER, 
+				0600, 0);
+#else
+			sprintf (file, "%s/pubring.db", pgpp);
+			keyfile = dbopen (file, O_RDONLY, 0600,
+				DB_HASH, NULL);
+#endif
+		}
+	}
+	if (keyfile) {
+#ifdef GDBM
+		idkey.dptr = id;
+		idkey.dsize = 8;
+		data = gdbm_fetch (keyfile, idkey);
+
+		if (data.dptr) {
+			memcpy (key, data.dptr, sizeof (*key));
+			strcpy (userid, data.dptr + sizeof (*key));
+			*trust = data.dptr [sizeof (*key) + 
+				strlen (userid) + 2];
+			return TRUE;
+		}
+#else
+		idkey.data = id;
+		idkey.size = 8;
+		found = (keyfile->get (keyfile, &idkey, &data, 0) >= 0);
+
+		if (found && data.data) {
+			byte	*p = (byte *)data.data;
+
+			memcpy (key, p, sizeof (*key));
+			strcpy (userid, p + sizeof (*key));
+			*trust = p [sizeof (*key) + strlen (userid) + 2];
+			return TRUE;
+		}
+#endif
+	}
 #endif
 
 	/* Oh well, now for the hard work */
@@ -1346,7 +1415,7 @@ void	init_pgplib(void)
 
 	/* Setup random number seeding, by reading from privseed file */
 
-	if ((fp = open_pgp_file ("privseed.bin", "rb"))) {
+	if (fp = open_pgp_file ("privseed.bin", "rb")) {
 		fread (privseed, RAND_SIZE, 1, fp);
 		fclose (fp);
 	}
@@ -1367,7 +1436,7 @@ void	init_pgplib(void)
 
 	/* We xor randseed.bin in just for luck (if we find it) */
 
-	if ((fp = open_pgp_file ("randseed.bin", "rb"))) {
+	if (fp = open_pgp_file ("randseed.bin", "rb")) {
 		byte	randseed[24];
 
 		/* Randseed.bin is always a multiple of 24 bytes. Size
@@ -1455,6 +1524,17 @@ void	close_pgplib(void)
 #if defined(USE_FLOPPY) && defined(AUTO_EJECT)
 	eject_floppy();
 #endif
+
+#if defined(GDBM) || defined (BDB)
+	if (keyfile) {
+#ifdef GDBM
+		gdbm_close (keyfile);
+#else
+		keyfile->close (keyfile);
+#endif
+		keyfile = 0;
+	}
+#endif
 }
 
 /* Routines to deal with running other programs, such as PGP */
@@ -1534,7 +1614,6 @@ int	run_program(char *prog, byte *message, int msg_len,
 		pipe (pass_fd);
 
 	/* Fork and execute the program */
-
 	if (!(child_pid = vfork())) {
 		char	pass_env[32];
 
@@ -1794,6 +1873,7 @@ static	char	*filter_argv[]={
 	"pgp",
 	"-f",
 	"+batchmode",
+	"+language=en",
 	NULL
 };
 
@@ -1914,9 +1994,25 @@ int	decrypt_message (BUFFER *message, BUFFER *decrypted, BUFFER *signature,
 			if (!get_public_key (key, userid, &public, &trust)) {
 
 				/* If we didn't get it, then copy the message
-				   over. */
+				   over after converting the dashes. */
 
-				add_to_buffer (decrypted, s, e - s);
+				if (!strncmp("- ", s, 2))
+					s+= 2;
+
+				t = s;
+
+				while (t < e) {
+					m = (byte *)strstr (t, "\n- ");
+
+					if (!m || m > e) {
+						add_to_buffer (decrypted,
+							t, (e - t));
+						break;
+					}
+					add_to_buffer (decrypted, 
+						t, (m - t) + 1);
+					t = m + 3;
+				}
 
 				/* We return an error message in the signature
 				   buffer, giving the id of the key in hex */
@@ -2455,14 +2551,34 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 		   probably already know the message text. */
 
 		do {
+
+			/* Start with values from /dev/random if we have
+			   it */
+#ifdef DEV_RANDOM
+			int	fd;
+			int	cnt = IDEA_KEY_SIZE;
+			int	rdsz;
+#endif
+
 			good_key = 0;
+
+#ifdef DEV_RANDOM
+			fd = open ("/dev/random", O_RDONLY);
+			if (fd >= 0) {
+				while (cnt > 0 && 
+					(rdsz = read (fd, key + (IDEA_KEY_SIZE - cnt), cnt)) >= 0) {
+					cnt -= rdsz;
+				}
+				close (fd);
+			}
+#endif
 
 			/* We look for a good key by checking for the
 			   zero nibbles in a weak key. If any of these
 			   nibbles are non-zero then we have a good key. */
 			   
 			for (i = 0; i < IDEA_KEY_SIZE; i++) {
-				key [i] = our_randombyte() ^ mess_md5[i];
+				key [i] ^= our_randombyte() ^ mess_md5[i];
 				good_key |= (key[i] & idea_weak_key_mask[i]);
 			}
 
@@ -2848,7 +2964,10 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 		}
 	}
 
+	/* Use batchmode and set language to english when we run. */
+
 	argv[arg++]="+batchmode";
+	argv[arg++]="+language=en";
 
 	/* We now need to add the list of users. If we overrun the
 	   allocated array we'll have to extend it. */

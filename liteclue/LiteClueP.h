@@ -26,6 +26,12 @@ gary@compgen.com
 */
 /* Revision History:
 $Log$
+Revision 1.1.1.1  1997/05/22 11:39:40  ggt
+Release 0.90. Which includes the motif source.
+
+Revision 1.1  1997/03/03 07:53:26  ggt
+Initial checkin of the LiteClue file to the repository.
+
 Revision 1.1  1996/10/19 16:08:51  gary
 Initial
 

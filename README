@@ -20,6 +20,10 @@ type2.list file) in the MIXPATH variable in the Makefile. If you do
 not have Mixmaster, then leave these entries blank, and define
 NO_MIXMASTER in the Makefile.
 
+We also now support Premail for decoding incoming messages from nym
+accounts. If you have Premail installed then put the path in the PREMAILEXEC
+definition line in the Makefile, otherwise define NO_PREMAIL.
+
 Compiling with PGP Tools (default) :
 
 You need to set the PGPTOOLDIR line in the Makefile to the appropriate 
@@ -39,7 +43,11 @@ a large public key ring.
 If you have an audio device set up as /dev/audio, and no microphone
 connected, Privtool can use this to supplement its random number generation
 code with the physical randomness that the audio device generates. To
-enable this support, add -DUSE_AUDIO to the PGPTOOLS= line.
+enable this support, add -DUSE_AUDIO to the PGPTOOLS= line. If you have
+the /dev/random random number generator then you should add -DDEV_RANDOM
+to the PGPTOOLS= line. This is included by default with Linux and is
+safe to include even if you don't have the generator; the code will
+silently fail and simply use the old random number code.
 
 By default the code to read secret keys from floppy disk is disabled. To
 enable it simply uncomment the appropriate lines in the Makefile.

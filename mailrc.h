@@ -50,9 +50,3 @@ typedef struct {
 	int32	number;
 
 } LIST;
-
-extern	char	*nym_name();
-extern	char	*current_nym();
-extern  char    *template_name();
-extern  char    *search_templatename();
-extern	void	clear_list();

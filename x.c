@@ -1,8 +1,7 @@
 /*
- *	$RCSfile$	$Revision$ 
- *	$Date$
+ *	$Id$ 
  *
- *	(c) Copyright 1993-1996 by Mark Grant, and by other
+ *	(c) Copyright 1993-1997 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -198,7 +197,7 @@ static unsigned short	icon_bits_mask[] = {
 
 extern	char	default_mail_file[];
 extern	char	*our_userid;
-extern  void	properties_proc();
+extern  void	properties_proc(void);
 
 static	Frame	pass_frame;
 static	Panel_item	pass_item;
@@ -226,9 +225,7 @@ static	void	defaults_get_rect();
 
 /* Take a frame and find a compose window */
 
-static	COMPOSE_WINDOW	*compose_from_frame (frame)
-
-Frame	frame;
+static	COMPOSE_WINDOW	*compose_from_frame (Frame frame)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -247,9 +244,7 @@ Frame	frame;
 
 /* Take a log_item and find a compose window */
 
-static	COMPOSE_WINDOW	*compose_from_log_item (item)
-
-Panel_item	item;
+static	COMPOSE_WINDOW	*compose_from_log_item (Panel_item item)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -268,9 +263,7 @@ Panel_item	item;
 
 /* Take a deliver_item and find a compose window */
 
-static	COMPOSE_WINDOW	*compose_from_deliver_item (item)
-
-Panel_item	item;
+static	COMPOSE_WINDOW	*compose_from_deliver_item (Panel_item item)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -289,9 +282,7 @@ Panel_item	item;
 
 /* Take a clear_item and find a compose window */
 
-static	COMPOSE_WINDOW	*compose_from_clear_item (item)
-
-Panel_item	item;
+static	COMPOSE_WINDOW	*compose_from_clear_item (Panel_item item)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -310,7 +301,7 @@ Panel_item	item;
 
 /* Look for a free window */
 
-static	COMPOSE_WINDOW	*compose_find_free ()
+static	COMPOSE_WINDOW	*compose_find_free (void)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -329,9 +320,7 @@ static	COMPOSE_WINDOW	*compose_find_free ()
 
 /* Find a free display window */
 
-static	DISPLAY_WINDOW	*display_find_free (n)
-
-int	n;
+static	DISPLAY_WINDOW	*display_find_free (int n)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -357,9 +346,7 @@ int	n;
 
 /* Find a display window from its frame */
 
-static	DISPLAY_WINDOW	*display_from_frame (frame)
-
-Frame	frame;
+static	DISPLAY_WINDOW	*display_from_frame (Frame frame)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -378,9 +365,7 @@ Frame	frame;
 
 /* Find a display window from its panel */
 
-static	DISPLAY_WINDOW	*display_from_panel (panel)
-
-Panel	panel;
+static	DISPLAY_WINDOW	*display_from_panel (Panel panel)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -399,7 +384,7 @@ Panel	panel;
 
 /* Count the number of open compose windows */
 
-int	compose_windows_open ()
+int	compose_windows_open (void)
 
 {
 	int	c = 0;
@@ -417,11 +402,7 @@ int	compose_windows_open ()
 	return c;
 }
 
-static	void	passphrase_events (win, event, arg)
-
-Xv_Window	win;
-Event		*event;
-Notify_arg	arg;
+static	void	passphrase_events (Xv_Window win, Event *event, Notify_arg arg)
 
 {
 	switch (event_action(event)) {
@@ -438,11 +419,7 @@ Notify_arg	arg;
 
 /* Handle compose window events */
 
-static void	compose_events (win, event, arg)
-
-Xv_Window	win;
-Event		*event;
-Notify_arg	arg;
+static void	compose_events (Xv_Window win, Event *event, Notify_arg arg)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -462,9 +439,7 @@ Notify_arg	arg;
 
 /* Draw a box around the message in the list to show it's selected */
 
-static	void	draw_box_round_message(m)
-
-MESSAGE	*m;
+static	void	draw_box_round_message(MESSAGE *m)
 
 {
 	int	y,w;
@@ -489,9 +464,7 @@ MESSAGE	*m;
 
 /* Display the message description in the list */
 
-void	display_message_description(m)
-
-MESSAGE	*m;
+void	display_message_description(MESSAGE *m)
 
 {
 	int	y,w;
@@ -512,9 +485,7 @@ MESSAGE	*m;
 
 /* Display a footer string */
 
-void	set_main_footer(s)
-
-char	*s;
+void	set_main_footer(char *s)
 
 {
 	if (main_frame)
@@ -525,7 +496,7 @@ char	*s;
 
 /* Clear the footer string */
 
-void	clear_main_footer()
+void	clear_main_footer(void)
 
 {
 	set_main_footer("");
@@ -539,7 +510,7 @@ static	int	icon_type;
 
 /* Show the icon for new mail */
 
-void	show_newmail_icon()
+void	show_newmail_icon(void)
 
 {
 	Xv_Server Privtool_Server;
@@ -564,28 +535,15 @@ void	show_newmail_icon()
 			xv_set (main_frame,
 				WIN_ALARM, 
 				NULL);
-
-			xv_set (icon,
-				ICON_IMAGE, newmail_icon_image,
-#ifdef USE_XBM
-				ICON_MASK_IMAGE, newmail_icon_image_mask,
-				ICON_TRANSPARENT, TRUE,
-#endif
-				NULL);
-		} else {
-			xv_set (main_frame,
-				WIN_ALARM, 
-				NULL);
-
-			xv_set (icon,
-				ICON_IMAGE, newmail_icon_image,
-#ifdef USE_XBM
-				ICON_MASK_IMAGE, newmail_icon_image_mask,
-				ICON_TRANSPARENT, TRUE,
-#endif
-				NULL);
 		}
 
+		xv_set (icon,
+			ICON_IMAGE, newmail_icon_image,
+#ifdef USE_XBM
+			ICON_MASK_IMAGE, newmail_icon_image_mask,
+			ICON_TRANSPARENT, TRUE,
+#endif
+			NULL);
 
 		icon_type = NEWMAIL_ICON;
 	}
@@ -593,7 +551,7 @@ void	show_newmail_icon()
 
 /* Display the icon for no new mail */
 
-void	show_normal_icon()
+void	show_normal_icon(void)
 
 {
 	Xv_Server Privtool_Server;
@@ -638,7 +596,7 @@ void	show_normal_icon()
 
 /* Display the icon for no mail at all*/
 
-void    show_nomail_icon()
+void    show_nomail_icon(void)
                                 
 {
 	Xv_Server Privtool_Server;
@@ -684,7 +642,7 @@ void    show_nomail_icon()
 
 /* Close the passphrase window */
 
-void	close_passphrase_window()
+void	close_passphrase_window(void)
 
 {
 	if (pass_frame)
@@ -695,9 +653,7 @@ void	close_passphrase_window()
 
 /* Open the passphrase window */
 
-void	open_passphrase_window(s)
-
-char	*s;
+void	open_passphrase_window(char *s)
 
 {
 	if (pass_frame)
@@ -710,7 +666,7 @@ char	*s;
 
 /* MUST be possible to call this function before pass_item is set up */
 
-char	*read_passphrase_string()
+char	*read_passphrase_string(void)
 
 {
 	if (!pass_item)
@@ -722,7 +678,7 @@ char	*read_passphrase_string()
 
 /* Clear the displayed passphrase string */
 
-void	clear_passphrase_string()
+void	clear_passphrase_string(void)
 
 {
 	if (pass_item)
@@ -735,7 +691,7 @@ static	Panel	pass_panel;
 
 /* Create the passphrase window */
 
-void	create_passphrase_window()
+void	create_passphrase_window(void)
 
 {
 	if (!pass_frame) {
@@ -774,9 +730,7 @@ void	create_passphrase_window()
 
 /* Set the value of the log/encrypt/etc item */
 
-void	update_log_item(w)
-
-COMPOSE_WINDOW	*w;
+void	update_log_item(COMPOSE_WINDOW *w)
 
 {
 	if (w->log_item)
@@ -785,7 +739,7 @@ COMPOSE_WINDOW	*w;
 			NULL);
 }
 
-void invalid_attachment_notice_proc ()
+void invalid_attachment_notice_proc (void)
 
 {
 	notice_prompt(top_panel, NULL,
@@ -800,7 +754,7 @@ void invalid_attachment_notice_proc ()
 }
 
 #ifndef NO_MIXMASTER
-void	remail_failed_notice_proc()
+void	remail_failed_notice_proc(void)
 
 {
 	notice_prompt(top_panel, NULL,
@@ -808,7 +762,6 @@ void	remail_failed_notice_proc()
 			"Remail Failed !",
 			NULL,
 		NOTICE_BUTTON_YES, "Abort",
-		NOTICE_BUTTON_NO, "Ignore",
 		NULL);
 
 	update_random ();
@@ -817,7 +770,7 @@ void	remail_failed_notice_proc()
 
 /* Oops, we asked to quit when there's open compose windows */
 
-int	dont_quit_notice_proc ()
+int	dont_quit_notice_proc (void)
 
 {
 	int	choice = NOTICE_YES;
@@ -838,7 +791,7 @@ int	dont_quit_notice_proc ()
 	return (choice == NOTICE_YES);
 }
 
-int	read_only_notice_proc ()
+int	read_only_notice_proc (void)
 
 {
 	int	choice = NOTICE_YES;
@@ -858,7 +811,7 @@ int	read_only_notice_proc ()
 
 /* Do we send to the reply-to address ? */
 
-int	use_reply_to_notice_proc ()
+int	use_reply_to_notice_proc (void)
 
 {
 	int	choice = NOTICE_YES;
@@ -878,7 +831,7 @@ int	use_reply_to_notice_proc ()
 
 /* Warn the user that we failed to save correctly */
 
-int	failed_save_notice_proc ()
+int	failed_save_notice_proc (void)
 
 {
 	int	choice = NOTICE_YES;
@@ -899,9 +852,7 @@ int	failed_save_notice_proc ()
 
 /* Tell the user that they don't have the correct secret key */
 
-int	no_sec_notice_proc(w)
-
-int	w;
+int	no_sec_notice_proc(int w)
 
 {
 	int	choice;
@@ -930,7 +881,7 @@ int	w;
 
 /* Confirm that we want to read the file despite failure to lock it */
 
-int	confirm_unlocked_read ()
+int	confirm_unlocked_read (void)
 
 {
 	int	choice;
@@ -955,9 +906,7 @@ int	confirm_unlocked_read ()
 
 /* Warn the user that we couldn't find a public key for the recipient */
 
-int	no_key_notice_proc(w)
-
-int	w;
+int	no_key_notice_proc(int w)
 
 {
 	int	choice;
@@ -986,9 +935,7 @@ int	w;
 
 /* Warn the user that we got a bad PGP message (bad format, I mean 8-)) */
 
-void	bad_file_notice(w)
-
-int	w;
+void	bad_file_notice(int w)
 
 {
 	Panel	p;
@@ -1012,7 +959,7 @@ int	w;
 
 /* We got a bad key when adding to the keyring */
 
-void	bad_key_notice_proc()
+void	bad_key_notice_proc(void)
 
 {
 	(void) notice_prompt(top_panel, NULL,
@@ -1029,9 +976,7 @@ void	bad_key_notice_proc()
 
 /* Tell the user that they entered an incorrect passphrase */
 
-int	bad_pass_phrase_notice(w)
-
-int	w;
+int	bad_pass_phrase_notice(int w)
 
 {
 	Panel	p;
@@ -1059,7 +1004,7 @@ int	w;
 
 /* Return the currently selected file name */
 
-char	*read_file_name()
+char	*read_file_name(void)
 
 {
 	return  (char *)xv_get (file_name_item,PANEL_VALUE);
@@ -1067,9 +1012,7 @@ char	*read_file_name()
 
 /* Set the currently selected file name */
 
-void	set_file_name (s)
-
-char	*s;
+void	set_file_name (char *s)
 
 {
 	xv_set (file_name_item, 
@@ -1079,7 +1022,7 @@ char	*s;
 
 /* Update the main list of mail messages */
 
-void	update_message_list()
+void	update_message_list(void)
 
 {
 	char	s[128];
@@ -1147,10 +1090,7 @@ void	update_message_list()
 
 /* Read the message out of the edit window into a buffer */
 
-void	read_message_to_deliver(w, b)
-
-COMPOSE_WINDOW	*w;
-BUFFER	*b;
+void	read_message_to_deliver(COMPOSE_WINDOW *w, BUFFER *b)
 
 {
 	char	buff[READ_SIZE];
@@ -1167,9 +1107,7 @@ BUFFER	*b;
 	} while (last_pos != next_pos);
 }
 
-int	read_deliver_flags (w)
-
-COMPOSE_WINDOW	*w;
+int	read_deliver_flags (COMPOSE_WINDOW *w)
 
 {
 	return w->deliver_flags;
@@ -1177,9 +1115,7 @@ COMPOSE_WINDOW	*w;
 
 /* Get the recipient for the message */
 
-char	*read_recipient(w)
-
-COMPOSE_WINDOW	*w;
+char	*read_recipient(COMPOSE_WINDOW *w)
 
 {
 	return (char *)xv_get(w->send_to_item,PANEL_VALUE);
@@ -1187,9 +1123,7 @@ COMPOSE_WINDOW	*w;
 
 /* Get the subject for the message */
 
-char	*read_subject(w)
-
-COMPOSE_WINDOW	*w;
+char	*read_subject(COMPOSE_WINDOW *w)
 
 {
 	 return (char *)xv_get(w->send_subject_item,PANEL_VALUE);
@@ -1197,9 +1131,7 @@ COMPOSE_WINDOW	*w;
 
 /* Get the cc: line */
 
-char	*read_cc(w)
-
-COMPOSE_WINDOW	*w;
+char	*read_cc(COMPOSE_WINDOW *w)
 
 {
 	 return (char *)xv_get(w->send_cc_item,PANEL_VALUE);
@@ -1207,9 +1139,7 @@ COMPOSE_WINDOW	*w;
 
 /* Get the bcc: line */
 
-char	*read_bcc(w)
-
-COMPOSE_WINDOW	*w;
+char	*read_bcc(COMPOSE_WINDOW *w)
 
 {
 	if (w->send_bcc_item)
@@ -1218,10 +1148,7 @@ COMPOSE_WINDOW	*w;
 		return NULL;
 }
 
-char   *read_extra_headerline(w,i)
-
-COMPOSE_WINDOW	*w;
-int	i;
+char   *read_extra_headerline(COMPOSE_WINDOW *w, int i)
 
 {
 	if (w->compose_extra_headerlines[i]) {
@@ -1247,9 +1174,7 @@ int	i;
 
 /* Show the message composition window */
 
-void	show_deliver_frame(w)
-
-COMPOSE_WINDOW	*w;
+void	show_deliver_frame(COMPOSE_WINDOW *w)
 
 {
 	if (w->deliver_frame)
@@ -1260,9 +1185,7 @@ COMPOSE_WINDOW	*w;
 
 /* And close it */
 
-void	close_deliver_window(w)
-
-COMPOSE_WINDOW	*w;
+void	close_deliver_window(COMPOSE_WINDOW *w)
 
 {
 	if (w->deliver_frame)
@@ -1273,9 +1196,7 @@ COMPOSE_WINDOW	*w;
 	w->in_use = FALSE;
 }
 
-void	iconise_deliver_window(w)
-
-COMPOSE_WINDOW	*w;
+void	iconise_deliver_window(COMPOSE_WINDOW *w)
 
 {
 	if (w->deliver_frame)
@@ -1284,9 +1205,7 @@ COMPOSE_WINDOW	*w;
 			NULL);
 }
 
-void	set_focus_to_body_proc(item)
-
-Panel_item	item;
+void	set_focus_to_body_proc(Panel_item item)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -1297,11 +1216,7 @@ Panel_item	item;
 
 /* Set the flags as appropriate when the user changes the value */
 
-static	void	options_proc(item,value,event)
-
-Panel_item	item;
-int	value;
-Event	*event;
+static	void	options_proc(Panel_item item, int value, Event *event)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -1312,10 +1227,7 @@ Event	*event;
 		w->deliver_flags = value;
 }
 
-static	void	x_deliver_proc (item, event)
-
-Panel_item	item;
-Event		*event;
+static	void	x_deliver_proc (Panel_item item, Event *event)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -1327,9 +1239,7 @@ Event		*event;
 
 static char	attribution_string[] = " said :\n\n";
 
-static	void	set_send_to(w)
-
-COMPOSE_WINDOW	*w;
+static	void	set_send_to(COMPOSE_WINDOW *w)
 
 {
 	char	*send_to = last_message_read->email;
@@ -1349,10 +1259,7 @@ COMPOSE_WINDOW	*w;
 
 /* Reply_to sender and include message in local window*/
 
-static        void    reply_to_sender_local(menu, item)
-
-Menu		menu;
-Menu_item       item;
+static        void    reply_to_sender_local(Menu menu, Menu_item item)
 
 {
 	int     i;
@@ -1415,10 +1322,7 @@ Menu_item       item;
 
 /* Clear local window */
 
-static	void	clear_local (item, event)
-
-Panel_item	item;
-Event		*event;
+static	void	clear_local (Panel_item item, Event *event)
 
 {
 	byte    *m;
@@ -1443,10 +1347,7 @@ Event		*event;
 
 /* Insert File in Editor */
 
-static void insert_file_proc(menu,menuitem) 
-
-Menu       menu ;
-Menu_item  menuitem ; 
+static void insert_file_proc(Menu menu, Menu_item menuitem) 
 
 {       char    *s;
 	COMPOSE_WINDOW *w;
@@ -1469,7 +1370,7 @@ if (w) {
 
 /* Setup the deliver window */
 
-COMPOSE_WINDOW	*x_setup_send_window()
+COMPOSE_WINDOW	*x_setup_send_window(void)
 
 {
 	char		*log,*dontlog;
@@ -1732,9 +1633,7 @@ COMPOSE_WINDOW	*x_setup_send_window()
 
 /* Append the signature file to the compose window */
 
-static	void	add_signature (w)
-
-COMPOSE_WINDOW	*w;
+static	void	add_signature (COMPOSE_WINDOW *w)
 
 {
 	FILE	*sig_fp;
@@ -1768,7 +1667,7 @@ COMPOSE_WINDOW	*w;
 
 /* Set up a compose window */
 
-static	void	send_message()
+static	void	send_message(void)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -1798,7 +1697,7 @@ static	void	send_message()
 
 /* Reply to the sender without including the message */
 
-COMPOSE_WINDOW	*reply_sender_no_include_inner ()
+COMPOSE_WINDOW	*reply_sender_no_include_inner (void)
 
 {
 	char	subject[256];
@@ -1860,7 +1759,7 @@ void	reply_sender_no_include ()
 
 /* Reply to all without including the message */
 
-static	reply_to_all_no_include ()
+static	reply_to_all_no_include (void)
 
 {	char	*mark,*from,*help,cc[1024] ;
 	COMPOSE_WINDOW	*w;
@@ -1912,7 +1811,7 @@ static	reply_to_all_no_include ()
 static	char	begin_forward[] = "-- Begin forwarded message ---\n";
 static	char	end_forward[] = "-- End forwarded message ---\n";
 
-static	void	forward_message ()
+static	void	forward_message (void)
 
 {
 	BUFFER	*b;
@@ -1988,7 +1887,7 @@ static	void	forward_message ()
 
 /* Resend a message */
 
-static	void	resend_proc ()
+static	void	resend_proc (void)
 
 {
 	BUFFER	*b;
@@ -2065,7 +1964,7 @@ static	void	resend_proc ()
 
 /* Reply_to sender and include message */
 
-COMPOSE_WINDOW *reply_to_sender()
+COMPOSE_WINDOW *reply_to_sender(void)
 
 {
 	int	i;
@@ -2155,7 +2054,7 @@ COMPOSE_WINDOW *reply_to_sender()
 
 /* Reply to all including the message */
 
-static reply_to_all ()
+static reply_to_all (void)
 
 {	char	*mark,*from,*help,cc[1024] ;
 	COMPOSE_WINDOW	*w;
@@ -2203,7 +2102,7 @@ static reply_to_all ()
 	show_deliver_frame (w);
 }
 
-void	beep_display_window ()
+void	beep_display_window (void)
 
 {
 	xv_set (main_frame,
@@ -2213,7 +2112,7 @@ void	beep_display_window ()
 
 /* Are we displaying a message ? */
 
-int	is_displaying_message()
+int	is_displaying_message(void)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -2231,10 +2130,7 @@ int	is_displaying_message()
 
 /* Set the footer on the display window */
 
-void	set_display_footer(w,s)
-
-DISPLAY_WINDOW	*w;
-char	*s;
+void	set_display_footer(DISPLAY_WINDOW *w, char *s)
 
 {
 	if (w->display_frame)
@@ -2247,7 +2143,7 @@ static	Frame	header_frame;
 
 /* Close the header window */
 
-void	hide_header_frame()
+void	hide_header_frame(void)
 
 {
 	if (headerwin_sticky)
@@ -2261,10 +2157,7 @@ void	hide_header_frame()
 	}
 }
 
-static	void	x_save_attachment_proc (item, event)
-
-Panel_item	item;
-Event		*event;
+static	void	x_save_attachment_proc (Panel_item item, Event *event)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -2282,10 +2175,7 @@ Event		*event;
 	save_attachment_proc (m);
 }
 
-static	void	x_add_key_proc (item, event)
-
-Panel_item	item;
-Event		*event;
+static	void	x_add_key_proc (Panel_item item, Event *event)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -2305,10 +2195,7 @@ Event		*event;
 
 /* Display the header */
 
-static	void	display_header_proc(item, event)
-
-Panel_item	item;
-Event		*event;
+static	void	display_header_proc(Panel_item item, Event *event)
 
 {
 	static	Textsw	header_window;
@@ -2374,9 +2261,7 @@ Event		*event;
 
 /* Clear the footer on the display window */
 
-void	clear_display_footer(w)
-
-DISPLAY_WINDOW	*w;
+void	clear_display_footer(DISPLAY_WINDOW *w)
 
 {
 	set_display_footer(w,"");
@@ -2384,11 +2269,7 @@ DISPLAY_WINDOW	*w;
 
 /* Catch resize events on the display frame */
 
-static	void	display_frame_proc(w,e,a)
-
-Xv_Window	w;
-Event		*e;
-Notify_arg	a;
+static	void	display_frame_proc(Xv_Window w, Event *e, Notify_arg a)
 
 {
 	int	newh;
@@ -2413,9 +2294,7 @@ Notify_arg	a;
 
 /* Show the add key button */
 
-void	show_addkey (w)
-
-DISPLAY_WINDOW	*w;
+void	show_addkey (DISPLAY_WINDOW *w)
 
 {
 	xv_set (w->addkey_item,
@@ -2423,9 +2302,7 @@ DISPLAY_WINDOW	*w;
 		NULL);
 }
 
-void	show_attach (w)
-
-DISPLAY_WINDOW	*w;
+void	show_attach (DISPLAY_WINDOW *w)
 
 {
 	xv_set (w->decode_item,
@@ -2433,9 +2310,7 @@ DISPLAY_WINDOW	*w;
 		NULL);
 }
 
-void	destroy_display_window(w)
-
-DISPLAY_WINDOW	*w;
+void	destroy_display_window(DISPLAY_WINDOW *w)
 
 {
 	if (w) {
@@ -2462,9 +2337,7 @@ DISPLAY_WINDOW	*w;
 	}
 }
 
-display_frame_done_proc (f)
-
-Frame	f;
+display_frame_done_proc (Frame f)
 
 {
 	/* get the window pointer for that display_frame, */
@@ -2474,9 +2347,7 @@ Frame	f;
 
 /* Create the display window */
 
-DISPLAY_WINDOW	*create_display_window(m)
-
-MESSAGE	*m;
+DISPLAY_WINDOW	*create_display_window(MESSAGE *m)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -2596,10 +2467,7 @@ MESSAGE	*m;
 
 /* Display the information about the sender */
 
-void	display_sender_info(m,w)
-
-MESSAGE	*m;
-DISPLAY_WINDOW	*w;
+void	display_sender_info(MESSAGE *m, DISPLAY_WINDOW *w)
 
 {
 	xv_set(w->sender_item,PANEL_READ_ONLY,FALSE,NULL);
@@ -2616,9 +2484,7 @@ DISPLAY_WINDOW	*w;
 
 /* Clear the display window */
 
-void	clear_display_window(w)
-
-DISPLAY_WINDOW	*w;
+void	clear_display_window(DISPLAY_WINDOW *w)
 
 {
 	xv_set(w->sig_window, TEXTSW_READ_ONLY, FALSE,
@@ -2639,9 +2505,7 @@ DISPLAY_WINDOW	*w;
 
 /* Set the display window to read-only */
 
-void	lock_display_window(w)
-
-DISPLAY_WINDOW	*w;
+void	lock_display_window(DISPLAY_WINDOW *w)
 
 {
 	xv_set(w->sig_window,TEXTSW_FIRST_LINE,0,
@@ -2657,10 +2521,7 @@ DISPLAY_WINDOW	*w;
 
 /* Show the display window */
 
-void	show_display_window(m,w)
-
-MESSAGE	*m;
-DISPLAY_WINDOW	*w;
+void	show_display_window(MESSAGE *m, DISPLAY_WINDOW *w)
 
 {
 	xv_set(w->display_frame,
@@ -2671,7 +2532,7 @@ DISPLAY_WINDOW	*w;
 
 /* Hide the display window */
 
-void	close_display_windows()
+void	close_display_windows(void)
 
 {
 	DISPLAY_WINDOW	*w;
@@ -2688,25 +2549,19 @@ void	close_display_windows()
 
 /* Display the message body from the buffer */
 
-void	display_message_body(b,w)
-
-BUFFER	*b;
-DISPLAY_WINDOW	*w;
+void	display_message_body(BUFFER *b, DISPLAY_WINDOW *w)
 
 {
 	textsw_insert(w->body_window, (char *)b->message,b->length);
 }
 
-void	display_message_sig(b,w)
-
-BUFFER	*b;
-DISPLAY_WINDOW	*w;
+void	display_message_sig(BUFFER *b, DISPLAY_WINDOW *w)
 
 {
 	textsw_insert(w->sig_window, (char *)b->message,b->length);
 }
 
-void	delete_message_proc()
+void	delete_message_proc(void)
 
 {
 	MESSAGE	*om,*m;
@@ -2785,11 +2640,7 @@ void	delete_message_proc()
 	update_message_list();
 }
 
-static	void	list_repaint_proc(canvas,pw,r_a)
-
-Canvas  canvas;
-Xv_window       pw;
-Rectlist        *r_a;
+static	void	list_repaint_proc(Canvas canvas, Xv_window pw, Rectlist *r_a)
 
 {
 	MESSAGE	*m;
@@ -2815,10 +2666,7 @@ Rectlist        *r_a;
 	}
 }
 
-static	void	list_notify_proc(window,event)
-
-Xv_Window	*window;
-Event	*event;
+static	void	list_notify_proc(Xv_Window window, Event *event)
 
 {
 	MESSAGE	*m,*lm;
@@ -2887,12 +2735,13 @@ Event	*event;
 	}
 }
 
-void set_initial_scrollbar_position()
+void set_initial_scrollbar_position(void)
 
 {
 	int p = 1;
 	MESSAGE *m = messages.start;
 	int	v;
+	int	found_new = FALSE;
 
 	v = xv_get(v_scroll, SCROLLBAR_VIEW_LENGTH);
 
@@ -2902,21 +2751,37 @@ void set_initial_scrollbar_position()
 	xv_set(v_scroll, SCROLLBAR_VIEW_LENGTH, 1, 0);
 	if (messages.number > v) {
 		p = messages.number - v + 3 /* the +3 is due to error in value returned for SCROLLBAR_VIEW_LENGTH) */;
-		xv_set (v_scroll, SCROLLBAR_VIEW_START, p-1, 0);
 	}
 
+	/* Look for first new message */
+
 	while (m) {
-		if (m->status == MSTAT_NONE)
-			if (m->list_pos < p) {
-				p = m->list_pos;
-				xv_set(v_scroll, SCROLLBAR_VIEW_START, p-1, 0);
-			}
+		if (m->status == MSTAT_NONE) {
+			p = m->list_pos;
+			found_new = TRUE;
+			break;
+		}
 		m = m->next;
 	}
+
+	/* Ok, now look for first unread if we didn't find a new one */
+
+	if (!found_new) {
+		m = messages.start;
+		while (m) {
+			if (m->status == MSTAT_UNREAD) {
+				p = m->list_pos;
+				break;	
+			}
+			m = m->next;
+		}
+	}
+
+	xv_set (v_scroll, SCROLLBAR_VIEW_START, p-1, 0);
 	xv_set(v_scroll, SCROLLBAR_VIEW_LENGTH, v, 0);
 }
 
-void	update_menu_item()
+void	update_menu_item(void)
 
 {
 	char	*s;
@@ -2941,10 +2806,7 @@ void	update_menu_item()
 	}
 }
 
-void	x_xxxx_message_proc(item,event)
-
-Panel_item	item;
-Event		*event;
+void	x_xxxx_message_proc(Panel_item item, Event *event)
 
 {
 	update_random();
@@ -2960,10 +2822,7 @@ Event		*event;
 		}
 }
 
-void	copy_choice_proc(m,mi)
-
-Menu	m;
-Menu_item	mi;
+void	copy_choice_proc(Menu m, Menu_item mi)
 
 {
 	char	*s;
@@ -2981,10 +2840,7 @@ Menu_item	mi;
 	}
 }
 
-void	move_choice_proc(m,mi)
-
-Menu	m;
-Menu_item	mi;
+void	move_choice_proc(Menu m, Menu_item mi)
 
 {
 	char	*s;
@@ -3002,10 +2858,7 @@ Menu_item	mi;
 	}
 }
 
-void	load_choice_proc(m,mi)
-
-Menu	m;
-Menu_item	mi;
+void	load_choice_proc(Menu m, Menu_item mi)
 
 {
 	char	*s;
@@ -3023,7 +2876,7 @@ Menu_item	mi;
 	}
 }
 
-static	void	clear_passphrase_proc()
+static	void	clear_passphrase_proc(void)
 
 {
 	destroy_passphrase (TRUE);
@@ -3037,7 +2890,7 @@ static	void	(*menus_proc[3])() = {
 
 };
 
-void	close_all_windows()
+void	close_all_windows(void)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -3061,9 +2914,8 @@ void	close_all_windows()
  * file_menu_action_proc - Set the file_name_item based on the menu item
  */
 void
-file_menu_action_proc(menu, menu_item)
-Menu    menu;
-Menu_item       menu_item;
+file_menu_action_proc(Menu menu, Menu_item menu_item)
+
 {
   char	  folder_ending[MAXPATHLEN];
   char	  *menu_string, *menu_data, *s, *folder_dir, *home;
@@ -3113,8 +2965,7 @@ Menu_item       menu_item;
  * return an allocated char * that points to the last item in a path.
  */
 char *
-getfilename(path)
-char *path;
+getfilename(char *path)
 {
     char *p;
 
@@ -3133,10 +2984,8 @@ char *path;
  * The above order is done whether or not the user makes a
  * menu selection.
  */
-Menu
-gen_pullright(mi, op)
-Menu_item mi;
-Menu_generate op;
+Menu gen_pullright(Menu_item mi, Menu_generate op)
+
 {
     Menu menu;
     Menu_item new;
@@ -3168,10 +3017,8 @@ Menu_generate op;
    called only for the main file-list menu, not for the submenus.  The files
    in the mail directory are re-read each time the menu is displayed and
    sorted. */
-Menu
-gen_mainmenu(m, op)
-Menu m;
-Menu_generate op;
+Menu gen_mainmenu(Menu m, Menu_generate op)
+
 {
   Menu pr_menu;
   Menu_item new_mi;
@@ -3200,11 +3047,7 @@ Menu_generate op;
 /* MenuItemSort(): Sorts the menu items into alphabetical order, case
    sensitive, placing directory names first.  'cnt' is the number of menu
    items to sort. */
-void MenuItemSort(menuitemList, menuitemIsDirec, count)
-
-Menu_item menuitemList[];
-char menuitemIsDirec[];
-int count;
+void MenuItemSort(Menu_item menuitemList[], char menuitemIsDirec[], int count)
 
 {
   int i, j;
@@ -3256,9 +3099,8 @@ int count;
  * recursive, a new menu is created for each subdirectory under the
  * original path.
  */
-Menu_item
-add_path_to_menu(path)
-char *path;
+Menu_item add_path_to_menu(char *path)
+
 {
     DIR                 *dirp;
     struct dirent       *dp;
@@ -3350,10 +3192,7 @@ return XV_NULL;
         NULL);
 }
 
-static 	void	nym_notify (menu, menu_item)
-
-Menu    menu;
-Menu_item       menu_item;
+static 	void	nym_notify (Menu menu, Menu_item menu_item)
 
 {
 	char	*nym;
@@ -3380,11 +3219,7 @@ static Panel_item alias_list,alias_text,address_text;
 /* functions */
 
 
-static void	main_frame_events (win, event, arg)
-
-Xv_Window	win;
-Event		*event;
-Notify_arg	arg;
+static void	main_frame_events (Xv_Window win, Event *event, Notify_arg arg)
 
 {
 	switch (event_action(event)) {
@@ -3399,9 +3234,7 @@ Notify_arg	arg;
 	}
 }
 
-void	setup_ui(level,argc,argv)
-
-int	level;
+void	setup_ui(int level, int argc, char **argv)
 
 {
 	int	i, l;
@@ -3694,22 +3527,6 @@ PANEL_LABEL_STRING, "Mail File:",
 
 	button_menu = (Menu) xv_create(XV_NULL, MENU,
 		MENU_ITEM,
-			MENU_STRING, "Print Decrypted/Authenticated",
-			MENU_NOTIFY_PROC, print_cooked_proc,
-			NULL,
-		MENU_ITEM,
-			MENU_STRING, "Print Encrypted/Clearsigned",
-			MENU_NOTIFY_PROC, print_raw_proc,
-			NULL,
-		NULL);
-
-	(void) xv_create (top_panel, PANEL_BUTTON,
-		PANEL_LABEL_STRING, "Print",
-		PANEL_ITEM_MENU, button_menu,
-		NULL);
-
-	button_menu = (Menu) xv_create(XV_NULL, MENU,
-		MENU_ITEM,
 			MENU_STRING, "To Sender",
 			MENU_NOTIFY_PROC, reply_sender_no_include,
 			NULL,
@@ -3799,13 +3616,35 @@ PANEL_LABEL_STRING, "Mail File:",
 		PANEL_ITEM_MENU, files_menu[2],
 		NULL);
 
+	button_menu = (Menu) xv_create(XV_NULL, MENU,
+		MENU_ITEM,
+			MENU_STRING, "Print Decrypted/Authenticated",
+			MENU_NOTIFY_PROC, print_cooked_proc,
+			NULL,
+		MENU_ITEM,
+			MENU_STRING, "Print Encrypted/Clearsigned",
+			MENU_NOTIFY_PROC, print_raw_proc,
+			NULL,
+		NULL);
+
+	(void) xv_create (top_panel, PANEL_BUTTON,
+		PANEL_LABEL_STRING, "Print",
+		PANEL_ITEM_MENU, button_menu,
+		NULL);
+
 	(void) xv_create (top_panel, PANEL_BUTTON,
 		PANEL_LABEL_STRING, "Props",
 		PANEL_ITEM_MENU,
-			xv_create(XV_NULL, MENU, MENU_ITEM,
+			xv_create(XV_NULL, MENU, 
+				MENU_ITEM,
+				MENU_STRING, "Edit",
+				MENU_NOTIFY_PROC, properties_proc,
+				NULL,
+				MENU_ITEM,
 				MENU_STRING, "Save layout",
 				MENU_NOTIFY_PROC, save_xresources,
-				NULL, NULL),
+				NULL,
+				NULL),
 		NULL);
 
 	button_menu = (Menu) xv_create(XV_NULL, MENU, NULL);
@@ -4147,13 +3986,13 @@ PANEL_LABEL_STRING, "Mail File:",
 	xv_main_loop(main_frame);
 }
 
-void	shutdown_ui()
+void	shutdown_ui(void)
 
 {
 	xv_destroy_safe(main_frame);
 }
 
-show_busy ()
+show_busy (void)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -4177,7 +4016,7 @@ show_busy ()
 	}
 }
 
-clear_busy()
+clear_busy(void)
 
 {
 	COMPOSE_WINDOW	*w;
@@ -4203,10 +4042,7 @@ clear_busy()
 
 /* handling of X resources */
 
-static void defaults_save_string(res, val)
-
-char	*res;
-char	*val;
+static void defaults_save_string(char *res, char *val)
 
 {
 	char what[128];
@@ -4216,9 +4052,7 @@ char	*val;
 		defaults_set_string(what, val);
 }
 
-static char* defaults_load_string(res)
-
-char	*res;
+static char* defaults_load_string(char *res)
 
 {
 	char	name[256];
@@ -4230,9 +4064,7 @@ char	*res;
 	return defaults_get_string(name, clas, NULL);
 }
 
-static int defaults_load_boolean(res)
-
-char	*res;
+static int defaults_load_boolean(char *res)
 
 {
 	char name[128];
@@ -4245,10 +4077,7 @@ char	*res;
 	return defaults_get_boolean(name, clas, 0);
 }
 
-static void defaults_get_rect(res, frame)
-
-char	*res;
-Frame	frame;
+static void defaults_get_rect(char *res, Frame frame)
 
 {
 	Rect	rect;
@@ -4281,10 +4110,7 @@ Frame	frame;
 	}
 }
 
-static void defaults_save_rect(res, frame)
-
-char	*res;
-Frame	frame;
+static void defaults_save_rect(char *res, Frame frame)
 
 {
 	Rect	rect;
@@ -4301,9 +4127,7 @@ Frame	frame;
 	}
 }
 
-static char *find_dotfile(dotfile)
-
-char	*dotfile;
+static char *find_dotfile(char *dotfile)
 
 {
 	char	*home;
@@ -4331,7 +4155,7 @@ char	*dotfile;
 	return NULL;
 }
 
-static void load_xresources()
+static void load_xresources(void)
 
 {
 	char	*xapplresdir, res_file[MAXPATHLEN + 10];
@@ -4353,7 +4177,7 @@ static void load_xresources()
 	}
 }
 
-static void find_xresources()
+static void find_xresources(void)
 
 {
 	char	*str;
@@ -4373,7 +4197,7 @@ static void find_xresources()
 	headerwin_sticky = defaults_load_boolean("HeaderWindow.Sticky");
 }
 
-static void set_xresources()
+static void set_xresources(void)
 
 {
 	Frame	f, df;
@@ -4394,7 +4218,7 @@ static void set_xresources()
 	defaults_save_rect("ComposeWindow", f);
 }
 
-static void save_xresources()
+static void save_xresources(void)
 
 {
 	char *filename=NULL;
@@ -4407,12 +4231,14 @@ static void save_xresources()
 	}
 }
 
-void
-sync_list()
-{
-} /* sync_list */
+/* Motif compatibility */
 
-void
-deleteAllMessages()
+void	sync_list (void)
+
 {
-} /* deleteAllMessages */
+}
+
+void	deleteAllMessages(void)
+
+{
+}
