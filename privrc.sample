@@ -1,0 +1,45 @@
+#
+# Sample ~/.privrc file.
+# $Id$
+#
+# Aliases
+#
+alias bernard bernard@witsend.vernet.lv
+#
+# Retained headers
+#
+retain To Subject From cc
+#
+# Set values
+#
+set folder='.mfolder'
+set printmail='lpr'
+#
+# This sets the Reply-To: header.
+# The following line makes privtool always use the Reply-To line
+# when replying to mail. If it isn't set then it'll ask first.
+#
+#set replyto='ggt@linuxfan.com'
+set defaultusereplyto
+set indentprefix='> '
+#
+# This line specifies where outgoing mail should be kept.
+#
+#set record='/home/ggt/.mfolder/sent-mail'
+#
+# This line specifies which folders should appear in the toolbar
+# combo.
+#
+set filemenu2='+/friends +/work-related +/misc'
+#
+# These lines set the default state of the toggles in the compose window.
+set nodefaultsign
+set nodefaultencrypt
+#
+# PGP Settings
+#
+#@pgpkey chaz=chaz@tmxmelb.mhs.oz.au
+#@pgpkey ggt=ggt@netspace.net.au
+#@defnym ggt
+#@security 2
+testinterval='1500'
