@@ -38,6 +38,27 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT) liteclue/LiteClue.o
 
 #
+# For Berkeley DB database.
+#
+
+#DBLDFLAGS = -ldb
+#DB_FLAGS = -DBDB -I./dbinc
+
+#
+# For GNU database
+#
+
+DBLDFLAGS = -Wl,-Bstatic -lgdbm -Wl,-Bdynamic
+DB_FLAGS = -DGDBM
+
+#
+# For no database.
+#
+
+#DBLDFLAGS =
+#DB_FLAGS =
+
+#
 # Use the following lines if you don't have PGP Tools.
 #
 #PGPLDFLAGS=
@@ -97,12 +118,23 @@ OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
 #OPENWINLIBS= -lxview -lolgx -lX11
 
 #
+# Proprietry Rex/Xit defines.
+#
+ifneq ($(xit),)
+XITLDFLAGS =	-Wl,-rpath,/home/tpg/lib -L/home/tpg/lib -lXit
+XITCPPFLAGS =	-I/home/tpg/include -DUSE_REX
+else
+XITLDFLAGS =
+XITCPPFLAGS =
+endif
+
+#
 # If using SunOS/Solaris, use the first definition, if using Linux use the
 # second definition.
 #
 
-LDFLAGS= $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
-	$(PGPLDFLAGS)
+LDFLAGS= $(XITLDFLAGS) $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
+	$(PGPLDFLAGS) $(DBLDFLAGS) -ldl
 
 #LDFLAGS=$(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm $(PGPLDFLAGS) \
 #	-L/usr/X11/lib
@@ -164,7 +196,8 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
 	$(DEFAULT_FONT) $(XRESOURCES) -D_POSIX_SOURCE -DNSA_ICON -DCOMPACT \
 	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux -DMAILER_LINE -Iliteclue \
-	-D_SVID_SOURCE $(PGPTOOLS) -Iimages -DNO_PREMAIL
+	-D_SVID_SOURCE $(PGPTOOLS) -Iimages -DNO_PREMAIL $(DB_FLAGS) \
+	$(XITCPPFLAGS)
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -245,3 +278,16 @@ $(APPDIR):
 
 $(ICONDIR):
 		mkdir -p $(ICONDIR)
+
+#
+# Dependancies here.
+#
+motif.o:	def.h buffers.h mailrc.h windows.h gui.h motif_protos.h \
+		mfolder.h mprops.h pixmapcache.h m_util.h debug.h \
+		images/prev.xpm images/prev_is.xpm images/next.xpm \
+		images/next_is.xpm images/delete.xpm  images/undelete.xpm \
+		images/undelete_is.xpm images/folderwin.xpm \
+		images/letter.xpm images/dir.xpm images/privtool_empty.xpm \
+		images/privtool_new.xpm images/privtool-logo-hc.xpm \
+		images/privtool-logo-lc.xpm images/expanded.xpm \
+		images/collapsed.xpm
