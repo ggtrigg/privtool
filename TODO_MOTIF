@@ -15,9 +15,9 @@
 
 - Check encrypted mail stuff.
 
-- Update message list on initial display.
+- Update message list on initial display. - DONE
 
-- Keep selected message in list visible.
+- Keep selected message in list visible. - DONE
 
 - Check leaks from XmString's.
 
