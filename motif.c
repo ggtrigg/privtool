@@ -86,7 +86,7 @@ int			debug_;
 static Widget		toplevel_, msgarea_, msgarea2_, mailslist_;
 static Widget		text_ = NULL, hdrtext_ = NULL, folder_toggle_;
 static Widget		liteClue_, pp_window_ = NULL, abt_window_ = NULL;
-static Widget		foldwin_[2], fold_combo_;
+static Widget		foldwin_[2], fold_combo_, addkey_, attach_;
 static XtAppContext	app_context_;
 static char		local_pp[2048];
 static COMPOSE_WINDOW	*compose_first = NULL;
@@ -162,6 +162,10 @@ static void		insert_message(Widget w, char *m);
 static void		filerCb(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		insert_file(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		show_deletedCb(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		addkey_proc(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		attach_proc(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		hide_addkey();
+static void		hide_attach();
 
 static XtActionsRec actions[] = {
     {"view", (XtActionProc)viewAC}
@@ -451,6 +455,8 @@ display_message_body(BUFFER *b)
     XmString	body = XmStringGenerate(b->message, NULL, XmCHARSET_TEXT,
 					(XmStringTag)"LIST");
 
+    hide_addkey();
+    hide_attach();
     XmCSTextDisableRedisplay(text_);
     XmCSTextReplace(text_, 0, XmCSTextGetLastPosition(text_), body);
     XmStringFree(body);
@@ -851,9 +857,54 @@ setup_ui(int level, int argc, char **argv)
 /*----------------------------------------------------------------------*/
 
 void
-show_addkey()
+show_addkey(DISPLAY_WINDOW *w)
 {
+    XtVaSetValues(addkey_, XmNsensitive, True, NULL);
 }
+
+/*----------------------------------------------------------------------*/
+
+static void
+hide_addkey()
+{
+    XtVaSetValues(addkey_, XmNsensitive, False, NULL);
+}
+
+/*----------------------------------------------------------------------*/
+
+static void
+addkey_proc(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    if(last_message_read != NULL){
+	add_key_proc(NULL, last_message_read);
+    }
+} /* addkey_proc */
+
+/*----------------------------------------------------------------------*/
+
+void
+show_attach(DISPLAY_WINDOW *w)
+{
+    XtVaSetValues(attach_, XmNsensitive, True, NULL);
+} /* show_attach */
+
+/*----------------------------------------------------------------------*/
+
+static void
+hide_attach()
+{
+    XtVaSetValues(attach_, XmNsensitive, False, NULL);
+} /* hide_attach */
+
+/*----------------------------------------------------------------------*/
+
+static void
+attach_proc(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    if(last_message_read != NULL){
+	save_attachment_proc(NULL, last_message_read);
+    }
+} /* addkey_proc */
 
 /*----------------------------------------------------------------------*/
 
@@ -1409,6 +1460,18 @@ create_edit_menu(Widget parent)
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   undelete_last_proc, NULL);
+
+    XtManageChild(XmCreateSeparatorGadget(menu_, "sep", NULL, 0));
+
+    addkey_ = XmCreatePushButtonGadget (menu_, "addkey", NULL, 0);
+    XtManageChild (addkey_);
+    XtAddCallback (addkey_, XmNactivateCallback,
+		   addkey_proc, NULL);
+
+    attach_ = XmCreatePushButtonGadget (menu_, "showattach", NULL, 0);
+    XtManageChild (attach_);
+    XtAddCallback (attach_, XmNactivateCallback,
+		   attach_proc, NULL);
 
     button_ = XmCreatePushButtonGadget (menu_, "clearpp", NULL, 0);
     XtManageChild (button_);
@@ -2444,3 +2507,11 @@ show_deletedCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	}
     }
 } /* show_deletedCb */
+
+/*----------------------------------------------------------------------*/
+
+void
+invalid_attachment_notice_proc()
+{
+
+} /* invalid_attachment_notice_proc */

@@ -13,8 +13,8 @@
  *	
  */
 
-extern	FILE	*get_flop_file ();
+extern	FILE	*get_flop_file (void);
 #ifdef AUTO_EJECT
-extern	void	eject_floppy ();
+extern	void	eject_floppy (void);
 #endif
 

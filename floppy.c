@@ -1,13 +1,14 @@
 /*
- *	@(#)floppy.c	1.2 7/26/95
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	(c) Copyright 1993-1995 by Mark Grant. All right reserved.
+ *	(c) Copyright 1993-1996 by Mark Grant. All right reserved.
  *	The author assumes no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
  *
- *	This software is being distributed under the GNU Public Licence,
- *	see the file COPYING for more details.
+ *	This software is distributed under the GNU Public Licence, see
+ *	the file COPYING for more details.
  *
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *	
@@ -24,7 +25,7 @@
 
 static	FILE	*flop_file;
 
-FILE	*get_flop_file ()
+FILE	*get_flop_file (void)
 
 {
 	if (!flop_file) {
@@ -34,7 +35,7 @@ FILE	*get_flop_file ()
 	return flop_file;
 }
 
-close_floppy ()
+close_floppy (void)
 
 {
 	if (flop_file) {
@@ -44,7 +45,7 @@ close_floppy ()
 }
 
 #ifdef AUTO_EJECT
-void	eject_floppy()
+void	eject_floppy(void)
 
 {
 	(void) get_flop_file ();

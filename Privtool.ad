@@ -54,6 +54,10 @@
 *.menu_bar*undelete.mnemonic:		U
 *.menu_bar*undel_last.labelString:	Undelete Last
 *.menu_bar*undel_last.mnemonic:		L
+*.menu_bar*addkey.labelString:		Add Key
+*.menu_bar*addkey.mnemonic:		A
+*.menu_bar*showattach.labelString:	Show Attachment
+*.menu_bar*showattach.mnemonic:		S
 *.menu_bar*clearpp.labelString:		Clear Passphrase
 *.menu_bar*clearpp.mnemonic:		P
 *.menu_bar*clearpp.sensitive:		false

@@ -1,2 +1,21 @@
-cc -ansi -mpentium -DSYSV -c motif.c -o motif.o -I/usr/X11R6/include   -O6 -DPGPEXEC=\"/usr/local/bin/pgp\" -DPGPVERSION=\"2.6\" -DMIXEXEC=\"/home/ggt/bin/mixmaster\" -DMIXPATH=\"/home/ggt/Mix\" -DNO_MIXMASTER -DFIXED_WIDTH_FONT=\"fixed\"  -D_BSD_SOURCE -DNSA_ICON -DCOMPACT -DMOTIF -DSTART_OPEN -Dlinux -Ilinux
-cc -ansi -mpentium -DSYSV -O6 -DPGPEXEC=\"/usr/local/bin/pgp\" -DPGPVERSION=\"2.6\" -DMIXEXEC=\"/home/ggt/bin/mixmaster\" -DMIXPATH=\"/home/ggt/Mix\" -DNO_MIXMASTER -DFIXED_WIDTH_FONT=\"fixed\"  -D_BSD_SOURCE -DNSA_ICON -DCOMPACT -DMOTIF -DSTART_OPEN -Dlinux -Ilinux pgplib.o buffers.o mail_reader.o linux/gettime.o linux/parsedate.o messages.o main.o gui.o motif.o  -o privtool -L/usr/X11R6/lib -lXm -lXpm -lXext -lXmu -lXt -lX11 -lm 
+cc -ansi -mpentium -DSYSV -c pgplib.c -o pgplib.o -I/usr/X11R6/include   -g -DPGPEXEC=\"/usr/local/bin/pgp\" -DPGPVERSION=\"2.6\" -DMIXEXEC=\"/home/ggt/bin/mixmaster\" -DMIXPATH=\"/home/ggt/Mix\" -DNO_MIXMASTER -DFIXED_WIDTH_FONT=\"fixed\"  -D_BSD_SOURCE -DNSA_ICON -DCOMPACT -DMOTIF -DSTART_OPEN -Dlinux -Ilinux -DMAILER_LINE -Iliteclue
+pgplib.c: In function `run_pgp':
+pgplib.c:1479: storage class specified for parameter `add_to_error'
+pgplib.c:1479: parse error before `{'
+pgplib.c:1479: declaration for parameter `add_to_error' but no such parameter
+pgplib.c:1569: `prog' undeclared (first use this function)
+pgplib.c:1569: (Each undeclared identifier is reported only once
+pgplib.c:1569: for each function it appears in.)
+pgplib.c:1569: warning: passing arg 2 of `execvp' makes pointer from integer without a cast
+pgplib.c:1662: invalid type argument of `unary *'
+pgplib.c:1663: warning: passing arg 1 of `strlen' makes pointer from integer without a cast
+pgplib.c:1663: warning: passing arg 2 of `write' makes pointer from integer without a cast
+pgplib.c:1670: invalid type argument of `unary *'
+pgplib.c:1687: warning: passing arg 2 of `write' makes pointer from integer without a cast
+pgplib.c:1764: `ret' undeclared (first use this function)
+pgplib.c: At top level:
+pgplib.c:1781: redefinition of `run_pgp'
+pgplib.c:1477: `run_pgp' previously defined here
+pgplib.c: In function `add_key':
+pgplib.c:3049: `PATH_MAX' undeclared (first use this function)
+make: *** [pgplib.o] Error 1

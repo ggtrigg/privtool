@@ -3,20 +3,20 @@
  *	$RCSfile$	$Revision$ 
  *	$Date$
  *
- *	Gui.c : This file is intended to contain as much
- *	as possible of the user-interface code, allowing privtool to
- *	be compiled for different operating systems and UI toolkits
- *	by 'simply' replacing the lowest level of functionality.
+ *	Gui.c : This file well contain most of the user-interface code, 
+ *	allowing the compilatio of privtool on different operating systems 
+ *	and with UI toolkits by 'simply' replacing the lowest level of 
+ *	functionality.
  *
  *	(c) Copyright 1993-1996 by Mark Grant, and by other
- *	authors as appropriate. All right reserved.
+ *	authors as appropriate. All rights reserved.
  *
  *	The authors assume no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
  *
- *	This software is being distributed under the GNU Public Licence,
- *	see the file COPYING for more details.
+ *	This software is distributed under the GNU Public Licence, see
+ *	the file COPYING for more details.
  *
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *
@@ -65,13 +65,20 @@ static	time_t	last_displayed = 0;
 static	char	*mail_args[] =
 
 {
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(linux)
 	"/usr/sbin/sendmail",
 #else
 	"/usr/lib/sendmail",
 #endif
 	"-t",
 	NULL
+};
+
+static	char	*uudecode_args[] =
+
+{
+	"/usr/bin/uudecode",
+	NULL,
 };
 
 static	char	*print_args[] =
@@ -123,7 +130,6 @@ static	byte	md5_pass[16];
 
 MESSAGE	*last_message_read;
 MESSAGE	*message_to_decrypt;
-MESSAGE	*displayed_message;
 
 #ifdef COMPACT
 int	layout_compact = TRUE;
@@ -139,7 +145,7 @@ char	prog_name[] = "XSafeMail";
 char	prog_name[] = "Privtool";
 #endif
 
-char	prog_ver [] = "V0.87 BETA";
+char	prog_ver [] = "V0.88 BETA";
 
 /* Set the description of the message for the message list */
 
@@ -352,8 +358,6 @@ MESSAGE	*m;
 	update_random();
 	time (&last_displayed);
 
-	displayed_message = m;
-
 	hide_header_frame();
 
 	/* Set the icon back in case it was 'new mail' */
@@ -485,7 +489,6 @@ MESSAGE	*m;
 
 			/* Replace the old message with the decrypted one */
 
-			displayed_message = NULL;
 			newm = message_from_message(m);
 			replace_message_with_message(m,newm);
 			last_message_read = newm;
@@ -525,6 +528,9 @@ MESSAGE	*m;
 
 		if (buffer_contains_key (m->decrypted))
 			show_addkey (w);
+		if (m->attachment_type = 
+			buffer_contains_attachment (m->decrypted))
+			show_attach (w);
 
 		clear_busy ();
 	}
@@ -537,6 +543,9 @@ MESSAGE	*m;
 
 		if (buffer_contains_key (message_contents (m)))
 			show_addkey (w);
+		if (m->attachment_type = 
+			buffer_contains_attachment (message_contents(m)))
+			show_attach (w);
 	}
 
 	/* Update status to say we read it */
@@ -1502,7 +1511,6 @@ try_again:
 				"XView"
 #endif
 				);
-
 			add_to_buffer(mail_message,buff,strlen(buff));
 #endif
 
@@ -1621,7 +1629,7 @@ try_again:
 						0,
 #endif
 						remail_args,
-						NULL);
+						NULL, NULL);
 				}	
 				else {
 
@@ -1660,7 +1668,7 @@ remail_error_exit:
 						mail_message->message,
 						mail_message->length,
 						remail_args,
-						NULL);
+						NULL, NULL);
 				else 
 					goto remail_error_exit;
 				i++;
@@ -1673,7 +1681,7 @@ remail_error_exit:
 					mail_message->message,
 					mail_message->length,
 					remail_args,
-					NULL);
+					NULL, NULL);
 				else
 					goto remail_error_exit;
 				i++;
@@ -1687,7 +1695,7 @@ remail_error_exit:
 		else {
 #endif
 			run_program(mail_args[0],mail_message->message,
-				mail_message->length,mail_args,NULL);
+				mail_message->length,mail_args,NULL, NULL);
 #ifndef NO_MIXMASTER
 		}
 #endif
@@ -1988,7 +1996,6 @@ char	*s;
 	set_initial_scrollbar_position ();
 
 	last_message_read = NULL;
-	displayed_message = NULL;
 	message_to_decrypt = NULL;
 
 	clear_busy ();
@@ -2367,39 +2374,113 @@ void	print_raw_proc ()
 	print_message_proc (TRUE);
 }
 
-void	add_key_proc ()
+void	save_attachment_proc (w, m)
+
+DISPLAY_WINDOW	*w;
+MESSAGE	*m;
+
+{
+	BUFFER	*b = NULL, *a = NULL, *mess;
+	char	*s, *e;
+	int	err;
+
+	update_random ();
+
+	if (!m)
+		return;
+
+	show_busy ();
+	if (m->decrypted)
+		mess = m->decrypted;
+	else
+		mess = message_contents (m);
+
+	/* Now process the attachment */
+
+	switch (m->attachment_type) {
+
+		/* UUENCODED messages will be saved in the current
+		   directory */
+
+		case ATTACH_UUENCODE:
+		s = strstr (mess->message, "begin");
+		if (!s) {
+		invalid_attachment:
+			clear_busy ();
+			invalid_attachment_notice_proc ();
+			return;
+		}
+
+		e = strstr (s, "\nend");
+		if (!e || (e - (char *)mess->message) > mess->length)
+			goto invalid_attachment;
+
+		/* Ok, copy it into a new buffer */
+
+		b = new_buffer ();
+		add_to_buffer (b, s, (e - s) + 5);
+
+		err = run_program(uudecode_args[0], b->message,
+				b->length, uudecode_args, NULL, NULL);
+
+		free_buffer (b);
+		if (err) {
+			free_buffer (a);
+			goto invalid_attachment;
+		}
+		break;
+
+		default:
+		goto invalid_attachment;
+	}
+	
+	clear_busy ();
+
+	/* Now we may have the decoded attachment */
+
+	if (a) {
+		free_buffer (a);
+	}
+
+}
+
+void	add_key_proc (w, m)
+
+DISPLAY_WINDOW	*w;
+MESSAGE	*m;
 
 {
 	int	err;
 
 	update_random();
 
-	if (!displayed_message)
+	if (!m)
 		return;
 
-	set_display_footer("Adding key to keyring");
+	set_display_footer(w, "Adding key to keyring");
 
 	show_busy ();
-	if (displayed_message->decrypted)
-		err = add_key (displayed_message->decrypted);
+	if (m->decrypted)
+		err = add_key (m->decrypted);
 	else
-		err = add_key (message_contents(displayed_message));
+		err = add_key (message_contents(m));
 	clear_busy ();
 
 	switch (err) {
 
 		case ADD_OK:
-		set_display_footer ("Key added");
+		set_display_footer (w, "Key added");
 		break;
 
 		case ADD_NO_KEY:
 		case ADD_BAD_KEY:
+		case ADD_NO_TEMP:
 		bad_key_notice_proc ();
 		clear_display_footer ();
 		break;
 
 		case ADD_OLD_KEY:
-		set_display_footer ("No new keys or signatures found");
+		set_display_footer (w, "No new keys or signatures found");
 		break;
 	}
 }
@@ -2413,4 +2494,37 @@ void	reseed_random_generator ()
 	clear_busy();
 }
 #endif
+
+/* Look for an attachment in the buffer */
+
+int	buffer_contains_attachment (b)
+
+BUFFER	*b;
+
+{
+	char	*begin;
+
+	if (!b || !b->message)
+		return FALSE;
+
+	/* Look for uuencode */
+
+	begin = strstr (b->message, "begin ");
+
+	if (!begin)
+		return FALSE;
+
+	begin += 6;
+
+	while (*begin && *begin != ' ') {
+		if (*begin < '0' || *begin > '9')
+			return FALSE;
+		begin++;
+	}
+
+	if (strstr (begin, "\nend"))
+		return ATTACH_UUENCODE;
+
+	return FALSE;
+}
 

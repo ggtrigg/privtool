@@ -565,6 +565,9 @@ MESSAGE	*m;
 	}
 }
 
+/* I think all of these should use header_date rather than date, but I
+   don't have the machines available to test that. */
+
 static	time_t	get_time (m)
 
 MESSAGE	*m;
@@ -612,18 +615,17 @@ MESSAGE	*m;
 #else
 #ifdef linux
 #define getdate(x) (parsedate((x),NULL))
-	if(m->header_date == NULL)
-	    return 0;
+	if (!m->header_date)
+		return 0;
 	tmp = getdate (m->header_date);
 	t = localtime (&tmp);
 #else
 	t = (struct tm *)getdate (m->date);
-
+#endif
 	if (t)
 		return mktime (t);
 	else
 		return 0;
-#endif
 #endif
 #endif
 }

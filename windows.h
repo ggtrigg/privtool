@@ -1,16 +1,17 @@
 
 /*
- *	@(#)windows.h	1.3 9/14/95
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	(c) Copyright 1993-1995 by Mark Grant, and by other
+ *	(c) Copyright 1993-1996 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
  *
- *	This software is being distributed under the GNU Public Licence,
- *	see the file COPYING for more details.
+ *	This software is distributed under the GNU Public Licence, see
+ *	the file COPYING for more details.
  *
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *
@@ -57,6 +58,7 @@ typedef struct _display_window {
 	Panel_item	addkey_item;
 	Panel_item	sender_item;
 	Panel_item	date_item;
+	Panel_item	decode_item;
 	Textsw	sig_window;
 	Textsw	body_window;
 #endif

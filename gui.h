@@ -61,6 +61,7 @@ extern  void	sort_by_sender ();
 extern	void	sort_by_size ();
 extern	void	sort_by_status ();
 extern	void	add_key_proc ();
+extern	void	save_attachment_proc ();
 #ifdef PGPTOOLS
 extern	void	reseed_random_generator ();
 #endif

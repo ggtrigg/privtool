@@ -1,6 +1,6 @@
 
-	Privtool Beta Release	@(#)Credits	1.4 6/11/96
-	-----------------------------------------------------
+	Privtool Beta Release
+	---------------------
 
 I've written most of the Privtool code by myself (mark@unicorn.com),
 however an increasing number of people have donated patches, and some
@@ -20,6 +20,7 @@ out!
 	Mark Grant (mark@unicorn.com)
 	Richard Huveneers (richard@hekkihek.hacom.nl)
 	Gregory Margo (gmargo@newton.vip.best.com)
+	Joerg Mainzer (mainzer@mainzer.langen.bull.de)
 	Keith Paskett (keith.paskett@sdl.usu.edu)
 	Rich Salz (rsalz@osf.org)
 	David Summers (david@actsn.fay.ar.us)
