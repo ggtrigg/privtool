@@ -52,6 +52,12 @@ $(DIRS):
 clean:
 		$(RM) privtool $(OBJS)
 
+TAGS:		$(SOURCE)
+		etags $(SOURCE)
+
+tags:		$(SOURCE)
+		ctags $(SOURCE)
+
 depend:		.depend
 
 .depend:	$(SOURCE)
