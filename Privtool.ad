@@ -8,6 +8,10 @@
 *.menu_bar*background:  		lightsteelblue3
 *.menu_bar*foreground:  		black
 
+*.validCursorForeground:		forestgreen
+*.invalidCursorForeground:		red
+*.noneCursorForeground:			orange
+
 *.menu_bar*file.labelString:		File
 *.menu_bar*file.mnemonic:		F
 *.menu_bar*edit.labelString:		Edit
@@ -426,7 +430,8 @@ Not a regular file.
 ?.folder.title:				Privtool - Folders
 ?.folder.width:				230
 ?.folder.height:			350
-!*.folderMain.scrollingPolicy:		automatic
+*.folderMain.scrollingPolicy:		automatic
+*.folderMain.scrollBarDisplayPolicy:	as_needed
 *.folderC*background:			white smoke
 *.folderC.selectionPolicy:		browse_select
 *.folderC.spatialStyle:			cells
@@ -436,6 +441,8 @@ Not a regular file.
 *.folderC.directory.largeIconPixmap:	dir.xpm
 *.folderC.file.largeIconPixmap:		letter.xpm
 *.folderC*shadowThickness:		0
+*.folderC.dropSiteType:			drop_site_composite
+!*.folderC.XmIconGadget.animationStyle:	drag_under_shadow_in
 
 !
 ! Folder window menu
@@ -485,31 +492,6 @@ Not a regular file.
 
 *compose.*.to.comboBoxType:			drop_down_combo_box
 
-!*compose.*.tolbl.leftAttachment:		attach_form
-!*compose.*.tolbl.topAttachment:			attach_form
-!*compose.*.tolbl.bottomAttachment:		attach_form
-!*compose.*.to.leftAttachment:			attach_widget
-!*compose.*.to.leftWidget:			tolbl
-!*compose.*.to.rightAttachment:			attach_form
-!*compose.*.to.topAttachment:			attach_form
-!*compose.*.to.bottomAttachment:			attach_form
-!*compose.*.subjlbl.leftAttachment:		attach_form
-!*compose.*.subjlbl.topAttachment:		attach_form
-!*compose.*.subjlbl.bottomAttachment:		attach_form
-!*compose.*.subj.leftAttachment:			attach_widget
-!*compose.*.subj.leftWidget:			subjlbl
-!*compose.*.subj.rightAttachment:		attach_form
-!*compose.*.subj.topAttachment:			attach_form
-!*compose.*.subj.bottomAttachment:		attach_form
-!*compose.*.cclbl.leftAttachment:		attach_form
-!*compose.*.cclbl.topAttachment:			attach_form
-!*compose.*.cclbl.bottomAttachment:		attach_form
-!*compose.*.cc.leftAttachment:			attach_widget
-!*compose.*.cc.leftWidget:			cclbl
-!*compose.*.cc.rightAttachment:			attach_form
-!*compose.*.cc.topAttachment:			attach_form
-!*compose.*.cc.botomAttachment:			attach_form
-
 *compose*XmTextField.background:		white smoke
 
 *XbaeCaption.labelTextAlignment:		alignment_end
@@ -519,3 +501,5 @@ Not a regular file.
 *compose.*.bcccap.labelString:			BCC:
 *.stext.editable:				true
 *.stext.cursorPositionVisible:			true
+
+*XmFileSelectionBox.resizePolicy:		resize_grow
