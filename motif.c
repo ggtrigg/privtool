@@ -161,6 +161,7 @@ static void		display_new_message();
 static void		insert_message(Widget w, char *m);
 static void		filerCb(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		insert_file(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		show_deletedCb(Widget w, XtPointer clientdata, XtPointer calldata);
 
 static XtActionsRec actions[] = {
     {"view", (XtActionProc)viewAC}
@@ -398,13 +399,14 @@ create_passphrase_window()
 void
 delete_message_proc()
 {
-    int			message_number;
-    MESSAGE		*m = messages.start;
+    int			message_number, n = 0;
+    MESSAGE		*m = messages.start, *om;
     XmString		tempstring;
     int			sel_pos_count;
     unsigned int	*sel_posns;
 
     while (m) {
+	m->list_pos -= n;
 	if(XmListPosSelected(mailslist_, m->list_pos)){
 	    message_number = m->list_pos;
 	    XmListDeleteItemsPos(mailslist_, 1, message_number);
@@ -414,6 +416,9 @@ delete_message_proc()
 					      (XmStringTag)"STRUCK");
 		XmListAddItem(mailslist_, tempstring, message_number);
 		XmStringFree(tempstring);
+	    }
+	    else{
+		n++;
 	    }
 	    delete_message(m);
 	}
@@ -428,7 +433,7 @@ delete_message_proc()
 	sync_list();
     }
     update_message_list();
-}
+} /* delete_message_proc */
 
 /*----------------------------------------------------------------------*/
 
@@ -1069,16 +1074,16 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 	button = XmCreatePushButton(topform, "insert", NULL, 0);
 	XtManageChild(button);
 
-	win->sign = XmCreateToggleButtonGadget(tbox, "sign", NULL, 0);
+	win->sign = XmCreateToggleButton(tbox, "sign", NULL, 0);
 	XtManageChild(win->sign);
-	win->encrypt = XmCreateToggleButtonGadget(tbox, "encrypt", NULL, 0);
+	win->encrypt = XmCreateToggleButton(tbox, "encrypt", NULL, 0);
 	XtManageChild(win->encrypt);
-	win->log = XmCreateToggleButtonGadget(tbox, "log", NULL, 0);
+	win->log = XmCreateToggleButton(tbox, "log", NULL, 0);
 	XtManageChild(win->log);
-	win->raw = XmCreateToggleButtonGadget(tbox, "raw", NULL, 0);
+	win->raw = XmCreateToggleButton(tbox, "raw", NULL, 0);
 	XtManageChild(win->raw);
 #ifndef NO_MIXMASTER
-	win->remail = XmCreateToggleButtonGadget(tbox, "remail", NULL, 0);
+	win->remail = XmCreateToggleButton(tbox, "remail", NULL, 0);
 	XtManageChild(win->remail);
 #endif
 
@@ -1417,6 +1422,7 @@ create_view_menu(Widget parent)
     Widget	menu_, cascade_, button_;
     Arg		args[2];
 
+    DEBUG1(("create_view_menu\n"));
     menu_ = XmCreatePulldownMenu (parent, "view_pane", NULL, 0);
     XtSetArg (args[0], XmNsubMenuId, menu_);
     cascade_ = XmCreateCascadeButton (parent, "view", args, 1);
@@ -1437,6 +1443,13 @@ create_view_menu(Widget parent)
 
     button_ = XmCreateSeparatorGadget(menu_, "separator", NULL, 0);
     XtManageChild (button_);
+
+    button_ = XmCreateToggleButton (menu_, "showdel", NULL, 0);
+    XtManageChild (button_);
+    XtVaGetValues(button_, XmNset, &show_deleted, NULL);
+    DEBUG2(("  show_deleted = %d\n", show_deleted));
+    XtAddCallback (button_, XmNvalueChangedCallback,
+		   show_deletedCb, NULL);
 
     foldwin_[0] = XmCreateToggleButton(menu_, "folders", NULL, 0);
     XtManageChild (foldwin_[0]);
@@ -2389,3 +2402,45 @@ insert_file(Widget w, XtPointer clientdata, XtPointer calldata)
     }
     XtDestroyWidget(w);
 } /* insert_file */
+
+/*----------------------------------------------------------------------*/
+
+static void
+show_deletedCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmToggleButtonCallbackStruct *cbs = (XmToggleButtonCallbackStruct *)calldata;
+    XmString	tempstring;
+    MESSAGE	*m;
+    int		n = 0, i;
+
+    DEBUG1(("show_deletedCb\n"));
+    if(cbs->set){
+	DEBUG2(("Am set\n"));
+	show_deleted = 1;
+	for(m = messages.start; m != NULL; m = m->next){
+	    m->list_pos += n;
+	    DEBUG3(("  %s - list_pos = %d\n", m->description, m->list_pos));
+	    if(m->flags & MESS_DELETED){
+		tempstring = XmStringGenerate(m->description, NULL,
+					      XmCHARSET_TEXT,
+					      (XmStringTag)"STRUCK");
+		XmListAddItem(mailslist_, tempstring, m->list_pos);
+		XmStringFree(tempstring);
+		n++;
+	    }
+	}
+    }
+    else{
+	DEBUG2(("Am unset\n"));
+	show_deleted = 0;
+	for(m = messages.start, i=1; m != NULL; m = m->next, i++){
+	    m->list_pos -= n;
+	    DEBUG3(("  %s - list_pos = %d\n", m->description, m->list_pos));
+	    if(m->flags & MESS_DELETED){
+		XmListDeletePos(mailslist_, i);
+		i--;
+		n++;
+	    }
+	}
+    }
+} /* show_deletedCb */

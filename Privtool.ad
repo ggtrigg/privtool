@@ -21,6 +21,10 @@
 *.menu_bar*help.labelString:		Help
 *.menu_bar*help.mnemonic:		H
 
+*.menu_bar*XmToggleButton.indicatorOn:	indicator_check
+!*.menu_bar*XmToggleButton.indicatorOn:	indicator_cross
+*.menu_bar*XmToggleButton.indicatorSize: 14
+
 !
 ! File menu items
 !
@@ -39,9 +43,9 @@
 ! Edit menu items
 !
 *.menu_bar*cut.labelString:		Cut
-*.menu_bar*cut.mnemonic:		C
+*.menu_bar*cut.mnemonic:		t
 *.menu_bar*edit_pane.copy.labelString:	Copy
-*.menu_bar*edit_pane.copy.mnemonic:	p
+*.menu_bar*edit_pane.copy.mnemonic:	C
 *.menu_bar*cut.sensitive:		false
 *.menu_bar*edit_pane.copy.sensitive:	false
 *.menu_bar*delete.labelString:		Delete
@@ -64,6 +68,9 @@
 *.menu_bar*sortby.labelString:		Sort By
 *.menu_bar*sortby.sensitive:		false
 *.menu_bar*sortby.mnemonic:		S
+*.menu_bar*showdel.labelString:		Show Deleted
+*.menu_bar*showdel.set:			true
+*.menu_bar*showdel.mnemonic:		D
 *.menu_bar*folders.labelString:		Folders...
 *.menu_bar*folders.mnemonic:		F
 
@@ -73,9 +80,9 @@
 *.menu_bar*fold_pane.copy.labelString:	Copy to folder
 *.menu_bar*fold_pane.copy.mnemonic:	C
 *.menu_bar*fold_pane.move.labelString:	Move to folder
-*.menu_bar*fold_pane.copy.mnemonic:	M
+*.menu_bar*fold_pane.move.mnemonic:	M
 *.menu_bar*fold_pane.load.labelString:	Load folder
-*.menu_bar*fold_pane.copy.mnemonic:	L
+*.menu_bar*fold_pane.load.mnemonic:	L
 
 !
 ! Compose menu items
@@ -387,6 +394,8 @@ Not a regular file.
 *compose*tbox.leftAttachment:			attach_form
 !*compose*tbox.rightAttachment:			attach_form
 *compose*tbox.sign.labelString:			Sign
+*compose*tbox.XmToggleButton.indicatorOn:	indicator_check_box
+*compose*tbox.XmToggleButton.selectColor:	goldenrod
 *compose*tbox.encrypt.labelString:		Encrypt
 *compose*tbox.log.labelString:			Log
 *compose*tbox.raw.labelString:			Raw
