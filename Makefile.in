@@ -5,13 +5,14 @@ prefix =	@prefix@
 exec_prefix =	@exec_prefix@
 bindir =	@bindir@
 datadir =	@datadir@
-
+mandir =	@mandir@
+docdir =	${prefix}/doc
 srcdir =	@srcdir@
 VPATH =		@srcdir@:@srcdir@/liteclue:@srcdir@/linux
 
 CC =		@CC@
 CFLAGS =	@CFLAGS@ @X_CFLAGS@
-CPPFLAGS =	@CPPFLAGS@ @DEFS@ -I$(srcdir) @gui_cpp@ @os_cpp@
+CPPFLAGS =	@CPPFLAGS@ @DEFS@ -I${srcdir} @gui_cpp@ @os_cpp@
 LDFLAGS =	@LDFLAGS@
 LDLIBS =	@LIBS@ @X_PRE_LIBS@ @X_EXTRA_LIBS@
 AUTODEP =	@AUTODEP@
@@ -21,19 +22,19 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA =	@INSTALL_DATA@
 
 # Mixmaster variables
-MIXPATH =	$(HOME)/.mix
+MIXPATH =	${HOME}/.mix
 MIXFLAGS =	-DMINMIX=3 -DMAXMIX=4 -DMINMIXREL=9500 -DMINMIXPATHREL=9000
 
 # GUI specific source files.
 XVIEW_SRC =	x.c xprops.c
 MOTIF_SRC =	motif.c mfolder.c mprops.c pixmapcache.c m_util.c \
 		liteclue/LiteClue.c
-MOTIF_CPP =	-I$(srcdir)/liteclue
+MOTIF_CPP =	-I${srcdir}/liteclue
 GTK_SRC =	gtk.c gprops.c
 
 # OS specific source files.
 LINUX_SOURCE =	linux/gettime.c linux/parsedate.c
-LINUX_CPP =	-I$(srcdir)/linux
+LINUX_CPP =	-I${srcdir}/linux
 
 # Floppy source file(s).
 FLOPPY_SRC =	floppy.c
@@ -42,57 +43,55 @@ GUI_SRC =	@gui_source@
 OS_SOURCE =	@os_source@
 
 SOURCE =	pgplib.c buffers.c messages.c main.c gui.c mail_reader.c \
-		$(GUI_SRC) $(OS_SOURCE) @floppy@
+		${GUI_SRC} ${OS_SOURCE} @floppy@
 
-OBJS =		$(notdir $(SOURCE:%.c=%.o))
+OBJS =		${notdir ${SOURCE:%.c=%.o}}
 
-privtool:	$(OBJS)
-		$(LINK.c) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+privtool:	${OBJS}
+		${LINK.c} ${LDFLAGS} -o $@ ${OBJS} ${LDLIBS}
 
 install:	privtool
-		$(INSTALL) -s -g mail -m 2755 privtool $(bindir)/
-		$(INSTALL) -d $(datadir)/gtk/privtool/
-		$(INSTALL_DATA) gtkrc $(datadir)/gtk/privtool/
+		${INSTALL} -s -g mail -m 2755 privtool ${bindir}/privtool
+		${INSTALL} -d ${datadir}/gtk/privtool/
+		${INSTALL_DATA} gtkrc ${datadir}/gtk/privtool/gtkrc
+		${INSTALL_DATA} privtool.1 ${mandir}/privtool.1
 
-$(DIRS):
+${DIRS}:
 		mkdir $@
 
 .PHONY:		clean
 
 clean:
-		$(RM) privtool $(OBJS) $(DEPS)
+		${RM} privtool ${OBJS} ${DEPS}
 
-TAGS:		$(SOURCE)
-		etags $(SOURCE)
+TAGS:		${SOURCE}
+		etags ${SOURCE}
 
-tags:		$(SOURCE)
-		ctags $(SOURCE)
+tags:		${SOURCE}
+		ctags ${SOURCE}
 
-ifeq ($(AUTODEP),)
+ifeq (${AUTODEP},)
 depend:		.depend
 
-.depend:	$(SOURCE)
-		$(CC) $(CFLAGS) $(CPPFLAGS) -M $(SOURCE) > .depend
+.depend:	${SOURCE}
+		${CC} ${CFLAGS} ${CPPFLAGS} -M ${SOURCE} > .depend
 
 include .depend
 
 else
 
 AUTODEP_DIR =	.autodep
-AUTODEP +=	-o $(AUTODEP_DIR)/%f.dep
-DEPS =		$(patsubst %.o,$(AUTODEP_DIR)/%.dep,$(OBJS))
+AUTODEP +=	-o ${AUTODEP_DIR}/%f.dep
+DEPS =		${patsubst %.o,${AUTODEP_DIR}/%.dep,${OBJS}}
 
 depend:
 		@echo "No need to \"make $@\", autodep does this automatically."
-$(AUTODEP_DIR):
-		@mkdir -p $(AUTODEP_DIR)
+${AUTODEP_DIR}:
+		@mkdir -p ${AUTODEP_DIR}
 
 %.o:	%.c
-		$(AUTODEP) $(COMPILE.c) -o $@ $<
+		${AUTODEP} ${COMPILE.c} -o $@ $<
 
--include $(DEPS)
+-include ${DEPS}
 
 endif
-
-pppp:
-	: $(DEPS)
