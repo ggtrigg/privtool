@@ -33,3 +33,5 @@
 
 - Implement pixmap caching. - DONE (Unless I decide to implement a
 				    pixmap converter.)
+
+- Implement show_busy & clear_busy

@@ -209,9 +209,7 @@
 *slistSW.scrollingPolicy:		automatic
 
 *XmScrolledWindow.scrollingPolicy:		automatic
-*message.panedwin.hdrtextSW.positionIndex:	0
-*message.panedwin.hdrtextSW.paneMinimum:	80
-*message.panedwin.sigtextSW.paneMinimum:	70
+*frame.panedwin.hdrtextSW.paneMinimum:		80
 ?.message.width:				600
 ?.message.height:				500
 

@@ -88,7 +88,6 @@ static Widget		text_ = NULL, hdrtext_ = NULL, folder_toggle_;
 static Widget		liteClue_, pp_window_ = NULL, abt_window_ = NULL;
 static Widget		foldwin_[2], fold_combo_;
 static XtAppContext	app_context_;
-/*static XmRenderTable	render_header, render_list;*/
 static char		local_pp[2048];
 static COMPOSE_WINDOW	*compose_first = NULL;
 static COMPOSE_WINDOW	*compose_last = NULL;
@@ -447,9 +446,11 @@ display_message_body(BUFFER *b)
     XmString	body = XmStringGenerate(b->message, NULL, XmCHARSET_TEXT,
 					(XmStringTag)"LIST");
 
+    XmCSTextDisableRedisplay(text_);
     XmCSTextReplace(text_, 0, XmCSTextGetLastPosition(text_), body);
     XmStringFree(body);
     XmCSTextSetTopCharacter(text_, 0);
+    XmCSTextEnableRedisplay(text_);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1089,6 +1090,9 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 	XtManageChild(win->text);
     }
 
+    /* Disable updates in the XmText for a bit */
+    XmTextDisableRedisplay(win->text);
+
     /* Now clear all fields (in case they were used before). */
     XtVaSetValues(win->send_to, XmNvalue, "", NULL);
     XtVaSetValues(win->send_cc, XmNvalue, "", NULL);
@@ -1121,7 +1125,8 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 	}
 	XtVaSetValues(win->send_to, XmNvalue, send_to, NULL);
 
-	XtVaSetValues(win->send_subject, XmNvalue, "Re: ", NULL);
+	if(strncmp(last_message_read->subject, "Re:", 3))
+	    XtVaSetValues(win->send_subject, XmNvalue, "Re: ", NULL);
 	XmTextFieldInsert(win->send_subject,
 			  XmTextFieldGetLastPosition(win->send_subject),
 			  last_message_read->subject);
@@ -1168,6 +1173,10 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
     }
 
     win->in_use = 1;
+
+    /* Now enable updates in the XmText. */
+    XmTextEnableRedisplay(win->text);
+
     XtPopup(win->deliver_frame, XtGrabNonexclusive);
 
     return win;
@@ -1184,6 +1193,7 @@ insert_message(Widget w, char *m)
     if (!(indent = find_mailrc("indentprefix")))
 	indent = "> ";
 
+    XmTextDisableRedisplay(w);
     XmTextInsert(w, (pos = XmTextGetInsertionPosition(w)), m);
     XmTextInsert(w, pos, indent);
     while(XmTextFindString(w, pos, "\n", XmTEXT_FORWARD,
@@ -1191,6 +1201,7 @@ insert_message(Widget w, char *m)
 	XmTextInsert(w, newpos+1, indent);
 	pos = newpos+1;
     }
+    XmTextEnableRedisplay(w);
 } /* insert_message */
 
 /*----------------------------------------------------------------------*/
@@ -1263,6 +1274,8 @@ create_toolbar(Widget parent)
     fold_combo_ = XmCreateComboBox(toolbar_, "combo", NULL, 0);
     XtManageChild(fold_combo_);
     XcgLiteClueAddWidget(liteClue_, fold_combo_, "Current mail folder", 0, 0);
+    XcgLiteClueAddWidget(liteClue_, XtNameToWidget(fold_combo_, "*Text"),
+			 "Current mail folder", 0, 0);
     populate_combo(fold_combo_);
 } /* create_toolbar */
 
@@ -1585,17 +1598,22 @@ static void
 update_mail_list()
 {
     MESSAGE	*m;
-    XmString	tempstring;
+    XmString	new_string;
 
     m = messages.start;
 
     while (m) {
-	XmListAddItem(mailslist_,
-		      tempstring = XmStringGenerate(m->description, NULL,
-						    XmCHARSET_TEXT,
-						    (XmStringTag)"LIST"),
-		      0);
-	XmStringFree(tempstring);
+	if(m->flags & MESS_DELETED){
+	    new_string = XmStringGenerate(m->description, NULL,
+					  XmCHARSET_TEXT,
+					  (XmStringTag)"STRUCK");
+	}else{
+	    new_string = XmStringGenerate(m->description, NULL,
+					  XmCHARSET_TEXT,
+					  (XmStringTag)"LIST");
+	}
+	XmListAddItem(mailslist_, new_string, 0);
+	XmStringFree(new_string);
 	m = m->next;
     }
 } /* update_mail_list */
@@ -1876,8 +1894,23 @@ viewAC(Widget w, XEvent *ev, String *args, Cardinal *numargs)
 static void
 loadNewCB(Widget w, XtPointer clientdata, XtPointer calldata)
 {
-    deleteAllMessages();
+    XmString	new_string;
+
     inbox_proc();
+#if 0
+    deleteAllMessages();
+    update_mail_list();
+#endif
+
+    /* Un-bold the last selected message */
+    new_string = XmStringGenerate(last_message_read->description, NULL,
+				  XmCHARSET_TEXT,
+				  (XmStringTag)"LIST");
+
+    XmListReplaceItemsPos(mailslist_, &new_string, 1,
+			  last_message_read->list_pos);
+    XmStringFree(new_string);
+
     display_new_message();
     sync_list();
     update_message_list();
@@ -1944,7 +1977,7 @@ captionLabel(Widget caption)
 static void
 resizePwinCb(Widget w, XtPointer clientdata, XEvent *event, Boolean *cont)
 {
-    int		width;
+    Dimension	width;
 
     if(event->type == ConfigureNotify || event->type == MapNotify){
 	XtVaGetValues(w, XmNwidth, &width, NULL);
@@ -2045,6 +2078,7 @@ folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 static void
 saveCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
+    deleteAllMessages();
     save_changes_proc();
     display_new_message();
     sync_list();
@@ -2080,7 +2114,7 @@ display_new_message()
 
     /* Find first unread message. */
     for(m = messages.start; m != NULL; m = m->next){
-	if(m->status == MSTAT_UNREAD)
+	if(m->status != MSTAT_READ)
 	    break;
     }
 
@@ -2339,8 +2373,10 @@ insert_file(Widget w, XtPointer clientdata, XtPointer calldata)
 		    alert(toplevel_, "mmapfailed", 1);
 		}
 		else{
+		    XmTextDisableRedisplay(textbox);
 		    XmTextInsert(textbox, XmTextGetInsertionPosition(textbox),
 				 buf);
+		    XmTextEnableRedisplay(textbox);
 		    munmap(buf, stbuf.st_size);
 		}
 		close(fd);

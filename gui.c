@@ -1840,7 +1840,11 @@ void	load_new_mail()
 		i = last->number;
 		mm = last;
 
+#ifdef MOTIF
+		while (mm && (mm->flags & MESS_DELETED) && ! show_deleted) {
+#else
 		while (mm && (mm->flags & MESS_DELETED)) {
+#endif
 			mm = mm->prev;
 		}
 
@@ -1858,7 +1862,11 @@ void	load_new_mail()
 
 	while (m) {
 		m->number = ++i;
+#ifdef MOTIF
+		if (!(m->flags & MESS_DELETED) || show_deleted)
+#else
 		if (!(m->flags & MESS_DELETED))
+#endif
 			m->list_pos = ++l;
 
 		set_message_description (m);
@@ -2126,7 +2134,11 @@ int	(*proc)();
 			m_list[i]->next = m_list[i+1];
 		}
 
+#ifdef MOTIF
+		if (!(m_list[i]->flags & MESS_DELETED) || show_deleted) {
+#else
 		if (!(m_list[i]->flags & MESS_DELETED)) {
+#endif
 			m_list[i]->list_pos = l++;
 			set_message_description (m_list[i]);
 			display_message_description (m_list[i]);
