@@ -701,7 +701,7 @@ deleteRowCb(Widget w, XtPointer clientdata, XtPointer calldata)
 static void
 load_guistuff()
 {
-    int		rownum = 0;
+    int		rownum = 0, numrows;
     char	*rcval, *temp, *ent;
 
     if( rcval = find_mailrc("folder") )
@@ -710,7 +710,13 @@ load_guistuff()
     if( rcval = find_mailrc("filemenu2") ) {
 	temp = strdup(rcval);
 	ent = strtok(temp, " \n\r\t");
+	numrows = XbaeMatrixNumRows(propw.mail_menu);
 	do{
+	    if(rownum >= numrows) {
+		XbaeMatrixAddRows(propw.mail_menu, numrows, NULL, NULL,
+				  NULL, rownum - numrows + 1);
+		numrows = XbaeMatrixNumRows(propw.mail_menu);
+	    }
 	    XbaeMatrixSetCell(propw.mail_menu, rownum, 0, ent);
 	    rownum++;
 	}while((ent = strtok(NULL, " \n\r\t")));
