@@ -98,6 +98,8 @@ static void	display_new_message(void);
 static void	next_msg_cb(GtkWidget *, gpointer);
 static void	prev_msg_cb(GtkWidget *, gpointer);
 static void	select_msg_cb(GtkWidget *, gint, gint, GdkEvent *);
+static void	show_fullhdr_cb(GtkWidget *, gpointer);
+static void	show_deleted_cb(GtkWidget *, gpointer);
 static void	toggle_toolbar_cb(GtkWidget *, gpointer);
 static void	save_cb(GtkWidget *, gpointer);
 static void	populate_combo();
@@ -118,7 +120,7 @@ static void	deliver_cb(GtkWidget *, gpointer);
 static void	show_undelete(gboolean);
 static void	filer_cb(GtkWidget *, gpointer);
 static void	insert_file_cb(GtkWidget *, gpointer);
-static gint	compmenu_post_cb(GtkWidget *, GdkEventButton *event, gpointer);
+static gint	compmenu_post_cb(GtkWidget *, GdkEventButton *event);
 static void	compmenu_cb(GtkWidget *, gpointer);
 static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
 static void	edit_ops_cb(GtkWidget *, gpointer);
@@ -127,6 +129,7 @@ static void	edit_ops_cb(GtkWidget *, gpointer);
 static GtkWidget	*toplevel;
 static COMPOSE_WINDOW	*compose_first = NULL;
 static COMPOSE_WINDOW	*compose_last = NULL;
+static gboolean		full_header = 0;
 static char		attribution_string[] = " said :\n\n";
 static char		begin_forward[] = "-- Begin forwarded message ---\n";
 static char		end_forward[] = "\n-- End forwarded message ---\n";
@@ -163,8 +166,8 @@ static GtkItemFactoryEntry ife[] = {
     {"/View/Sort By/Status", NULL, sort_cb, 0, NULL},
     {"/View/Sort By/Message", NULL, sort_cb, 1, NULL},
     {"/View/-", NULL, NULL, 0, "<Separator>"},
-    {"/View/Show Deleted", NULL, NULL, 0, "<CheckItem>"},
-    {"/View/Full Header", "<control>H", NULL, 0, "<CheckItem>"},
+    {"/View/Show Deleted", NULL, show_deleted_cb, 0, "<CheckItem>"},
+    {"/View/Full Header", "<control>H", show_fullhdr_cb, 0, "<CheckItem>"},
     {"/View/Show Toolbar", "<control>T", toggle_toolbar_cb, 0, "<CheckItem>"},
     {"/View/Folders", "<control>F", show_folder_win_cb, 0, "<ToggleItem>"},
     {"/Folder/--", NULL, NULL, 0, "<Tearoff>"},
@@ -767,11 +770,10 @@ display_message_sig(BUFFER *b)
 void
 display_sender_info(MESSAGE *m)
 {
-    char	*allhdr = g_strdup(m->header->message), *ptr, *split;
+    char	*allhdr = g_strdup(m->header->message), *ptr, *ptr2, *split;
     char	colon;
     char	keyword[256];	/* Should be long enough? :-) */
     int		length, skip = 0;
-    int		full_header_ = 0; /* Temporary!! Fix this. */
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
     GtkStyle	*boldstyle;
@@ -794,15 +796,16 @@ display_sender_info(MESSAGE *m)
     /* Now insert this message. */
     do{
 	if(((split = strchr(ptr, ':')) != NULL) && (*ptr != '\t')) {
+	    ptr2 = strchr(ptr, ' ');
 	    split++;
 	    length = split - ptr;
 	    strncpy(keyword, ptr, length);
 	    keyword[length] = '\0';
-	    if( ! full_header_ ) {
+	    if( ! full_header ) {
 		/* Check if this header should be shown. */
 		if( (colon = keyword[length-1]) == ':' )
 		    keyword[length-1] = '\0';	/* Strip ':' */
-		if(! retain_line(keyword) ) {
+		if(! retain_line(keyword) || (split > ptr2)) {
 		    skip = 1;
 		    continue;
 		}
@@ -1452,6 +1455,11 @@ update_mail_list(void)
     gtk_clist_clear(GTK_CLIST(clist));
 
     while (m) {
+	if(!show_deleted && (m->flags & MESS_DELETED)) {
+	    m = m->next;
+	    continue;
+	}
+
 	snprintf(number, 9, "%d", m->number);
 	snprintf(size, 9, "%d/%d", m->lines, m->size);
 
@@ -1709,6 +1717,51 @@ prev_msg_cb(GtkWidget *w, gpointer data)
     prev_message_proc();
     sync_list();
 } /* prev_msg_cb */
+
+static void
+show_fullhdr_cb(GtkWidget *w, gpointer data)
+{
+    GtkItemFactory	*ife;
+    GtkWidget		*fullhdr;
+
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    fullhdr = gtk_item_factory_get_widget(ife, "/View/Full Header");
+
+    full_header = GTK_CHECK_MENU_ITEM(fullhdr)->active;
+    if(last_message_read)
+	display_message(last_message_read);
+} /* show_fullhdr_cb */
+
+static void
+show_deleted_cb(GtkWidget *w, gpointer data)
+{
+    GtkItemFactory	*ife;
+    GtkWidget		*showdel, *msglist;
+    MESSAGE		*m;
+
+    if(!m)
+	return;
+
+    msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					       "msglist");
+    if(!msglist)
+	return;
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    showdel = gtk_item_factory_get_widget(ife, "/View/Show Deleted");
+
+    show_deleted = GTK_CHECK_MENU_ITEM(showdel)->active;
+    update_mail_list();
+    gtk_clist_freeze(GTK_CLIST(msglist));
+    if(show_deleted) {
+	for(m = messages.start; m != NULL; m = m->next){
+	    display_message_description(m);
+	}
+    }
+    gtk_clist_thaw(GTK_CLIST(msglist));
+    sync_list();
+} /* show_deleted_cb */
 
 static void
 toggle_toolbar_cb(GtkWidget *w, gpointer data)
@@ -2319,8 +2372,9 @@ compose_find_free()
     gtk_signal_connect(GTK_OBJECT(win->text), "drag_drop",
 		       GTK_SIGNAL_FUNC(msgdrop_cb), win);
 
-    gtk_signal_connect(GTK_OBJECT(win->text), "button_press_event",
-		       GTK_SIGNAL_FUNC(compmenu_post_cb), win->text);
+    gtk_signal_connect_object(GTK_OBJECT(win->text), "button_press_event",
+			      GTK_SIGNAL_FUNC(compmenu_post_cb),
+			      GTK_OBJECT(win->text));
 
     gtk_widget_show(win->text);
     gtk_widget_show(swin);
@@ -2635,14 +2689,14 @@ insert_file_cb(GtkWidget *w, gpointer data)
 } /* insert_file_cb */
 
 static gint
-compmenu_post_cb(GtkWidget *w, GdkEventButton *event, gpointer data)
+compmenu_post_cb(GtkWidget *w, GdkEventButton *event)
 {
     GtkWidget		*menu;
 
     if(event && (event->button == 3)) {
 	menu = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 						"compmenu");
-	gtk_object_set_user_data(GTK_OBJECT(menu), data);
+	gtk_object_set_user_data(GTK_OBJECT(menu), (gpointer)w);
 	gtk_menu_popup(GTK_MENU(menu), 0, 0, 0, 0, event->button,
 		       event->time);
 	return TRUE;
