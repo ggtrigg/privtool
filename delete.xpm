@@ -1,6 +1,6 @@
 /* XPM */
 static char * delete_xpm[] = {
-"24 24 14 1",
+"24 24 14 1 XPMEXT",
 " 	s background	c None",
 ".	c black",
 "X	c white",
@@ -38,4 +38,7 @@ static char * delete_xpm[] = {
 "      %...XXXXXX..O&&%%.",
 "      .%%...X+++.O&&%%%.",
 "      .......XX.........",
-"            ....        "};
+"            ....        ",
+"XPMEXT Comment",
+"$Id$",
+"XPMENDEXT"};

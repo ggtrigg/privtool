@@ -1,5 +1,6 @@
 /*
  *	@(#)motif.c	1.0  13/10/96
+ *	$Id$
  *
  *	(c) Copyright 1993-1996 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -44,29 +45,35 @@
 #include	<Xm/TextF.h>
 #include	<Xm/Text.h>
 #include	<Xm/CSText.h>
+#include	<Xm/MessageB.h>
 #include	<X11/Xmu/Editres.h>
 
 void			update_message_list(void);
 
 static Widget		toplevel_, msgarea_, mailslist_, text_, hdrtext_;
-static Widget		message_window_ = NULL;
+static Widget		pp_window_ = NULL, abt_window_ = NULL;
 static XtAppContext	app_context_;
 static XmRenderTable	render_header, render_list;
+static char		local_pp[2048];
 
 static void		create_rendertables(Widget parent);
-static void		create_menubar (Widget parent);
-static void		create_toolbar (Widget parent);
+static void		create_menubar(Widget parent);
+static void		create_toolbar(Widget parent);
 static void		create_file_menu(Widget parent);
 static void		create_edit_menu(Widget parent);
 static void		create_view_menu(Widget parent);
 static void		create_comp_menu(Widget parent);
+static void		create_help_menu(Widget parent);
 static void		create_workarea (Widget parent);
-static void		create_msgarea (Widget parent);
-static void		update_mail_list (void);
+static void		create_msgarea(Widget parent);
+static void		update_mail_list(void);
 static void		show_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
 static void		select_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
 static void		next_messageCB(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		prev_messageCB(Widget w, XtPointer clientdata, XtPointer calldata);
+static int		xioerror_handler(Display *dpy);
+static void		passphrase_cb(Widget w, XtPointer clientdata, XmTextVerifyPtr tb);
+static void		aboutCB(Widget w, XtPointer clientdata, XtPointer calldata);
 
 /*----------------------------------------------------------------------*/
 
@@ -122,6 +129,7 @@ clear_display_window()
 void
 clear_main_footer()
 {
+    set_main_footer("");
 }
 
 /*----------------------------------------------------------------------*/
@@ -129,6 +137,12 @@ clear_main_footer()
 void
 clear_passphrase_string()
 {
+    char	*c;
+
+    for(c = local_pp; *c != '\0'; c++){
+	*c = ' ';
+    }
+    *local_pp = '\0';
 }
 
 /*----------------------------------------------------------------------*/
@@ -150,6 +164,8 @@ close_deliver_window(COMPOSE_WINDOW *w)
 void
 close_passphrase_window()
 {
+    if(pp_window_ != NULL)
+	XtUnmanageChild(pp_window_);
 }
 
 /*----------------------------------------------------------------------*/
@@ -165,6 +181,7 @@ compose_windows_open()
 void
 create_display_window()
 {
+#if 0
     Widget	swin, pwin, tempw;
 
     if(message_window_ == NULL){
@@ -177,8 +194,10 @@ create_display_window()
 	pwin = XmCreatePanedWindow(message_window_, "panedwin", NULL, 0);
 	XtManageChild(pwin);
 
+#if 0
 	text_ = XmCreateScrolledText(pwin, "msgtext", NULL, 0);
 	XtManageChild(text_);
+#endif
 	hdrtext_ = XmCreateScrolledCSText(pwin, "hdrtext", NULL, 0);
 	XtManageChild(hdrtext_);
 	tempw = XmCreateScrolledText(pwin, "sigtext", NULL, 0);
@@ -188,6 +207,7 @@ create_display_window()
     }
 
     XtPopup(message_window_, XtGrabNonexclusive);
+#endif
 }
 
 /*----------------------------------------------------------------------*/
@@ -195,6 +215,23 @@ create_display_window()
 void
 create_passphrase_window()
 {
+    Widget	pptext, helpwidget;
+
+    if(pp_window_ == NULL){
+	pp_window_ = XmCreateMessageDialog(toplevel_, "pphrase", NULL, 0);
+	pptext = XmCreateTextField(pp_window_, "pptext", NULL, 0);
+	XtManageChild(pptext);
+	XtVaSetValues(pp_window_, XmNuserData, pptext, NULL);
+
+	/* Unmap the Help button, we don't need it here. */
+	helpwidget = XtNameToWidget(pp_window_, "Help");
+	XtUnmanageChild(helpwidget);
+
+	XtAddCallback(pptext, XmNmodifyVerifyCallback,
+		      (XtCallbackProc)passphrase_cb, NULL);
+	XtAddCallback(pp_window_, XmNokCallback,
+		      (XtCallbackProc)got_passphrase, NULL);
+    }
 }
 
 /*----------------------------------------------------------------------*/
@@ -204,6 +241,7 @@ delete_message_proc()
 {
     int		message_number;
     MESSAGE	*m;
+    XmString	tempstring;
 
     m = messages.start;
 
@@ -212,10 +250,11 @@ delete_message_proc()
 	    message_number = m->list_pos;
 	    XmListDeleteItemsPos(mailslist_, 1, message_number);
 	    XmListAddItem(mailslist_,
-			  XmStringGenerate(m->description, NULL,
+			  tempstring = XmStringGenerate(m->description, NULL,
 					   XmCHARSET_TEXT,
 					   (XmStringTag)"LIST_ST"),
 			  message_number);
+	    XmStringFree(tempstring);
 	    delete_message(m);
 	}
 	m = m->next;
@@ -227,18 +266,11 @@ delete_message_proc()
     if (last_message_read) {
 	last_message_read->flags |= MESS_SELECTED;
 	display_message_description (last_message_read);
-#if 0
-	if (is_displaying_message())
-	    display_message(last_message_read);
-#endif
+	display_message(last_message_read);
     }
-#if 0
-    else
-	close_display_window();
-
     update_message_list();
-#endif
 }
+
 
 /*----------------------------------------------------------------------*/
 
@@ -253,6 +285,19 @@ display_message_body(BUFFER *b)
 void
 display_message_description(MESSAGE *m)
 {
+    XmString	new_string;
+
+    if(m->flags & MESS_DELETED){
+	new_string = XmStringGenerate(m->description, NULL,
+				      XmCHARSET_TEXT,
+				      (XmStringTag)"LIST_ST");
+    }else{
+	new_string = XmStringGenerate(m->description, NULL,
+				      XmCHARSET_TEXT,
+				      (XmStringTag)"LIST");
+    }
+    XmListReplaceItemsPos(mailslist_, &new_string, 1, m->list_pos);
+    XmStringFree(new_string);
 }
 
 /*----------------------------------------------------------------------*/
@@ -267,18 +312,8 @@ display_message_sig(BUFFER *b)
 void
 display_sender_info(MESSAGE *m)
 {
-    static XmString	info = 0;
-
 #if 0
-    XtVaSetValues(hdrtext_, XmNcstextValue,
-		  0,
-		  /*XmStringGenerate("", NULL, XmCHARSET_TEXT,
-				    (XmStringTag)"HDR"),*/
-		  0);
-#endif
-
-    if(info != 0)
-	XmStringFree(info);
+    XmString	info;
 
     info = XmStringGenerate("From: ", NULL, XmCHARSET_TEXT,
 			    (XmStringTag)"HDR_B");
@@ -303,6 +338,9 @@ display_sender_info(MESSAGE *m)
 						  XmCHARSET_TEXT,
 						  (XmStringTag)"HDR"));
     XmCSTextReplace(hdrtext_, 0, XmCSTextGetLastPosition(hdrtext_), info);
+
+    XmStringFree(info);
+#endif
 }
 
 /*----------------------------------------------------------------------*/
@@ -352,6 +390,15 @@ no_sec_notice_proc(int w)
 void
 open_passphrase_window(char *s)
 {
+    Widget	pptext;
+
+    XtVaGetValues(pp_window_, XmNuserData, &pptext, NULL);
+    XtVaSetValues(XtParent(pp_window_), XmNtitle, s, NULL);
+
+    XtManageChild(pp_window_);
+
+    if(XmIsTraversable(pptext))
+	XmProcessTraversal(pptext, XmTRAVERSE_CURRENT);
 }
 
 /*----------------------------------------------------------------------*/
@@ -401,7 +448,7 @@ read_only_notice_proc()
 char *
 read_passphrase_string()
 {
-    return 0;
+    return local_pp;
 }
 
 /*----------------------------------------------------------------------*/
@@ -444,6 +491,7 @@ set_initial_scrollbar_position()
 void
 set_main_footer(char *s)
 {
+    XtVaSetValues(msgarea_, XmNvalue, s, NULL);
 }
 
 /*----------------------------------------------------------------------*/
@@ -469,8 +517,12 @@ setup_ui(int level, int argc, char **argv)
     create_workarea(control_);
     create_msgarea(control_);
 
+    display_message(last_message_read = messages.start);
+    XmListSelectPos(mailslist_, 1, 0);
     update_message_list();
     
+    XSetIOErrorHandler(xioerror_handler);
+
     XtRealizeWidget (toplevel_);
     XtAppMainLoop (app_context_);
 }
@@ -555,7 +607,7 @@ update_message_list()
 	strcat (s, b);
     }
 #endif
-    XtVaSetValues(msgarea_, XmNvalue, s, NULL);
+    set_main_footer(s);
 }
 
 /*----------------------------------------------------------------------*/
@@ -580,6 +632,7 @@ create_menubar(Widget parent)
     create_edit_menu(menubar_);
     create_view_menu(menubar_);
     create_comp_menu(menubar_);
+    create_help_menu(menubar_);
 } /* create_menubar */
 
 /*----------------------------------------------------------------------*/
@@ -622,6 +675,8 @@ create_file_menu(Widget parent)
 
     button_ = XmCreatePushButton (menu_, "load", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   load_new_mail, NULL);
 
     button_ = XmCreatePushButton (menu_, "save", NULL, 0);
     XtManageChild (button_);
@@ -633,11 +688,13 @@ create_file_menu(Widget parent)
 
     button_ = XmCreatePushButton (menu_, "qwsav", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   save_and_quit_proc, NULL);
 
     button_ = XmCreatePushButton (menu_, "quit", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
-		       quit_proc, NULL);
+		   quit_proc, NULL);
 
 } /* create_file_menu */
 
@@ -662,6 +719,8 @@ create_edit_menu(Widget parent)
 
     button_ = XmCreatePushButton (menu_, "delete", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		       delete_message_proc, NULL);
 
     button_ = XmCreatePushButton (menu_, "undelete", NULL, 0);
     XtManageChild (button_);
@@ -702,7 +761,6 @@ create_view_menu(Widget parent)
 static void
 create_comp_menu(Widget parent)
 {
-
     Widget	menu_, cascade_, button_;
     Arg		args[2];
 
@@ -727,17 +785,38 @@ create_comp_menu(Widget parent)
 /*----------------------------------------------------------------------*/
 
 static void
+create_help_menu(Widget parent)
+{
+    Widget	menu_, cascade_, button_;
+    Arg		args[2];
+
+    menu_ = XmCreatePulldownMenu (parent, "comp_pane", NULL, 0);
+    XtSetArg (args[0], XmNsubMenuId, menu_);
+    cascade_ = XmCreateCascadeButton (parent, "help", args, 1);
+    XtManageChild (cascade_);
+    XtVaSetValues(parent, XmNmenuHelpWidget, cascade_, NULL);
+
+    button_ = XmCreatePushButton (menu_, "about", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		       aboutCB, NULL);
+} /* create_help_menu */
+
+/*----------------------------------------------------------------------*/
+
+static void
 create_workarea(Widget parent)
 {
-    Widget	swin;
+    Widget	swin, pwin;
     MESSAGE	*m;
     int		i, l;
 
-    swin = XmCreateScrolledWindow(parent, "swin", NULL, 0);
-    XtManageChild (swin);
-    XtVaSetValues (parent, XmNworkWindow, swin, NULL);
+    pwin = XmCreatePanedWindow(parent, "panedwin", NULL, 0);
+    XtVaSetValues (parent, XmNworkWindow, pwin, NULL);
+    XtManageChild(pwin);
 
-    mailslist_ = XmCreateScrolledList(swin, "slist", NULL, 0);
+    mailslist_ = XmCreateScrolledList(pwin, "slist", NULL, 0);
+
     XtVaSetValues(mailslist_, XmNrenderTable, render_list, 0);
     XtAddCallback(mailslist_, XmNdefaultActionCallback,
 		  (XtCallbackProc)show_message, NULL);
@@ -746,6 +825,9 @@ create_workarea(Widget parent)
     XtAddCallback(mailslist_, XmNbrowseSelectionCallback,
 		  (XtCallbackProc)select_message, NULL);
     XtManageChild (mailslist_);
+
+    text_ = XmCreateScrolledText(pwin, "msgtext", NULL, 0);
+    XtManageChild(text_);
 
     m = messages.start;
     i = 1;
@@ -775,14 +857,16 @@ static void
 update_mail_list()
 {
     MESSAGE	*m;
+    XmString	tempstring;
 
     m = messages.start;
 
     while (m) {
 	XmListAddItem(mailslist_,
-		      XmStringGenerate(m->description, NULL, XmCHARSET_TEXT,
+		      tempstring = XmStringGenerate(m->description, NULL, XmCHARSET_TEXT,
 				    (XmStringTag)"LIST"),
 		      0);
+	XmStringFree(tempstring);
 	m = m->next;
     }
 } /* update_mail_list */
@@ -828,7 +912,8 @@ select_message(Widget w, XtPointer none, XmListCallbackStruct *cbs)
 	while (m) {
 	    if(m->list_pos == cbs->item_position){
 		m->flags |= MESS_SELECTED;
-		break;
+	    }else if(m->flags | MESS_SELECTED){
+		m->flags &= ~MESS_SELECTED;
 	    }
 	    m = m->next;
 	}
@@ -858,14 +943,117 @@ prev_messageCB(Widget w, XtPointer clientdata, XtPointer calldata)
 static void
 create_rendertables(Widget parent)
 {
-    XmRendition		rarray[4], rlist[3];
+    XmRendition		rarray[5], rlist[3];
 
     rarray[0] = XmRenditionCreate(parent, (XmStringTag)"HDR", NULL, 0);
     rarray[1] = XmRenditionCreate(parent, (XmStringTag)"HDR_B", NULL, 0);
     rarray[2] = XmRenditionCreate(parent, (XmStringTag)"HDR_U", NULL, 0);
+    rarray[3] = XmRenditionCreate(parent, (XmStringTag)"BIG", NULL, 0);
+    rarray[4] = XmRenditionCreate(parent, (XmStringTag)"BLUE", NULL, 0);
     rlist[0] = XmRenditionCreate(parent, (XmStringTag)"LIST", NULL, 0);
     rlist[1] = XmRenditionCreate(parent, (XmStringTag)"LIST_ST", NULL, 0);
 
-    render_header = XmRenderTableAddRenditions(NULL, rarray, 3, XmREPLACE);
+    render_header = XmRenderTableAddRenditions(NULL, rarray, 5, XmREPLACE);
     render_list = XmRenderTableAddRenditions(NULL, rlist, 2, XmREPLACE);
 } /* create_rendertables */
+
+/*----------------------------------------------------------------------*/
+
+static int
+xioerror_handler(Display *dpy)
+{
+    quit_proc();
+} /* initial_expose */
+
+/*----------------------------------------------------------------------*/
+
+/*
+   This is the function called as a result of a modifyVerifyCallback
+   on the TextField where the passphrase is typed. It subsitutes the
+   real text typed with '*'s. The real text is saved in the static
+   char array - local_pp.
+ */
+static void
+passphrase_cb(Widget w, XtPointer clientdata, XmTextVerifyPtr tb)
+{
+    char	*temp_ptr = '\0', *local_mask, *c;
+
+    /* save the bit at the end(if any) */
+    if(local_pp[tb->endPos] != '\0'){
+	temp_ptr = strdup(&local_pp[tb->endPos]);
+    }
+
+    /* Add in the new bit at the appropriate place */
+    if(tb->text->ptr != NULL)
+	strncpy(&local_pp[tb->startPos], tb->text->ptr, tb->text->length);
+
+    /* Null the end for good measure (i.e _don't_ delete this line!) */
+    local_pp[tb->startPos + tb->text->length] = '\0';
+
+    /* Append the initial end bit if there was any */
+    if(temp_ptr != NULL){
+	strcat(&local_pp[tb->startPos] + tb->text->length, temp_ptr);
+	free(temp_ptr);
+    }
+
+    /* Return the appropriate number of asterixes. Motif seems to free
+       the string it gets, so I don't think there's a leak here.
+       Purify will tell me at some stage. */
+    if(tb->text->ptr != NULL){
+	local_mask = strdup(tb->text->ptr);
+	for(c = local_mask; *c != '\0'; c++){
+	    *c = '*';
+	}
+	tb->text->ptr = local_mask;
+    }
+} /* passphrase_cb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+aboutCB(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    Widget	tempwidget;
+    XmString	about;
+
+    if(abt_window_ == NULL){
+	abt_window_ = XmCreateMessageDialog(toplevel_, "about", NULL, 0);
+
+	/* Unmap the Help & Cancel buttons, we don't need them here. */
+	tempwidget = XtNameToWidget(abt_window_, "Help");
+	XtUnmanageChild(tempwidget);
+	tempwidget = XtNameToWidget(abt_window_, "Cancel");
+	XtUnmanageChild(tempwidget);
+
+	/* Set render table on the Message child widget */
+	tempwidget = XtNameToWidget(abt_window_, "Message");
+	XtVaSetValues(tempwidget, XmNrenderTable, render_header, NULL);
+	about = XmStringGenerate(prog_name,
+				 NULL, XmCHARSET_TEXT,
+				 (XmStringTag)"BIG");
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate(" - A PGP aware mailer", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"BIG"));
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate("\n\nWritten (mainly) by Mark Grant ", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"HDR"));
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate("(mark@unicorn.com)", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"BLUE"));
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate("\nMotif interface written by Glenn Trigg ", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"HDR"));
+	about = XmStringConcatAndFree(about,
+		XmStringGenerate("(ggt@netspace.net.au)", NULL,
+				 XmCHARSET_TEXT,
+				 (XmStringTag)"BLUE"));
+	XtVaSetValues(abt_window_, XmNmessageString, about, NULL);
+
+	XmStringFree(about);
+    }
+    XtManageChild(abt_window_);
+} /* aboutCB */

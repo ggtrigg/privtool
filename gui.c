@@ -123,7 +123,11 @@ char	prog_name[] = "XSafeMail";
 char	prog_name[] = "Privtool";
 #endif
 
+#ifdef MOTIF
+char	prog_ver [] = "V0.85M BETA";
+#else
 char	prog_ver [] = "V0.85 BETA";
+#endif
 
 /* Set the description of the message for the message list */
 
@@ -358,7 +362,7 @@ MESSAGE	*m;
 
 	/* Put special Digest handling here */
 
-m->flags &= ~(MESS_SIGNED|MESS_ENCRYPTED);
+	    m->flags &= ~(MESS_SIGNED|MESS_ENCRYPTED);
 
 	}
 

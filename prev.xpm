@@ -1,6 +1,6 @@
 /* XPM */
 static char * prev_xpm[] = {
-"24 24 15 1",
+"24 24 15 1 XPMEXT",
 " 	s background	c None",
 ".	c black",
 "X	c white",
@@ -39,4 +39,7 @@ static char * prev_xpm[] = {
 " .......O.........+$$$$.",
 "      .++++++++++o$&%$;.",
 "      ..................",
-"                        "};
+"                        ",
+"XPMEXT Comment",
+"$Id$",
+"XPMENDEXT"};

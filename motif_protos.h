@@ -14,5 +14,6 @@
 #define _MOTIF_PROTOS_H
 
 void display_message_description(MESSAGE *m);
+void set_main_footer(char *s);
 
 #endif /* _MOTIF_PROTOS_H */

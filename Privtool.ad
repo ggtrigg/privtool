@@ -1,3 +1,8 @@
+
+! Resources for motif privtool.
+! $Id$
+
+?.title:				Privtool
 *.background:				lightsteelblue2
 *.menu_bar*background:  		lightsteelblue3
 *.menu_bar*foreground:  		black
@@ -6,13 +11,17 @@
 *.menu_bar*edit.labelString:		Edit
 *.menu_bar*view.labelString:		View
 *.menu_bar*comp.labelString:		Compose
+*.menu_bar*comp.sensitive:		false
+*.menu_bar*help.labelString:		Help
 
 !
 ! File menu items
 !
 *.menu_bar*load.labelString:		Load In-Box
 *.menu_bar*save.labelString:		Save Changes
+*.menu_bar*save.sensitive:		false
 *.menu_bar*done.labelString:		Done
+*.menu_bar*done.sensitive:		false
 *.menu_bar*qwsav.labelString:		Save & Quit
 *.menu_bar*quit.labelString:		Quit
 
@@ -21,9 +30,12 @@
 !
 *.menu_bar*cut.labelString:		Cut
 *.menu_bar*copy.labelString:		Copy
+*.menu_bar*cut.sensitive:		false
+*.menu_bar*copy.sensitive:		false
 *.menu_bar*delete.labelString:		Delete
 *.menu_bar*undelete.labelString:	Undelete
 *.menu_bar*clearpp.labelString:		Clear Passphrase
+*.menu_bar*clearpp.sensitive:		false
 
 !
 ! View menu items
@@ -31,6 +43,7 @@
 *.menu_bar*next.labelString:		Next
 *.menu_bar*prev.labelString:		Previous
 *.menu_bar*sortby.labelString:		Sort By
+*.menu_bar*sortby.sensitive:		false
 
 !
 ! Compose menu items
@@ -41,9 +54,15 @@
 *.menu_bar*resend.labelString:		Resend...
 
 !
+! Help menu items
+!
+*.menu_bar*about.labelString:		About...
+
+!
 ! Toolbar stuff
 !
-*toolbar.XmPushButtonGadget.highlightThickness: 0
+*toolbar.shadowThickness: 		2
+*toolbar.XmPushButtonGadget.highlightThickness: 1
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
 *toolbar.next.labelType:		pixmap
@@ -67,36 +86,58 @@
 *.msg.cursorPositionVisible:		false
 *.msg.traversalOn:			false
 
-*slist.listSizePolicy:			constant
-*slist.visibleItemCount:		10
+*.msgtext.columns:			80
+*.msgtext.rows:				24
+*.msgtext.translations: #override\n\
+<Key> space:		next-page()\n\
+<Key> b:		previous-page()
 
-?.message*XmText.editMode:				MULTI_LINE_EDIT
-?.message*XmText.editable:				false
-?.message*XmCSText.editable:				false
-?.message*XmText.cursorPositionVisible:			false
-?.message*XmCSText.cursorPositionVisible:		false
-!?.message*XmScrolledWindow.visualPolicy:		constant
-*message*XmScrolledWindow.scrollingPolicy:		automatic
-!?.message*XmScrolledWindow.scrollBarDisplayPolicy:	static
-*message.panedwin.hdrtextSW.positionIndex:		0
-*message.panedwin.hdrtextSW.paneMinimum:		80
-!*message.panedwin.sigtextSW.positionIndex:		last_position
-*message.panedwin.sigtextSW.paneMinimum:		70
-?.message.width:					600
-?.message.height:					500
+*slist.listSizePolicy:			constant
+*slist.visibleItemCount:		5
+*slistSW.scrollingPolicy:		automatic
+
+*.XmText.editMode:				MULTI_LINE_EDIT
+*.XmText.editable:				false
+*.XmCSText.editable:				false
+*.XmText.cursorPositionVisible:			false
+?.XmCSText.cursorPositionVisible:		false
+*XmScrolledWindow.scrollingPolicy:		automatic
+*message.panedwin.hdrtextSW.positionIndex:	0
+*message.panedwin.hdrtextSW.paneMinimum:	80
+*message.panedwin.sigtextSW.paneMinimum:	70
+?.message.width:				600
+?.message.height:				500
 
 !
 ! Render table stuff
 !
 *.HDR.fontType:			FONT_IS_FONT
-*.HDR.fontName:			-*-helvetica-medium-r-*-*-11-*-*-*-*-*-iso8859-1
+*.HDR.fontName:			-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_B.fontType:		FONT_IS_FONT
-*.HDR_B.fontName:		-*-helvetica-bold-r-*-*-11-*-*-*-*-*-iso8859-1
+*.HDR_B.fontName:		-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_U.fontType:		FONT_IS_FONT
-*.HDR_U.fontName:		-*-helvetica-medium-r-*-*-11-*-*-*-*-*-iso8859-1
+*.HDR_U.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_U.underlineType:		SINGLE_LINE
 *.LIST.fontType:		FONT_IS_FONT
 *.LIST.fontName:		fixed
 *.LIST_ST.fontType:		FONT_IS_FONT
 *.LIST_ST.fontName:		fixed
 *.LIST_ST.strikethruType:	SINGLE_LINE
+*.BIG.fontType:			FONT_IS_FONT
+*.BIG.fontName:			-*-charter-bold-r-*-*-24-*-*-*-*-*-iso8859-1
+*.BLUE.fontType:		FONT_IS_FONT
+*.BLUE.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+*.BLUE.renditionForeground:	blue
+
+!
+! PassPhrase popup window resources.
+!
+*pphrase.messageString:		Enter PassPhrase:
+*pphrase_popup.title:		PassPhrase Entry
+*pphrase.pptext.columns:	40
+
+!
+! About (help) popup window resources.
+!
+*about_popup.title:		About Privtool
+

@@ -32,6 +32,7 @@ extern	void	print_raw_proc ();
 extern	void	quit_proc();
 extern	void	save_and_quit_proc ();
 extern	int	load_file_proc ();
+extern  void	load_new_mail();
 extern	void	got_passphrase();
 extern	void	abort_passphrase_proc();
 extern	void	destroy_passphrase();
