@@ -13,6 +13,6 @@
 #ifndef _VERSION_H
 #define _VERSION_H
 
-char	prog_ver[] = "V0.90 Beta GT005";
+char	prog_ver[] = "V0.90 Beta GT006";
 
 #endif /* _VERSION_H */

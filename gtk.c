@@ -17,7 +17,10 @@
 #endif
 
 #include	<stdio.h>
+#include	<stdlib.h>
+#include	<unistd.h>
 #include	<string.h>
+#include	<time.h>
 #include	<gtk/gtk.h>
 #include	<time.h>
 #include	<dirent.h>
@@ -63,6 +66,11 @@ typedef enum {
     R_ALL_INCLUDE = 0x80
 } COMPOSE_TYPE;
 
+typedef enum {
+    EDIT_CUT,
+    EDIT_COPY
+} EDIT_OP;
+
 extern int		errno;
 extern char		*our_userid;
 extern char		*current_nym(void);
@@ -77,6 +85,7 @@ static GtkWidget *create_menubar(void);
 static GtkWidget *create_toolbar(GtkWidget *);
 static GtkWidget *create_msglist(void);
 static GtkWidget *get_pixmap(GtkWidget *, gchar **);
+static void	sort_cb(GtkWidget *, gpointer);
 static void	clist_sort_cb(GtkWidget *, gint, gpointer);
 static gint	clist_sort_cmp(GtkCList *, gconstpointer, gconstpointer);
 static void	display_new_message(void);
@@ -105,6 +114,7 @@ static void	show_undelete(gboolean);
 static void	filer_cb(GtkWidget *, gpointer);
 static void	insert_file_cb(GtkWidget *, gpointer);
 static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
+static void	edit_ops_cb(GtkWidget *, gpointer);
 
 /* Static data */
 static GtkWidget	*toplevel;
@@ -126,8 +136,8 @@ static GtkItemFactoryEntry ife[] = {
     {"/File/Save & Quit", "<control>Q", save_and_quit_proc, 0, NULL},
     {"/File/Quit", "<control>C", quit_proc, 0, NULL},
     {"/Edit/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/Edit/Cut", NULL, NULL, 0, NULL},
-    {"/Edit/Copy", NULL, NULL, 0, NULL},
+    /* {"/Edit/Cut", NULL, edit_ops_cb, EDIT_CUT, NULL}, */
+    {"/Edit/Copy", NULL, edit_ops_cb, EDIT_COPY, NULL},
     {"/Edit/Delete", "<control>D", delete_message_proc, 0, NULL},
     {"/Edit/Undelete", "<control>U", undelete_cb, 0, NULL},
     {"/Edit/Undelete Last", NULL, undelete_last_proc, 0, NULL},
@@ -139,12 +149,12 @@ static GtkItemFactoryEntry ife[] = {
     {"/View/--", NULL, NULL, 0, "<Tearoff>"},
     {"/View/Next", "<alt>N", next_msg_cb, 0, NULL},
     {"/View/Previous", "<alt>P", prev_msg_cb, 0, NULL},
-    {"/View/Sort By/Time & Date", NULL, NULL, 0, NULL},
-    {"/View/Sort By/Sender", NULL, NULL, 0, NULL},
-    {"/View/Sort By/Subject", NULL, NULL, 0, NULL},
-    {"/View/Sort By/Size", NULL, NULL, 0, NULL},
-    {"/View/Sort By/Status", NULL, NULL, 0, NULL},
-    {"/View/Sort By/Message", NULL, NULL, 0, NULL},
+    {"/View/Sort By/Time & Date", NULL, sort_cb, 3, NULL},
+    {"/View/Sort By/Sender", NULL, sort_cb, 2, NULL},
+    {"/View/Sort By/Subject", NULL, sort_cb, 5, NULL},
+    {"/View/Sort By/Size", NULL, sort_cb, 4, NULL},
+    {"/View/Sort By/Status", NULL, sort_cb, 0, NULL},
+    {"/View/Sort By/Message", NULL, sort_cb, 1, NULL},
     {"/View/-", NULL, NULL, 0, "<Separator>"},
     {"/View/Show Deleted", NULL, NULL, 0, "<CheckItem>"},
     {"/View/Full Header", "<control>H", NULL, 0, "<CheckItem>"},
@@ -176,7 +186,7 @@ static GtkItemFactoryEntry ife[] = {
 void
 setup_ui(int level, int argc, char **argv)
 {
-    gchar	*title, **rcfiles, **file, *gtkrc_path;
+    gchar	*title, **rcfiles, *gtkrc_path;
     GdkColor	delcol;
     GtkWidget	*vbox, *mbar, *tbar, *vpane, *msglist, *swin, *txt, *statbar;
     GtkWidget	*hb;
@@ -587,9 +597,7 @@ delete_message_proc()
 {
     int		cur_row;
     GList	*ptr;
-    GdkColor	*delcol;
     GtkWidget	*msglist;
-    GtkStyle	*style;
     MESSAGE	*msg;
 
     msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
@@ -924,7 +932,7 @@ read_passphrase_string()
     GtkWidget	*entry;
 
     if(ppdialog == NULL)
-	return;
+	return NULL;
 
     entry = (GtkWidget *)gtk_object_get_user_data(GTK_OBJECT(ppdialog));
     return gtk_entry_get_text(GTK_ENTRY(entry));
@@ -1415,6 +1423,16 @@ update_mail_list(void)
 } /* update_mail_list */
 
 static void
+sort_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*clist;
+
+    clist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "msglist");
+
+    clist_sort_cb(clist, (gint)data, NULL);
+} /* sort_cb */
+
+static void
 clist_sort_cb(GtkWidget *clist, gint col, gpointer data)
 {
     static int		last_col = -1;
@@ -1538,7 +1556,6 @@ static void
 display_new_message()
 {
     MESSAGE	*m;
-    int		numVisible;
     GtkWidget	*clist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							  "msglist");
 
@@ -1626,7 +1643,7 @@ save_cb(GtkWidget *w, gpointer data)
 static void
 populate_combo()
 {
-    char	*maildirs, *p;
+    char	*p;
     GtkWidget	*combo;
     GList	*list = NULL;
     gchar	**strarray, *tmpstr, **ptr;
@@ -1881,7 +1898,7 @@ static void
 fillin_folders(GtkWidget *tree)
 {
     char		*folder;    /* Directory containing mail folders. */
-    char		*homedir, *fullfolder;
+    char		*fullfolder;
 
     if ((folder = (char *)find_mailrc("folder"))){
 	if(strchr(folder, '/') != NULL){ /* Is a specified path. */
@@ -1904,7 +1921,6 @@ static void
 process_dir(GtkWidget *tree, char *dirname, GtkCTreeNode *parent)
 {
     char		*pathname;
-    int			numkids, i;
     GtkCTreeNode	*node;
     gchar		*name[3], *tag;
     DIR			*dirp;
@@ -2522,3 +2538,15 @@ msgdrop_cb(GtkWidget *w, GdkDragContext *ctxt, gint x, gint y, guint etime,
 
     gtk_drag_finish(ctxt, FALSE, FALSE, etime);
 } /* msgdrop_cb */
+
+static void
+edit_ops_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*msg;
+    EDIT_OP	op = (EDIT_OP)data;
+
+    msg = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "msgtext");
+    if(op == EDIT_COPY) {
+	gtk_editable_copy_clipboard(GTK_EDITABLE(msg));
+    }
+} /* edit_ops_cb */
