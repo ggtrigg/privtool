@@ -1035,6 +1035,8 @@ main(int argc, char *argv[])
 
 	init_messages();
 
+	read_mailrc();
+
 	/* Check for the "-f" option on command line */
 	default_mail_file[0] = 0;
 	for (i = 1; i < argc; i++)
@@ -1050,19 +1052,22 @@ main(int argc, char *argv[])
 		strcpy(default_mail_file, argv[i + 1]);
 	    }
 
-	if (strlen(default_mail_file) < 1)
-	  {
-	    s = getenv("MAIL");
-
-	    if (s)
-	      strcpy (default_mail_file, s);
-	    else {
-	      sprintf(default_mail_file,"%s/%s", mail_spool_dir,
-		      cuserid(NULL));
+	if (strlen(default_mail_file) < 1) {
+	    if((s = find_mailrc("mailspoolfile"))) {
+		strcpy (default_mail_file, s);
 	    }
-	  }
+	    else {
+		s = getenv("MAIL");
 
-	read_mailrc();
+		if (s)
+		    strcpy (default_mail_file, s);
+		else {
+		    sprintf(default_mail_file,"%s/%s", mail_spool_dir,
+			    cuserid(NULL));
+		}
+	    }
+	}
+
 	read_mail_file(default_mail_file,TRUE);
 
 	s = getenv("PGPPASS");
