@@ -61,6 +61,8 @@
 #include "windows.h"
 #include "gui.h"
 
+#include "version.h"
+
 /* Maximum number of remailers to use */
 
 #ifndef MAXMIX
@@ -204,8 +206,6 @@ char	prog_name[] = "XSafeMail";
 #else
 char	prog_name[] = "Privtool";
 #endif
-
-char	prog_ver [] = "V0.90 BETA";
 
 /* Set the description of the message for the message list */
 
