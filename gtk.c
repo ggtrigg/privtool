@@ -22,7 +22,10 @@
 #include	<time.h>
 #include	<dirent.h>
 #include	<sys/stat.h>
-/* #include	<sys/param.h> */
+#include	<errno.h>
+#include	<sys/stat.h>
+#include	<fcntl.h>
+#include	<sys/mman.h>
 
 #include	"def.h"
 #include	"buffers.h"
@@ -44,6 +47,9 @@
 #include	"images/g_letter.xpm"
 #include	"images/mini-folder.xpm"
 #include	"images/mini-ofolder.xpm"
+#include	"images/question.xpm"
+#include	"images/exclamation.xpm"
+#include	"images/exclamation2.xpm"
 
 /* Typedefs */
 typedef enum {
@@ -57,10 +63,20 @@ typedef enum {
     R_ALL_INCLUDE = 0x80
 } COMPOSE_TYPE;
 
+typedef enum {
+    ALERT_NONE,
+    ALERT_MESSAGE,
+    ALERT_QUESTION,
+    ALERT_ERROR
+} ALERT_TYPE;
+
+extern int		errno;
 extern char		*our_userid;
 extern char		*current_nym(void);
 
 /* Static functions */
+static unsigned int alert(GtkWidget *, char *, ALERT_TYPE, unsigned int, ...);
+static void	alert_cb(GtkWidget *, gpointer);
 static gint	delete_event(GtkWidget *, GdkEvent *, gpointer);
 static void	destroy (GtkWidget *, gpointer);
 static void	update_mail_list(void);
@@ -92,11 +108,17 @@ static COMPOSE_WINDOW *compose_find_free();
 static void	reset_deliver_flags(COMPOSE_WINDOW *);
 static void	initialise_compose_win(COMPOSE_WINDOW *, COMPOSE_TYPE);
 static void	deliver_cb(GtkWidget *, gpointer);
+static void	show_undelete(gboolean);
+static void	filer_cb(GtkWidget *, gpointer);
+static void	insert_file_cb(GtkWidget *, gpointer);
 
 /* Static data */
 static GtkWidget	*toplevel;
 static COMPOSE_WINDOW	*compose_first = NULL;
 static COMPOSE_WINDOW	*compose_last = NULL;
+static char		attribution_string[] = " said :\n\n";
+static char		begin_forward[] = "-- Begin forwarded message ---\n";
+static char		end_forward[] = "\n-- End forwarded message ---\n";
 
 static GtkItemFactoryEntry ife[] = {
     {"/File/Load Inbox", "<control>L", load_new_cb, 0, NULL},
@@ -134,12 +156,16 @@ static GtkItemFactoryEntry ife[] = {
     {"/Folder/Load Folder", "<alt>L", load_folder_cb, 0, NULL},
     {"/Folder/Load Inbox", NULL, load_new_cb, 0, NULL},
     {"/Compose/New", NULL, compose_cb, COMPOSE_NEW, NULL},
-    {"/Compose/Reply/Sender", NULL, NULL, 0, NULL},
-    {"/Compose/Reply/Sender (include)", NULL, NULL, 0, NULL},
-    {"/Compose/Reply/All", NULL, NULL, 0, NULL},
-    {"/Compose/Reply/All (include)", NULL, NULL, 0, NULL},
-    {"/Compose/Forward", "<alt>F", NULL, 0, NULL},
-    {"/Compose/Resend", "<alt>R", NULL, 0, NULL},
+    {"/Compose/Reply/Sender", NULL, compose_cb,
+				COMPOSE_REPLY|R_SENDER, NULL},
+    {"/Compose/Reply/Sender (include)", NULL, compose_cb,
+				COMPOSE_REPLY|R_SENDER_INCLUDE, NULL},
+    {"/Compose/Reply/All", NULL, compose_cb,
+				COMPOSE_REPLY|R_ALL, NULL},
+    {"/Compose/Reply/All (include)", NULL, compose_cb,
+				COMPOSE_REPLY|R_ALL_INCLUDE, NULL},
+    {"/Compose/Forward", "<alt>F", compose_cb, COMPOSE_FORWARD, NULL},
+    {"/Compose/Resend", "<alt>R", compose_cb, COMPOSE_RESEND, NULL},
     {"/Help/About", "<control>A", NULL, 0, NULL}
 };
 
@@ -154,10 +180,7 @@ setup_ui(int level, int argc, char **argv)
     GtkStyle	*cl_style;
 
     show_deleted = 1;		/* Default value. */
-    title = (char *)malloc(strlen(prog_name) + strlen(prog_ver) + 5);
-    strcpy(title, prog_name);
-    strcat(title, " - ");
-    strcat(title, prog_ver);
+    title = g_strconcat(prog_name, " - ", prog_ver, NULL);
 
     gtkrc_path = g_strconcat(g_get_home_dir(), "/.privtool/gtkrc", NULL);
     gtk_rc_add_default_file(gtkrc_path);
@@ -169,6 +192,7 @@ setup_ui(int level, int argc, char **argv)
     toplevel = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_widget_set_name(toplevel, "Privtool");
     gtk_window_set_title(GTK_WINDOW(toplevel), title);
+    g_free(title);
 
     gtk_signal_connect(GTK_OBJECT(toplevel), "delete_event",
 		       GTK_SIGNAL_FUNC (delete_event), NULL);
@@ -189,6 +213,7 @@ setup_ui(int level, int argc, char **argv)
 
     /* Create vertical paned window. */
     vpane = gtk_vpaned_new();
+    gtk_container_set_border_width(GTK_CONTAINER(vpane), 4);
 
     /* List of mail header's window. */
     msglist = create_msglist();
@@ -220,7 +245,7 @@ setup_ui(int level, int argc, char **argv)
     gtk_widget_show(toplevel);
 
     /* Set up extra clist styles & colors. */
-    cl_style = gtk_rc_get_style(msglist);
+    cl_style = gtk_style_copy(gtk_widget_get_style(msglist));
     cl_style->font = gdk_font_load("6x13bold");
     gtk_object_set_data(GTK_OBJECT(toplevel), "boldstyle", (gpointer)cl_style);
 
@@ -233,15 +258,112 @@ setup_ui(int level, int argc, char **argv)
 	display_new_message();
     sync_list();
     update_message_list();
+    show_undelete(FALSE);
 
     gtk_main();
 }
+
+static unsigned int
+alert(GtkWidget *parent, char *message, ALERT_TYPE atype,
+      unsigned int nbuttons, ...)
+{
+    va_list		arglist;
+    unsigned int	retval;
+    int			i;
+    char		*btn;
+    GtkWidget		*dialog, *hbox, *label, *button, *image;
+
+    dialog = gtk_dialog_new();
+    hbox = gtk_hbox_new(FALSE, 4);
+    label = gtk_label_new(message);
+
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
+
+    switch(atype) {
+    case ALERT_MESSAGE:
+	image = get_pixmap(toplevel, exclamation_xpm);
+	gtk_window_set_title(&GTK_DIALOG(dialog)->window, "Privtool - Message");
+	break;
+    case ALERT_QUESTION:
+	image = get_pixmap(toplevel, question_xpm);
+	gtk_window_set_title(&GTK_DIALOG(dialog)->window, "Privtool - Question");
+	break;
+    case ALERT_ERROR:
+	image = get_pixmap(toplevel, exclamation2_xpm);
+	gtk_window_set_title(&GTK_DIALOG(dialog)->window, "Privtool - Error");
+	break;
+    default:
+	gtk_window_set_title(&GTK_DIALOG(dialog)->window, "Privtool - Alert");
+	break;
+    }
+
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, TRUE, 20);
+    gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 20);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox,
+		       TRUE, TRUE, 20);
+    gtk_widget_show(image);
+    gtk_widget_show(label);
+    gtk_widget_show(hbox);
+
+    va_start(arglist, nbuttons);
+
+    for(i = 0; i < nbuttons; i++) {
+	btn = va_arg(arglist, char *);
+	button = gtk_button_new_with_label(btn);
+	gtk_box_pack_start_defaults(GTK_BOX(GTK_DIALOG(dialog)->action_area),
+				    button);
+	gtk_object_set_user_data(GTK_OBJECT(button), (gpointer)(i+1));
+	gtk_signal_connect(GTK_OBJECT(button), "clicked",
+			   GTK_SIGNAL_FUNC(alert_cb), dialog);
+	if(i == 0) {
+	    GTK_WIDGET_SET_FLAGS(button, (GTK_CAN_DEFAULT|GTK_HAS_DEFAULT));
+	    gtk_widget_grab_default(button);
+	}
+	gtk_widget_show(button);
+    }
+
+    va_end(arglist);
+
+    if(parent) {
+	gtk_window_set_transient_for(&GTK_DIALOG(dialog)->window,
+				     GTK_WINDOW(parent));
+    }
+    else {
+	gtk_window_set_transient_for(&GTK_DIALOG(dialog)->window,
+				     GTK_WINDOW(toplevel));
+    }
+
+    show_busy();
+    gtk_widget_show(dialog);
+    gtk_grab_add(dialog);
+
+    gtk_main();
+
+    retval = (unsigned int)gtk_object_get_user_data(GTK_OBJECT(dialog));
+
+    gtk_widget_destroy(dialog);
+    clear_busy();
+
+    return retval;
+} /* alert */
+
+static void
+alert_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*dialog = (GtkWidget *)data;
+
+    gtk_object_set_user_data(GTK_OBJECT(dialog),
+			     gtk_object_get_user_data(GTK_OBJECT(w)));
+    gtk_grab_remove(GTK_WIDGET(data));
+    gtk_main_quit();
+} /* alert_cb */
 
 void
 bad_file_notice(int w)
 {
 				/* TODO */
     g_warning("bad_file_notice: To be done.");
+    alert(NULL, "Error: Bad message format.", ALERT_MESSAGE, 1, "OK");
 }
 
 void
@@ -249,14 +371,20 @@ bad_key_notice_proc()
 {
 				/* TODO */
     g_warning("bad_key_notice_proc: To be done.");
+    alert(NULL, "Error: No key found in message or bad key format.",
+	  ALERT_MESSAGE, 1, "OK");
 }
 
 int
 bad_pass_phrase_notice(int w)
 {
+    int		val;
+
 				/* TODO */
     g_warning("bad_pass_phrase_notice: To be done.");
-    return 0;
+    val = alert(NULL, "Error: Bad passphrase.", ALERT_ERROR, 2, "Retry",
+		"Cancel");
+    return (val == 1);
 }
 
 void
@@ -480,7 +608,7 @@ delete_message_proc()
 	sync_list();
     }
     update_message_list();
-    /* show_undelete(True); */  /* TODO */
+    show_undelete(TRUE);
 }
 
 void
@@ -628,9 +756,13 @@ display_sender_info(MESSAGE *m)
 int
 dont_quit_notice_proc()
 {
-				/* TODO */
-    g_warning("dont_quit_notice_proc: To be done.");
-    return 0;
+    int		val;
+
+    val = alert(NULL, "You have open compose windows. Quitting will\n\
+lose the messages in those windows.\n\n\
+Do you really want to quit? \n", ALERT_QUESTION, 2, "Yes", "No");
+
+    return (val == 2);
 }
 
 int
@@ -898,6 +1030,23 @@ show_normal_icon()
     gdk_window_set_icon(toplevel->window, NULL, pixmap, mask);
 }
 
+static void
+show_undelete(gboolean show)
+{
+    GtkItemFactory	*ife;
+    GtkWidget		*undeletebtn, *undeletemi, *undeleteall;
+
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    undeleteall = gtk_item_factory_get_widget(ife, "/Edit/Undelete");
+    undeletemi = gtk_item_factory_get_widget(ife, "/Edit/Undelete Last");
+    undeletebtn = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						   "undeletebtn");
+    gtk_widget_set_sensitive(undeletebtn, show);
+    gtk_widget_set_sensitive(undeleteall, show);
+    gtk_widget_set_sensitive(undeletemi, show);
+} /* show_undelete */
+
 void
 shutdown_ui()
 {
@@ -1057,6 +1206,8 @@ create_menubar(void)
      */
     tbar_tgl = gtk_item_factory_get_widget(ifactory, "/View/Show Toolbar");
     gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(tbar_tgl), TRUE);
+    tbar_tgl = gtk_item_factory_get_widget(ifactory, "/View/Show Deleted");
+    gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(tbar_tgl), TRUE);
 
     return ifactory->widget;
 } /* create_menubar */
@@ -1079,15 +1230,18 @@ create_toolbar(GtkWidget *window)
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Delete", "Delete Message",
 			    NULL, get_pixmap(window, delete_xpm),
 			    delete_message_proc, NULL);
-    gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Undelete", "Undelete Message",
-			    NULL, get_pixmap(window, undelete_xpm),
-			    undelete_cb, NULL);
+    w = gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Undelete",
+				"Undelete Message",
+				NULL, get_pixmap(window, undelete_xpm),
+				undelete_cb, NULL);
+    gtk_object_set_data(GTK_OBJECT(window), "undeletebtn", (gpointer)w);
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Compose", "Compose new message",
 			    NULL, get_pixmap(window, compose_xpm),
-			    compose_cb, NULL);
+			    compose_cb, (gpointer)COMPOSE_NEW);
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Reply", "Reply to sender",
-			    NULL, get_pixmap(window, reply_xpm), NULL, NULL);
+			    NULL, get_pixmap(window, reply_xpm), compose_cb,
+			    (gpointer)(COMPOSE_REPLY|R_SENDER_INCLUDE));
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     w = gtk_toolbar_append_element(GTK_TOOLBAR(toolbar),
 				   GTK_TOOLBAR_CHILD_TOGGLEBUTTON, NULL,
@@ -1432,7 +1586,7 @@ save_cb(GtkWidget *w, gpointer data)
     display_new_message();
     sync_list();
     update_message_list();
-    /* show_undelete(FALSE); */  /* TODO */
+    show_undelete(FALSE);
 } /* save_cb */
 
 
@@ -1493,7 +1647,7 @@ load_folder_cb(GtkWidget *w, gpointer data)
     display_new_message();
     sync_list();
     update_message_list();
-    /* show_undelete(False); */
+    show_undelete(FALSE);
 } /* load_folder_cb */
 
 static void
@@ -1587,7 +1741,7 @@ load_new_cb(GtkWidget *w, gpointer data)
     display_new_message();
     sync_list();
     update_message_list();
-    /* show_undelete(False); */ /* TODO */
+    show_undelete(FALSE);
 } /* load_new_cb */
 
 static void
@@ -1852,7 +2006,7 @@ static COMPOSE_WINDOW *
 compose_find_free()
 {
     COMPOSE_WINDOW	*win;
-    GtkWidget		*vbox, *hbox, *w, *align, *table;
+    GtkWidget		*vbox, *hbox, *w, *align, *table, *swin;
     int			i;
 
     win = compose_first;
@@ -1893,40 +2047,40 @@ compose_find_free()
     /*gtk_table_set_row_spacings(GTK_TABLE(table), 4);
       gtk_table_set_col_spacings(GTK_TABLE(table), 4);*/
 
-    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    align = gtk_alignment_new(1.0, 0.0, 0.0, 0.0);
     w = gtk_label_new("To:");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_table_attach(GTK_TABLE(table), align, 0, 1, 0, 1,
-		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+		     GTK_FILL, 0, 4, 0);
     gtk_widget_show(w);
     gtk_widget_show(align);
     win->send_to = gtk_entry_new();
     gtk_table_attach_defaults(GTK_TABLE(table), win->send_to, 1, 2, 0, 1);
     gtk_widget_show(win->send_to);
 
-    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    align = gtk_alignment_new(1.0, 0.0, 0.0, 0.0);
     w = gtk_label_new("Subject:");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_table_attach(GTK_TABLE(table), align, 0, 1, 1, 2,
-		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+		     GTK_FILL, 0, 4, 0);
     gtk_widget_show(w);
     gtk_widget_show(align);
     win->send_subject = gtk_entry_new();
     gtk_table_attach_defaults(GTK_TABLE(table), win->send_subject, 1, 2, 1, 2);
     gtk_widget_show(win->send_subject);
 
-    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    align = gtk_alignment_new(1.0, 0.0, 0.0, 0.0);
     w = gtk_label_new("CC:");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_table_attach(GTK_TABLE(table), align, 0, 1, 2, 3,
-		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+		     GTK_FILL, 0, 4, 0);
     gtk_widget_show(w);
     gtk_widget_show(align);
     win->send_cc = gtk_entry_new();
     gtk_table_attach_defaults(GTK_TABLE(table), win->send_cc, 1, 2, 2, 3);
     gtk_widget_show(win->send_cc);
 
-    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    align = gtk_alignment_new(1.0, 0.0, 0.0, 0.0);
     w = gtk_label_new("Bcc:");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_table_attach(GTK_TABLE(table), align, 0, 1, 3, 4,
@@ -1949,7 +2103,7 @@ compose_find_free()
 	    char	 *label;
 
 	    label = g_strconcat(headerline, ":", NULL);
-	    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+	    align = gtk_alignment_new(1.0, 0.0, 0.0, 0.0);
 	    w = gtk_label_new(label);
 	    gtk_container_add(GTK_CONTAINER(align), w);
 	    gtk_table_attach(GTK_TABLE(table), align, 0, 1, i+3, i+4,
@@ -1997,16 +2151,25 @@ compose_find_free()
     w = gtk_button_new_with_label("Insert...");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_box_pack_start(GTK_BOX(hbox), align, TRUE, TRUE, 8);
+    gtk_object_set_user_data(GTK_OBJECT(w), win);
+    gtk_signal_connect(GTK_OBJECT(w), "clicked",
+		       GTK_SIGNAL_FUNC (filer_cb), insert_file_cb);
     gtk_widget_show(w);
     gtk_widget_show(align);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 4);
     gtk_widget_show(hbox);
 
+    swin = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin),
+				   GTK_POLICY_AUTOMATIC,
+				   GTK_POLICY_AUTOMATIC);
     win->text = gtk_text_new(NULL, NULL);
     gtk_widget_set_usize(GTK_WIDGET(win->text), 550, 450);
     gtk_text_set_editable(GTK_TEXT(win->text), TRUE);
-    gtk_box_pack_start(GTK_BOX(vbox), win->text, TRUE, TRUE, 4);
+    gtk_container_add(GTK_CONTAINER(swin), win->text);
+    gtk_box_pack_start(GTK_BOX(vbox), swin, TRUE, TRUE, 4);
     gtk_widget_show(win->text);
+    gtk_widget_show(swin);
 
     w = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(vbox), w, FALSE, TRUE, 4);
@@ -2032,6 +2195,10 @@ compose_find_free()
     gtk_widget_show(align);
     gtk_object_set_user_data(GTK_OBJECT(w), (gpointer)1);
     gtk_signal_connect(GTK_OBJECT(w), "clicked",
+		       GTK_SIGNAL_FUNC (deliver_cb), win);
+
+    gtk_object_set_user_data(GTK_OBJECT(win->deliver_frame), (gpointer)1);
+    gtk_signal_connect(GTK_OBJECT(win->deliver_frame), "delete_event",
 		       GTK_SIGNAL_FUNC (deliver_cb), win);
 
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 4);
@@ -2083,9 +2250,10 @@ reset_deliver_flags(COMPOSE_WINDOW *win)
 static void
 initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype)
 {
-    int		i;
-
-    g_warning("TODO: initialise_compose_win not finished.");
+    BUFFER		*b;
+    int			i;
+    char		*send_to;
+    gchar		**strarry, *quoted;
 
     /* Disable updates in the GtkText for a bit */
     gtk_text_freeze(GTK_TEXT(win->text));
@@ -2120,6 +2288,84 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype)
 				 win->deliver_flags & DELIVER_REMAIL);
 #endif
 
+    switch(comptype & 0x0f){
+    case COMPOSE_NEW:
+	/* Do something to make keyboard focus go to the send_to field */
+	gtk_widget_grab_focus(win->send_to);
+	break;
+
+    case COMPOSE_REPLY:
+	set_reply (last_message_read);
+
+	send_to = last_message_read->email;
+
+	if (last_message_read->reply_to &&
+		!find_mailrc("defaultusefrom")) {
+		if (find_mailrc("defaultusereplyto") ||
+			(alert(win->deliver_frame,
+			       "Use the Reply-To field instead of the From field?",
+			      ALERT_QUESTION, 2, "Yes", "No") == 1)) {
+			send_to = last_message_read->reply_to;
+		}
+	}
+	gtk_entry_set_text(GTK_ENTRY(win->send_to), send_to);
+
+	if(last_message_read->subject != NULL){
+	    if(strncasecmp(last_message_read->subject, "Re:", 3))
+		gtk_entry_set_text(GTK_ENTRY(win->send_subject), "Re: ");
+
+	    gtk_entry_append_text(GTK_ENTRY(win->send_subject),
+				  last_message_read->subject);
+	}
+
+	if(comptype &= (R_SENDER_INCLUDE|R_ALL_INCLUDE)){
+	    if (last_message_read->decrypted)
+		b = last_message_read->decrypted;
+	    else
+		b = message_contents(last_message_read);
+
+	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+			  last_message_read->sender, -1);
+	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+			    attribution_string, -1);
+	    strarry = g_strsplit(g_strstrip(b->message), "\n", -1);
+	    quoted = g_strconcat("> ", g_strjoinv("\n> ", strarry), NULL);
+	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+			    quoted, strlen(quoted) - 2);
+	    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL, "\n", 1);
+	    g_free(quoted);
+	    g_strfreev(strarry);
+	}
+	gtk_widget_grab_focus(win->text);
+	break;
+
+    case COMPOSE_FORWARD:
+	gtk_entry_set_text(GTK_ENTRY(win->send_subject),
+			   last_message_read->subject);
+	gtk_entry_append_text(GTK_ENTRY(win->send_subject), " (fwd)");
+
+	if (last_message_read->decrypted)
+		b = last_message_read->decrypted;
+	else
+		b = message_contents(last_message_read);
+
+	gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+			begin_forward, -1);
+	gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+			b->message, -1);
+	gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+			end_forward, -1);
+
+	gtk_widget_grab_focus(win->send_to);
+	break;
+
+    case COMPOSE_RESEND:
+	alert(win->deliver_frame,
+	      "Resend hasn't been implemented yet.\nHassle the developers if you want it.",
+	      ALERT_MESSAGE, 1, "OK");
+	break;
+    }
+
     gtk_text_thaw(GTK_TEXT(win->text));
 } /* initialise_compose_win */
 
@@ -2130,11 +2376,93 @@ deliver_cb(GtkWidget *w, gpointer data)
 
     if((int)gtk_object_get_user_data(GTK_OBJECT(w))) {
 	/* Cancel pushed. */
-	gtk_widget_hide(win->deliver_frame);
+	if( (gtk_text_get_length(GTK_TEXT(win->text)) == 0) ||
+	    alert(win->deliver_frame,
+		  "Cancelling a non-empty message.\n\nReally cancel?",
+		  ALERT_QUESTION, 2, "Yes", "No") == 1)
+	    gtk_widget_hide(win->deliver_frame);
     }
     else {
 	/* OK Pushed */
-	deliver_proc(win);
+	if( (gtk_text_get_length(GTK_TEXT(win->text)) != 0) ||
+	    alert(win->deliver_frame,
+		  "Sending an empty message.\n\nReally send?",
+		  ALERT_QUESTION, 2, "Yes", "No") == 1)
+	    deliver_proc(win);
     }
     win->in_use = 0;
 } /* deliver_cb */
+
+static void
+filer_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*filer;
+
+    filer = gtk_file_selection_new("Privtool - Select File");
+    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filer)->ok_button),
+		       "clicked",
+		       GTK_SIGNAL_FUNC (data), filer);
+    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filer)->cancel_button),
+		       "clicked",
+		       GTK_SIGNAL_FUNC (data), filer);
+    gtk_signal_connect(GTK_OBJECT(&GTK_FILE_SELECTION(filer)->window),
+		       "delete_event",
+		       GTK_SIGNAL_FUNC (data), filer);
+    gtk_object_set_user_data(GTK_OBJECT(filer),
+			     gtk_object_get_user_data(GTK_OBJECT(w)));
+
+    gtk_widget_show(filer);
+} /* filer_cb */
+
+static void
+insert_file_cb(GtkWidget *w, gpointer data)
+{
+    int			fd;
+    gchar		*filename, *error, *buf;
+    GtkWidget		*filer;
+    struct stat		stbuf;
+    COMPOSE_WINDOW	*win;
+
+    filer = (GtkWidget *)data;
+    win = (COMPOSE_WINDOW *)gtk_object_get_user_data(GTK_OBJECT(filer));
+
+    if( GTK_IS_WIDGET(w) &&
+	w == (GTK_FILE_SELECTION(filer)->ok_button)) {
+	filename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filer));
+
+	stat(filename, &stbuf);
+	if(S_ISREG(stbuf.st_mode)){
+	    if((fd = open(filename, O_RDONLY)) == -1){
+		error = g_strconcat("File could not be opened, insert failed\n",
+				    strerror(errno), NULL);
+		alert(win->deliver_frame, error, ALERT_ERROR, 1, "OK");
+		g_free(error);
+	    }
+	    else{
+		buf = mmap(NULL, stbuf.st_size, PROT_READ, MAP_SHARED, fd, 0L);
+		if(buf == (char *)-1){
+		    error = g_strconcat("File could not be mapped, insert failed\n",
+					strerror(errno), NULL);
+		    alert(win->deliver_frame, error, ALERT_ERROR, 1, "OK");
+		    g_free(error);
+		}
+		else{
+		    gtk_text_freeze(GTK_TEXT(win->text));
+		    gtk_text_insert(GTK_TEXT(win->text), NULL, NULL, NULL,
+				    buf, -1);
+		    gtk_text_thaw(GTK_TEXT(win->text));
+		    munmap(buf, stbuf.st_size);
+		}
+		close(fd);
+	    }
+	}
+	else{
+	    error = g_strconcat("The filename specified is not a regular file.\nIt cannot be inserted.\n",
+				strerror(errno), NULL);
+	    alert(win->deliver_frame, error, ALERT_ERROR, 1, "OK");
+	    g_free(error);
+	}
+    }
+
+    gtk_widget_destroy(filer);
+} /* insert_file_cb */
