@@ -4407,3 +4407,12 @@ static void save_xresources()
 	}
 }
 
+void
+sync_list()
+{
+} /* sync_list */
+
+void
+deleteAllMessages()
+{
+} /* deleteAllMessages */

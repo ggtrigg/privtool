@@ -16,6 +16,8 @@
 #include	<X11/StringDefs.h>
 #include	<X11/Shell.h>
 #include	<X11/ShellP.h>
+#include	"m_util.h"
+#include	"debug.h"
 
 static char	*GenFullName(Widget widget, int size, char *(*name_func)());
 
@@ -106,15 +108,18 @@ GetResourceString(Widget w, char *iname, char *iclass)
 
 /*----------------------------------------------------------------------*/
 
-#if 0
+#if 1
 void
 AddConverters()
 {
-    XtSetTypeConverter(XtRString, XtRPixmap, cvtStringToPixmap,
-		       NULL, 0, ??, NULL);
+    DEBUG1(("AddConverters\n"));
+
+    XtSetTypeConverter(XtRString, XtRPixmap,
+		       (XtTypeConverter)cvtStringToPixmap,
+		       NULL, 0, XtCacheByDisplay|XtCacheRefCount, NULL);
 }
 
-XtConverter
+void
 cvtStringToPixmap()
 {
     fprintf(stderr, "In cvtStringToPixmap\n");

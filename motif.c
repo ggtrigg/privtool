@@ -571,6 +571,9 @@ display_sender_info(MESSAGE *m)
 {
     XmString	info;
 
+    if(m == NULL)
+	return;
+
     if(!full_header_){
 	info = XmStringGenerate("From:\t", NULL, XmCHARSET_TEXT,
 				(XmStringTag)"HDR_B");
@@ -1236,8 +1239,8 @@ compose_find_free()
 	win->deliver_flags &= ~DELIVER_REMAIL;
 
     /* Check mailrc for logging options */
-    log = find_mailrc("nodontlogmessages");
-    dontlog = find_mailrc("dontlogmessages");
+    log = (find_mailrc("nodontlogmessages") != NULL);
+    dontlog = (find_mailrc("dontlogmessages") != NULL);
 
     /* If logging enabled, set log options */
     if (log && !dontlog) {

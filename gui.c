@@ -119,7 +119,7 @@ static	char	decrypt_passphrase[]="Passphrase entry (Decryption)";
 /* Global variables */
 
 char	*passphrase;
-int	show_deleted;
+int	show_deleted = 0;
 void	(*callback_proc)();
 COMPOSE_WINDOW	*callback_win;
 
@@ -353,6 +353,9 @@ MESSAGE	*m;
 {
 	int	i;
 	DISPLAY_WINDOW	*w;
+
+	if(m == NULL)
+	    return;
 
 	/* Add time to random seed */
 
@@ -891,9 +894,7 @@ void	decrypt_with_passphrase()
 
 {
 	display_message(message_to_decrypt);
-#ifdef MOTIF
 	sync_list();
-#endif
 }
 
 void	set_flags_from_decryption(m,i)
@@ -1851,11 +1852,7 @@ void	load_new_mail()
 		i = last->number;
 		mm = last;
 
-#ifdef MOTIF
 		while (mm && (mm->flags & MESS_DELETED) && ! show_deleted) {
-#else
-		while (mm && (mm->flags & MESS_DELETED)) {
-#endif
 			mm = mm->prev;
 		}
 
@@ -1873,11 +1870,7 @@ void	load_new_mail()
 
 	while (m) {
 		m->number = ++i;
-#ifdef MOTIF
 		if (!(m->flags & MESS_DELETED) || show_deleted)
-#else
-		if (!(m->flags & MESS_DELETED))
-#endif
 			m->list_pos = ++l;
 
 		set_message_description (m);
@@ -2017,9 +2010,7 @@ void	inbox_proc()
 	    load_new_mail ();
 	}
 	else{
-#ifdef MOTIF
 	    deleteAllMessages();
-#endif
 	    load_file_proc (default_mail_file);
 	}
 
@@ -2149,11 +2140,7 @@ int	(*proc)();
 			m_list[i]->next = m_list[i+1];
 		}
 
-#ifdef MOTIF
 		if (!(m_list[i]->flags & MESS_DELETED) || show_deleted) {
-#else
-		if (!(m_list[i]->flags & MESS_DELETED)) {
-#endif
 			m_list[i]->list_pos = l++;
 			set_message_description (m_list[i]);
 			display_message_description (m_list[i]);
@@ -2274,9 +2261,7 @@ undelete(MESSAGE *m)
     }
 
     update_message_list ();
-#ifdef MOTIF
     sync_list();
-#endif
 } /* undelete */
 
 static	char	dec_mess [] = "Decrypted message reads :\n\n";

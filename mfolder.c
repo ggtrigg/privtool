@@ -16,6 +16,7 @@
 #include	<X11/X.h>
 #include	<X11/Xlib.h>
 #include	<X11/Intrinsic.h>
+#include	<Xm/AtomMgr.h>
 #include	<Xm/CascadeB.h>
 #include	<Xm/Container.h>
 #include	<Xm/IconG.h>
@@ -60,6 +61,7 @@ void
 show_mail_folders(Widget parent)
 {
     Widget	mainwin;
+    Arg		args[8];
     int		i;
 
     if(folderwin == NULL){
@@ -93,18 +95,14 @@ show_mail_folders(Widget parent)
 		      (XtCallbackProc) iconSelectCb, NULL);
 	XtAddCallback(container, XmNdestinationCallback,
 		      (XtCallbackProc) destinationCb, NULL);
-#if 0
 	XtAddCallback(container, XmNconvertCallback,
 		      (XtCallbackProc) containerConvertCb, NULL);
-#endif
 	XtAddEventHandler(mainwin, StructureNotifyMask, False,
 			  resizeCb, container);
 
 	i = 0;
-#if 0
 	XtSetArg(args[i], XmNdragProc, cDragProc); i++;
 	XmDropSiteUpdate(container, args, i);
-#endif
 
 	fillin_folders(container);
     }
@@ -396,6 +394,9 @@ static void
 destinationCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     XmDestinationCallbackStruct *cbs = (XmDestinationCallbackStruct *)calldata;
+    Display	*display = XtDisplay(w);
+    Atom	TARGETS = XmInternAtom(display, XmSTARGETS, False);
+    Atom	MOTIF_DROP = XmInternAtom(display, XmS_MOTIF_DROP, False);
 
     DEBUG1(("destinationCb: event = 0x%x\n", cbs->event));
     DEBUG2(("  selection = %s\n",
@@ -403,15 +404,12 @@ destinationCb(Widget w, XtPointer clientdata, XtPointer calldata)
     DEBUG2(("  location_data = 0x%x (%s)\n",
 	    cbs->location_data, XtName(cbs->location_data)));
 
-    XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_SUCCEED);
-#if 0
     /* Only process DnD transfers. */
     if(cbs->selection != MOTIF_DROP)
 	return;
 
     XmTransferValue(cbs->transfer_id, TARGETS, (XtCallbackProc) transferProc,
 		    NULL, XtLastTimestampProcessed(XtDisplay(w)));
-#endif
 } /* destinationCb */
 
 /*----------------------------------------------------------------------*/
@@ -420,12 +418,34 @@ static void
 transferProc(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     XmSelectionCallbackStruct *cbs = (XmSelectionCallbackStruct *)calldata;
+    Display	*display = XtDisplay(w);
+    int		i;
+    Atom	TARGETS = XmInternAtom(display, XmSTARGETS, False);
+    Atom	_MOTIF_DRAG_OFFSET = XmInternAtom(display,
+						  XmS_MOTIF_DRAG_OFFSET,
+						  False);
 
     DEBUG1(("transferProc: event = 0x%x\n", cbs->event));
     DEBUG2(("  selection = %s\n",
 	    XmGetAtomName(XtDisplay(w), cbs->selection)));
 
-    XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_FAIL);
+    if(cbs->target == TARGETS && (cbs->type == XA_ATOM)){
+	Atom	*targets = (Atom *)cbs->value;
+
+	for(i = 0; i < cbs->length; i++){
+	    if(targets[i] == _MOTIF_DRAG_OFFSET){
+		XmTransferValue(cbs->transfer_id, _MOTIF_DRAG_OFFSET,
+				(XtCallbackProc)transferProc, NULL,
+				XtLastTimestampProcessed(display));
+	    }
+	}
+    }
+    else if(cbs->target == _MOTIF_DRAG_OFFSET){
+	XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_DEFAULT);
+    }
+    else{
+	XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_FAIL);
+    }
 } /* transferProc */
 
 /*----------------------------------------------------------------------*/
@@ -441,17 +461,21 @@ containerConvertCb(Widget w, XtPointer clientdata, XtPointer calldata)
     Atom	TARGETS = XmInternAtom(display, XmSTARGETS, False);
     Atom	ME_TARGETS = 
 	XmInternAtom(display, XmS_MOTIF_EXPORT_TARGETS, False);
+    Atom	MOTIF_DRAG_OFFSET = 
+	XmInternAtom(display, XmS_MOTIF_DRAG_OFFSET, False);
 
-    DEBUG1(("containerConvertCb target = %s\n", XmGetAtomName(XtDisplay(w),
+    DEBUG1(("containerConvertCb target = %s\n", XmGetAtomName(display,
 							 cbs->target)));
+
     if(cbs->target == TARGETS ||
        cbs->target == ME_TARGETS){
 
         Atom *targs;
         int target_count = 0;
 
-	targs = XmeStandardTargets(w, 1, &target_count);
+	targs = XmeStandardTargets(w, 2, &target_count);
         targs[target_count++] = PRIVTOOL_FOLDERDIR;
+        targs[target_count++] = MOTIF_DRAG_OFFSET;
 
         cbs->value = targs;
 	cbs->length = target_count;
@@ -504,9 +528,21 @@ cDragProc(Widget w, XtPointer clientdata, XtPointer calldata)
     XmDragProcCallbackStruct	*cbs = (XmDragProcCallbackStruct *)calldata;
     Widget	cwid;
 
-    DEBUG2(("cDragProc\n"));
+    DEBUG3(("cDragProc\n"));
 
+    /* This is only for _MOTIF_DRAG_OFFSET at the moment. Need to check
+       the dragContext (cbs->dragContext) to see what operation we're
+       (likely) doing. */
     if((cwid = XmObjectAtPoint(w, cbs->x, cbs->y)) != NULL){
-	XtVaSetValues(cwid, XmNvisualEmphasis, XmSELECTED, NULL);
+	if(!strcmp(XtName(cwid), "file")){
+	    cbs->dropSiteStatus = XmDROP_SITE_INVALID;
+	}
+	else{
+	    XtVaSetValues(cwid, XmNvisualEmphasis, XmSELECTED, NULL);
+	    cbs->dropSiteStatus = XmDROP_SITE_VALID;
+	}
+    }
+    else{
+	cbs->dropSiteStatus = XmDROP_SITE_VALID;
     }
 } /* cDragProc */
