@@ -1930,11 +1930,13 @@ create_workarea(Widget parent)
     hdrtext_ = XmCreateScrolledCSText(pwin, "hdrtext", NULL, 0);
     XtAddCallback(hdrtext_, XmNconvertCallback,
 		  (XtCallbackProc)textConvertCb, NULL);
+    XmDropSiteUnregister(hdrtext_); /* This is readonly so not "dropable". */
     XtManageChild(hdrtext_);
 
     text_ = XmCreateScrolledCSText(pwin, "msgtext", NULL, 0);
     XtAddCallback(text_, XmNconvertCallback,
 		  (XtCallbackProc)textConvertCb, NULL);
+    XmDropSiteUnregister(text_); /* This is readonly so not "dropable". */
     XtManageChild(text_);
     XtAddEventHandler(text_, StructureNotifyMask, False, textMapCb, NULL);
 
