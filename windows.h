@@ -44,6 +44,8 @@ typedef struct _compose_window {
 
 #elif defined(HAVE_GTK)
     GtkWidget	*deliver_frame, *send_to, *send_cc, *send_subject, *menu;
+    GtkWidget	*send_bcc, *text, *sign, *encrypt, *log, *raw, *remail;
+    GtkWidget	*extra_headers[MAX_EXTRA_HEADERLINES];
 #endif
 
     int	deliver_flags;

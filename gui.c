@@ -840,7 +840,7 @@ void	quit_proc()
 	close_messages ();
 	close_pgplib();
 
-	exit(1);
+	exit(0);
 }
 
 /* Save Changes and quit */

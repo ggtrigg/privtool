@@ -45,6 +45,21 @@
 #include	"images/mini-folder.xpm"
 #include	"images/mini-ofolder.xpm"
 
+/* Typedefs */
+typedef enum {
+    COMPOSE_NEW = 0x01,
+    COMPOSE_REPLY = 0x02,
+    COMPOSE_FORWARD = 0x04,
+    COMPOSE_RESEND = 0x08,
+    R_SENDER = 0x10,
+    R_SENDER_INCLUDE = 0x20,
+    R_ALL = 0x40,
+    R_ALL_INCLUDE = 0x80
+} COMPOSE_TYPE;
+
+extern char		*our_userid;
+extern char		*current_nym(void);
+
 /* Static functions */
 static gint	delete_event(GtkWidget *, GdkEvent *, gpointer);
 static void	destroy (GtkWidget *, gpointer);
@@ -72,10 +87,16 @@ static void	show_folder_win_cb(GtkWidget *, gpointer);
 static void	fillin_folders(GtkWidget *);
 static void	process_dir(GtkWidget *, char *, GtkCTreeNode *);
 static void	folder_select_cb(GtkWidget *, GtkCTreeNode *, gint);
+static void	compose_cb(GtkWidget *, gpointer);
+static COMPOSE_WINDOW *compose_find_free();
+static void	reset_deliver_flags(COMPOSE_WINDOW *);
+static void	initialise_compose_win(COMPOSE_WINDOW *, COMPOSE_TYPE);
+static void	deliver_cb(GtkWidget *, gpointer);
 
 /* Static data */
 static GtkWidget	*toplevel;
 static COMPOSE_WINDOW	*compose_first = NULL;
+static COMPOSE_WINDOW	*compose_last = NULL;
 
 static GtkItemFactoryEntry ife[] = {
     {"/File/Load Inbox", "<control>L", load_new_cb, 0, NULL},
@@ -111,8 +132,8 @@ static GtkItemFactoryEntry ife[] = {
     {"/Folder/Copy to Folder", "<alt>C", move_to_folder_cb, 0, NULL},
     {"/Folder/Move to Folder", "<alt>M", move_to_folder_cb, 1, NULL},
     {"/Folder/Load Folder", "<alt>L", load_folder_cb, 0, NULL},
-    {"/Folder/Load Inbox", NULL, NULL, 0, NULL},
-    {"/Compose/New", NULL, NULL, 0, NULL},
+    {"/Folder/Load Inbox", NULL, load_new_cb, 0, NULL},
+    {"/Compose/New", NULL, compose_cb, COMPOSE_NEW, NULL},
     {"/Compose/Reply/Sender", NULL, NULL, 0, NULL},
     {"/Compose/Reply/Sender (include)", NULL, NULL, 0, NULL},
     {"/Compose/Reply/All", NULL, NULL, 0, NULL},
@@ -247,7 +268,16 @@ beep_display_window()
 void
 clear_busy()
 {
+    COMPOSE_WINDOW	*win;
+
     gdk_window_set_cursor(toplevel->window, NULL);
+
+    win = compose_first;
+
+    while (win) {
+	gdk_window_set_cursor(win->deliver_frame->window, NULL);
+	win = win->next;
+    }
 }
 
 void
@@ -310,8 +340,7 @@ close_all_windows()
 void
 close_deliver_window(COMPOSE_WINDOW *w)
 {
-				/* TODO */
-    g_warning("close_deliver_window: To be done.");
+    gtk_widget_hide(w->deliver_frame);
 }
 
 void
@@ -665,40 +694,57 @@ open_passphrase_window(char *s)
 char *
 read_bcc(COMPOSE_WINDOW *w)
 {
-				/* TODO */
-    g_warning("read_bcc: To be done.");
-    return NULL;
+    char	*lbl;
+
+    lbl = gtk_entry_get_text(GTK_ENTRY(w->send_bcc));
+    return lbl;
 }
 
 char *
 read_cc(COMPOSE_WINDOW *w)
 {
-				/* TODO */
-    g_warning("read_cc: To be done.");
-    return NULL;
+    char	*lbl;
+
+    lbl = gtk_entry_get_text(GTK_ENTRY(w->send_cc));
+    return lbl;
 }
 
 int
 read_deliver_flags(COMPOSE_WINDOW *w)
 {
-				/* TODO */
-    g_warning("read_deliver_flags: To be done.");
-    return 0;
+    int		flags = 0;
+
+    flags |= gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->sign));
+    flags |= (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->encrypt)) << 1);
+    flags |= (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->log)) << 2);
+    flags |= (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->raw)) << 3);
+#ifdef HAVE_MIXMASTER
+    flags |= (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->remail)) << 4);
+#endif
+
+    return flags;
 }
 
 char *
 read_extra_headerline(COMPOSE_WINDOW *w, int i)
 {
-				/* TODO */
-    g_warning("read_extra_headerline: To be done.");
-    return NULL;
+    char	*lbl;
+
+    if(w->extra_headers[i]) {
+	lbl = gtk_entry_get_text(GTK_ENTRY(w->extra_headers[i]));
+	return lbl;
+    }
+    else
+	return NULL;
 }
 
 void
 read_message_to_deliver(COMPOSE_WINDOW *w, BUFFER *b)
 {
-				/* TODO */
-    g_warning("read_message_to_deliver: To be done.");
+    char	*text;
+
+    text = GTK_TEXT(w->text)->text.ch;
+    add_to_buffer(b, text, gtk_text_get_length(GTK_TEXT(w->text)));
 }
 
 int
@@ -726,17 +772,19 @@ read_passphrase_string()
 char *
 read_recipient(COMPOSE_WINDOW *w)
 {
-				/* TODO */
-    g_warning("read_recipient: To be done.");
-    return NULL;
+    char	*lbl;
+
+    lbl = gtk_entry_get_text(GTK_ENTRY(w->send_to));
+    return lbl;
 }
 
 char *
 read_subject(COMPOSE_WINDOW *w)
 {
-				/* TODO */
-    g_warning("read_subject: To be done.");
-    return NULL;
+    char	*lbl;
+
+    lbl = gtk_entry_get_text(GTK_ENTRY(w->send_subject));
+    return lbl;
 }
 
 void
@@ -787,12 +835,25 @@ void
 show_busy()
 {
     static GdkCursor	*busy_cursor = NULL;
+    COMPOSE_WINDOW	*win;
 
     if( busy_cursor == NULL ) {
 	busy_cursor = gdk_cursor_new(GDK_WATCH);
     }
 
     gdk_window_set_cursor(toplevel->window, busy_cursor);
+
+    /* Set busy cursor on any open compose windows. */
+    win = compose_first;
+
+    while (win) {
+	if (win->in_use)
+	    gdk_window_set_cursor(win->deliver_frame->window, busy_cursor);
+
+	win = win->next;
+    }
+
+    /* Flush events to make sure the cursor(s) are changed. */
     gdk_flush();
 }
 
@@ -1023,7 +1084,8 @@ create_toolbar(GtkWidget *window)
 			    undelete_cb, NULL);
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Compose", "Compose new message",
-			    NULL, get_pixmap(window, compose_xpm), NULL, NULL);
+			    NULL, get_pixmap(window, compose_xpm),
+			    compose_cb, NULL);
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Reply", "Reply to sender",
 			    NULL, get_pixmap(window, reply_xpm), NULL, NULL);
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
@@ -1738,6 +1800,7 @@ folder_select_cb(GtkWidget *w, GtkCTreeNode *node, gint col)
     gboolean	is_leaf;
     gchar	*text;
     GtkWidget	*combo;
+    GdkEvent	*event;
 
     gtk_ctree_get_node_info(GTK_CTREE(w), node, &text,
 			    NULL, NULL, NULL, NULL, NULL, &is_leaf, NULL);
@@ -1746,5 +1809,332 @@ folder_select_cb(GtkWidget *w, GtkCTreeNode *node, gint col)
 	combo = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 						 "combo");
 	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), text);
+
+	/* Double click will load the folder.
+	 */
+	event = gtk_get_current_event();
+	if(event && event->type == GDK_2BUTTON_PRESS) {
+	    deleteAllMessages();
+	    load_file_proc(text);
+	    update_mail_list();
+	    display_new_message();
+	    sync_list();
+	    update_message_list();
+	}
     }
 } /* folder_select_cb */
+
+static void
+compose_cb(GtkWidget *w, gpointer data)
+{
+    COMPOSE_WINDOW	*win = NULL;
+    COMPOSE_TYPE	comp_type;
+
+    comp_type = (COMPOSE_TYPE)data;
+
+#if 0
+    if (comp_type == COMPOSE_REPLY && !last_message_read)
+	return NULL;
+#endif
+
+    /* Get a window to use. */
+    if((win = compose_find_free()) == NULL)
+	return;
+
+    initialise_compose_win(win, comp_type);
+
+    win->in_use = 1;
+
+    gtk_widget_show(GTK_WIDGET(win->deliver_frame));
+} /* compose_cb */
+
+static COMPOSE_WINDOW *
+compose_find_free()
+{
+    COMPOSE_WINDOW	*win;
+    GtkWidget		*vbox, *hbox, *w, *align, *table;
+    int			i;
+
+    win = compose_first;
+
+    while (win) {
+	if (!win->in_use)
+	    return win;
+
+	win = win->next;
+    }
+
+    win = g_malloc( sizeof(COMPOSE_WINDOW));
+
+    /* Add win into the list of compose windows.
+     */
+
+    win->next = NULL;
+    if (compose_last) {
+	compose_last->next = win;
+	win->prev = compose_last;
+	compose_last = win;
+    }
+    else {
+	win->prev = NULL;
+	compose_first = compose_last = win;
+    }
+
+    /* Now create all the gui bits for the compose window.
+     */
+    win->deliver_frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(win->deliver_frame), "Privtool - Compose");
+    gtk_container_set_border_width(GTK_CONTAINER(win->deliver_frame), 4);
+
+    vbox = gtk_vbox_new(FALSE, 4);
+    gtk_container_add(GTK_CONTAINER(win->deliver_frame), vbox);
+
+    table = gtk_table_new(MAX_EXTRA_HEADERLINES + 4, 2, FALSE);
+    /*gtk_table_set_row_spacings(GTK_TABLE(table), 4);
+      gtk_table_set_col_spacings(GTK_TABLE(table), 4);*/
+
+    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    w = gtk_label_new("To:");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 0, 1,
+		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
+    win->send_to = gtk_entry_new();
+    gtk_table_attach_defaults(GTK_TABLE(table), win->send_to, 1, 2, 0, 1);
+    gtk_widget_show(win->send_to);
+
+    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    w = gtk_label_new("Subject:");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 1, 2,
+		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
+    win->send_subject = gtk_entry_new();
+    gtk_table_attach_defaults(GTK_TABLE(table), win->send_subject, 1, 2, 1, 2);
+    gtk_widget_show(win->send_subject);
+
+    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    w = gtk_label_new("CC:");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 2, 3,
+		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
+    win->send_cc = gtk_entry_new();
+    gtk_table_attach_defaults(GTK_TABLE(table), win->send_cc, 1, 2, 2, 3);
+    gtk_widget_show(win->send_cc);
+
+    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+    w = gtk_label_new("Bcc:");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 0, 1, 3, 4,
+		     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+    gtk_widget_show(w);
+    win->send_bcc = gtk_entry_new();
+    gtk_table_attach_defaults(GTK_TABLE(table), win->send_bcc, 1, 2, 3, 4);
+    if(find_mailrc("askbcc")) {
+	gtk_widget_show(align);
+	gtk_widget_show(win->send_bcc);
+    }
+
+    for (i = 1; i < MAX_EXTRA_HEADERLINES; i++) {
+	char	mailrcline[BUFSIZ];
+	char	*headerline;
+
+	sprintf(mailrcline, "header%d", i);
+
+	if ((headerline = find_mailrc(mailrcline))) {
+	    char	 *label;
+
+	    label = g_strconcat(headerline, ":", NULL);
+	    align = gtk_alignment_new(1.0, 0.0, 1.0, 0.0);
+	    w = gtk_label_new(label);
+	    gtk_container_add(GTK_CONTAINER(align), w);
+	    gtk_table_attach(GTK_TABLE(table), align, 0, 1, i+3, i+4,
+			     GTK_SHRINK|GTK_FILL, 0, 0, 0);
+	    gtk_widget_show(w);
+	    gtk_widget_show(align);
+	    win->extra_headers[i] = gtk_entry_new();
+	    gtk_table_attach_defaults(GTK_TABLE(table), win->extra_headers[i],
+				      1, 2, i+3, i+4);
+	    gtk_widget_show(win->extra_headers[i]);
+	    g_free(label);
+	}else{
+	    win->extra_headers[i] = NULL;
+	}
+    }
+
+    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, TRUE, 4);
+    gtk_widget_show(table);
+
+    hbox = gtk_hbox_new(FALSE, 4);
+
+    win->sign = gtk_check_button_new_with_label("Sign");
+    gtk_box_pack_start(GTK_BOX(hbox), win->sign, FALSE, TRUE, 4);
+    gtk_widget_show(win->sign);
+
+    win->encrypt = gtk_check_button_new_with_label("Encrypt");
+    gtk_box_pack_start(GTK_BOX(hbox), win->encrypt, FALSE, TRUE, 4);
+    gtk_widget_show(win->encrypt);
+
+    win->log = gtk_check_button_new_with_label("Log");
+    gtk_box_pack_start(GTK_BOX(hbox), win->log, FALSE, TRUE, 4);
+    gtk_widget_show(win->log);
+
+    win->raw = gtk_check_button_new_with_label("Raw");
+    gtk_box_pack_start(GTK_BOX(hbox), win->raw, FALSE, TRUE, 4);
+    gtk_widget_show(win->raw);
+
+#ifdef HAVE_MIXMASTER
+    win->remail = gtk_check_button_new_with_label("Remail");
+    gtk_box_pack_start(GTK_BOX(hbox), win->remail, FALSE, TRUE, 4);
+    gtk_widget_show(win->remail);
+#endif
+
+    align = gtk_alignment_new(1.0, 0.5, 0.0, 0.0);
+    w = gtk_button_new_with_label("Insert...");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_box_pack_start(GTK_BOX(hbox), align, TRUE, TRUE, 8);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 4);
+    gtk_widget_show(hbox);
+
+    win->text = gtk_text_new(NULL, NULL);
+    gtk_widget_set_usize(GTK_WIDGET(win->text), 550, 450);
+    gtk_text_set_editable(GTK_TEXT(win->text), TRUE);
+    gtk_box_pack_start(GTK_BOX(vbox), win->text, TRUE, TRUE, 4);
+    gtk_widget_show(win->text);
+
+    w = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(vbox), w, FALSE, TRUE, 4);
+    gtk_widget_show(w);
+
+    hbox = gtk_hbox_new(TRUE, 4);
+
+    align = gtk_alignment_new(0.5, 0.5, 0.4, 0.4);
+    w = gtk_button_new_with_label("OK");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_box_pack_start(GTK_BOX(hbox), align, TRUE, TRUE, 4);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
+    gtk_object_set_user_data(GTK_OBJECT(w), (gpointer)0);
+    gtk_signal_connect(GTK_OBJECT(w), "clicked",
+		       GTK_SIGNAL_FUNC (deliver_cb), win);
+
+    align = gtk_alignment_new(0.5, 0.5, 0.4, 0.4);
+    w = gtk_button_new_with_label("Cancel");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_box_pack_start(GTK_BOX(hbox), align, FALSE, TRUE, 4);
+    gtk_widget_show(w);
+    gtk_widget_show(align);
+    gtk_object_set_user_data(GTK_OBJECT(w), (gpointer)1);
+    gtk_signal_connect(GTK_OBJECT(w), "clicked",
+		       GTK_SIGNAL_FUNC (deliver_cb), win);
+
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 4);
+    gtk_widget_show(hbox);
+
+    gtk_widget_show(vbox);
+
+    reset_deliver_flags(win);
+
+    return win;
+} /* compose_find_free */
+
+static void
+reset_deliver_flags(COMPOSE_WINDOW *win)
+{
+    int		log, dontlog;
+    char	*nym;
+
+    /* Default to encryption and signature */
+    win->deliver_flags = DELIVER_SIGN|DELIVER_ENCRYPT;
+
+    /* Default to remail if using a nym */
+    nym = current_nym();
+    if (strcmp(nym, our_userid)) 
+	win->deliver_flags |= DELIVER_REMAIL;
+
+    /* Clear the bits if told to by mailrc */
+    if (find_mailrc("nodefaultsign"))
+	win->deliver_flags &= ~DELIVER_SIGN;
+    if (find_mailrc("nodefaultencrypt"))
+	win->deliver_flags &= ~DELIVER_ENCRYPT;
+    if (find_mailrc("nodefaultremail"))
+	win->deliver_flags &= ~DELIVER_REMAIL;
+
+    /* Check mailrc for logging options */
+    log = (find_mailrc("nodontlogmessages") != NULL);
+    dontlog = (find_mailrc("dontlogmessages") != NULL);
+
+    /* If logging enabled, set log options */
+    if (log && !dontlog) {
+	win->deliver_flags |= DELIVER_LOG;
+    }
+
+    if (find_mailrc("log-raw")) {
+	win->deliver_flags |= DELIVER_RAW;
+    }
+} /* reset_deliver_flags */
+
+static void
+initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype)
+{
+    int		i;
+
+    g_warning("TODO: initialise_compose_win not finished.");
+
+    /* Disable updates in the GtkText for a bit */
+    gtk_text_freeze(GTK_TEXT(win->text));
+
+    /* Now clear all fields (in case they were used before). */
+    gtk_entry_set_text(GTK_ENTRY(win->send_to), "");
+    gtk_entry_set_text(GTK_ENTRY(win->send_cc), "");
+    gtk_entry_set_text(GTK_ENTRY(win->send_subject), "");
+    gtk_entry_set_text(GTK_ENTRY(win->send_bcc), "");
+
+    gtk_text_set_point(GTK_TEXT(win->text), 0);
+    gtk_text_forward_delete(GTK_TEXT(win->text),
+			    gtk_text_get_length(GTK_TEXT(win->text)));
+
+    for(i = 1; i < MAX_EXTRA_HEADERLINES; i++) {
+	if(win->extra_headers[i] != NULL){
+	    gtk_entry_set_text(GTK_ENTRY(win->extra_headers[i]), "");
+	}
+    }
+
+    reset_deliver_flags(win);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(win->sign),
+				 win->deliver_flags & DELIVER_SIGN);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(win->encrypt),
+				 win->deliver_flags & DELIVER_ENCRYPT);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(win->log),
+				 win->deliver_flags & DELIVER_LOG);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(win->raw),
+				 win->deliver_flags & DELIVER_RAW);
+#ifdef HAVE_MIXMASTER
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(win->remail),
+				 win->deliver_flags & DELIVER_REMAIL);
+#endif
+
+    gtk_text_thaw(GTK_TEXT(win->text));
+} /* initialise_compose_win */
+
+static void
+deliver_cb(GtkWidget *w, gpointer data)
+{
+    COMPOSE_WINDOW	*win = (COMPOSE_WINDOW *)data;
+
+    if((int)gtk_object_get_user_data(GTK_OBJECT(w))) {
+	/* Cancel pushed. */
+	gtk_widget_hide(win->deliver_frame);
+    }
+    else {
+	/* OK Pushed */
+	deliver_proc(win);
+    }
+    win->in_use = 0;
+} /* deliver_cb */
