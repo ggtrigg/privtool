@@ -20,8 +20,10 @@ MIXFLAGS =	-DMINMIX=3 -DMAXMIX=4 -DMINMIXREL=9500 -DMINMIXPATHREL=9000
 
 # GUI specific source files.
 XVIEW_SRC =	x.c xprops.c
-MOTIF_SRC =	motif.c mfolder.c mprops.c pixmapcache.c m_util.c
+MOTIF_SRC =	motif.c mfolder.c mprops.c pixmapcache.c m_util.c \
+		liteclue/LiteClue.c
 MOTIF_CPP =	-I$(srcdir)/liteclue
+GTK_SRC =	gtk.c
 
 # OS specific source files.
 LINUX_SOURCE =	linux/gettime.c linux/parsedate.c
@@ -34,7 +36,6 @@ GUI_SRC =	@gui_source@
 OS_SOURCE =	@os_source@
 
 SOURCE =	pgplib.c buffers.c messages.c main.c gui.c mail_reader.c \
-		liteclue/LiteClue.c \
 		$(GUI_SRC) $(OS_SOURCE) @floppy@
 
 OBJS =		$(notdir $(SOURCE:%.c=%.o))

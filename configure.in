@@ -5,6 +5,7 @@ AC_INIT(pgplib.c)
 AC_CONFIG_HEADER(config.h)
 AC_PROG_INSTALL
 AC_CANONICAL_HOST
+dnl AC_REQUIRE([AM_PATH_GTK])
 
 AC_DEFINE_UNQUOTED(SYSTEM_TYPE, "$host")
 
@@ -22,7 +23,19 @@ esac
 AC_SUBST(os_source)
 AC_SUBST(os_cpp)
 
-dnl Check for explicit specifying for motif or xview
+dnl Check for explicit specifying for gtk, motif or xview
+AC_ARG_WITH(gtk,
+[  --with-gtk              use Gtk+ for the GUI.],
+[
+case "$withval" in
+  yes) TRY_GTK=1
+    ;;
+  no) TRY_GTK=0 ;;
+esac
+],
+TRY_GTK=1
+)
+
 AC_ARG_WITH(motif,
 [  --with-motif[=DIR]      use Motif for the GUI optionally using DIR
                           as the motif base directory.],
@@ -179,7 +192,8 @@ esac
 if test ${XMAILER} = 1; then
    AC_DEFINE(SHOW_XMAILER)
 fi
-]
+],
+AC_DEFINE(SHOW_XMAILER)
 )
 
 dnl Enable or disable safe mode.
@@ -312,33 +326,48 @@ fi
 
 dnl Checks for libraries.
 
+dnl First check for gtk as it will include the other X11 libs.
+HAVE_GTK=0
+if test ${TRY_GTK} -gt 0; then
+AM_PATH_GTK(1.1.3,
+   CPPFLAGS="${GTK_CFLAGS} ${CPPFLAGS}"
+   LIBS="${GTK_LIBS} ${LIBS}"
+   gui_source='$(GTK_SRC)'
+   AC_DEFINE(HAVE_GTK)
+   HAVE_GTK=1,
+   AC_MSG_ERROR(Couldn't find a Gtk of the right version installed.)
+)
+fi
+
+if test ${HAVE_GTK} -eq 0; then
 dnl Checking for -lX11:
-AC_CHECK_LIB(X11, XCreateWindow)
+  AC_CHECK_LIB(X11, XCreateWindow)
 
 dnl Checking for -lXt:
-AC_CHECK_LIB(Xt, XtWindow,
-  EXTRALIBS="-lXt ${EXTRALIBS}",
-  AC_MSG_ERROR(Can't find -lXt.),
-  -lX11 ${XCHECKLIBS}
-)
+  AC_CHECK_LIB(Xt, XtWindow,
+    EXTRALIBS="-lXt ${EXTRALIBS}",
+    AC_MSG_ERROR(Can't find -lXt.),
+    -lX11 ${XCHECKLIBS}
+  )
 dnl Checking for -lXmu:
-AC_CHECK_LIB(Xmu, XmuClientWindow,
-  EXTRALIBS="-lXmu ${EXTRALIBS}",
-  AC_MSG_ERROR(Can't find -lXmu.),
-  -lX11 ${XCHECKLIBS}
-)
+  AC_CHECK_LIB(Xmu, XmuClientWindow,
+    EXTRALIBS="-lXmu ${EXTRALIBS}",
+    AC_MSG_ERROR(Can't find -lXmu.),
+    -lX11 ${XCHECKLIBS}
+  )
 dnl Checking for -lXext:
-AC_CHECK_LIB(Xext, XMissingExtension,
-  EXTRALIBS="-lXext ${EXTRALIBS}",
-  AC_MSG_ERROR(Can't find -lXext.),
-  -lX11 ${XCHECKLIBS}
-)
+  AC_CHECK_LIB(Xext, XMissingExtension,
+    EXTRALIBS="-lXext ${EXTRALIBS}",
+    AC_MSG_ERROR(Can't find -lXext.),
+    -lX11 ${XCHECKLIBS}
+  )
 dnl Checking for -lXpm:
-AC_CHECK_LIB(Xpm, XpmCreateXpmImageFromData,
-  EXTRALIBS="-lXpm ${EXTRALIBS}",
-  AC_MSG_ERROR(Can't find -lXpm.),
-  -lX11 ${XCHECKLIBS}
-)
+  AC_CHECK_LIB(Xpm, XpmCreateXpmImageFromData,
+    EXTRALIBS="-lXpm ${EXTRALIBS}",
+    AC_MSG_ERROR(Can't find -lXpm.),
+    -lX11 ${XCHECKLIBS}
+  )
+
 if test ${TRY_MOTIF} -gt 0; then
 dnl Checking for -lXm:
   OLDCPPFLAGS=${CPPFLAGS}
@@ -398,12 +427,13 @@ dnl Checking for -lxview:
   CPPFLAGS=${OLDCPPFLAGS}
   LDFLAGS=${OLDLDFLAGS}
 fi
+fi
 
 AC_SUBST(gui_source)
 AC_SUBST(gui_cpp)
 
 dnl Checking for -lXit:
-if test ${TRY_XIT} -gt 0; then
+if test ${HAVE_MOTIF} -gt 0 -a ${TRY_XIT} -gt 0; then
 dnl First check for -ldl
   AC_CHECK_LIB(dl, dlopen, HAVE_DL=1)
   if test ${HAVE_DL} -gt 0; then

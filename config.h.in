@@ -3,6 +3,7 @@
 #undef STDC_HEADERS
 
 /* Define _one_ of the following GUI systems */
+#undef HAVE_GTK
 #undef HAVE_MOTIF
 #undef HAVE_XVIEW
 

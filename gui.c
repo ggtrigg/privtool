@@ -1768,6 +1768,10 @@ try_again:
 				"Motif"
 #elif defined(HAVE_XVIEW)
 				"XView"
+#elif defined(HAVE_GTK)
+				"Gtk+"
+#else
+				"Unknown GUI"
 #endif
 				);
 			add_to_buffer(mail_message,buff,strlen(buff));
