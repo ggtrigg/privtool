@@ -73,7 +73,7 @@ extern	MESSAGE_LIST	messages;
 extern	MESSAGE_LIST	deleted;
 extern	void	(*callback_proc)();
 extern	char	*passphrase;
-extern	int	layout_compact;
+extern	int	layout_compact, show_deleted;
 
 extern	char	prog_name[];
 extern	char	prog_ver[];

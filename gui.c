@@ -827,10 +827,10 @@ MESSAGE	*om;
 	}
 
 	/* Clear selected flag */
-#ifndef MOTIF
-	om->flags &= ~MESS_SELECTED;
-	om->list_pos = (-1);
-#endif
+	if(!show_deleted){
+	    om->flags &= ~MESS_SELECTED;
+	    om->list_pos = (-1);
+	}
 
 	/* Update message info */
 
@@ -2213,7 +2213,60 @@ void	undelete_last_proc ()
 	}
 
 	update_message_list ();
+#ifdef MOTIF
+	sync_list();
+#endif
 }
+
+void
+undelete(MESSAGE *m)
+{
+    MESSAGE	*p;
+    int		l;
+
+    if(! (m->flags |= MESS_DELETED))
+	return;
+
+    m->dnext = m->dprev = NULL;
+    m->flags &= ~MESS_DELETED;
+
+    deleted.number--;
+    messages.number++;
+
+    if (m->status == MSTAT_NONE)
+	messages.new++;
+    if (m->status == MSTAT_UNREAD)
+	messages.unread++;
+
+    if (m->flags & MESS_ENCRYPTED)
+	messages.encrypted++;
+
+    p = m->prev;
+
+    while (p && (p->flags & MESS_DELETED)) {
+	p = p->prev;
+    }
+
+    if (p)
+	l = p->list_pos + 1;
+    else
+	l = 1;
+
+    while (m) {
+	m->list_pos = l++;
+	set_message_description (m);
+	display_message_description (m);
+
+	m = m->next;
+	while (m && (m->flags & MESS_DELETED))
+	    m = m->next;
+    }
+
+    update_message_list ();
+#ifdef MOTIF
+    sync_list();
+#endif
+} /* undelete */
 
 static	char	dec_mess [] = "Decrypted message reads :\n\n";
 static	char	sig_mess [] = "\n\nMessage was signed :\n\n";

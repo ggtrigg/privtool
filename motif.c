@@ -21,7 +21,7 @@
 /* We define UI_MAIN so that header files can tell how to define the
    neccesary structures */
 
-/* #define UI_MAIN */
+#define UI_MAIN1
 
 #include	"def.h"
 #include	"buffers.h"
@@ -29,11 +29,13 @@
 #include	"windows.h"
 #include	"gui.h"
 #include	"motif_protos.h"
+#include	<malloc.h>
 #include	<X11/X.h>
 #include	<X11/Xlib.h>
 #include	<X11/Intrinsic.h>
 #include	<Xm/MainW.h>
 #include	<Xm/RowColumn.h>
+#include	<Xm/Frame.h>
 #include	<Xm/Form.h>
 #include	<Xm/CascadeB.h>
 #include	<Xm/PanedW.h>
@@ -49,8 +51,9 @@
 #include	<X11/Xmu/Editres.h>
 
 void			update_message_list(void);
+int			show_deleted = 1;
 
-static Widget		toplevel_, msgarea_, mailslist_, text_, hdrtext_;
+static Widget		toplevel_, msgarea_, msgarea2_, mailslist_, text_, hdrtext_;
 static Widget		pp_window_ = NULL, abt_window_ = NULL;
 static XtAppContext	app_context_;
 static XmRenderTable	render_header, render_list;
@@ -65,7 +68,7 @@ static void		create_view_menu(Widget parent);
 static void		create_comp_menu(Widget parent);
 static void		create_help_menu(Widget parent);
 static void		create_workarea (Widget parent);
-static void		create_msgarea(Widget parent);
+static void		create_msgareas(Widget parent);
 static void		update_mail_list(void);
 static void		show_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
 static void		select_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
@@ -74,6 +77,7 @@ static void		prev_messageCB(Widget w, XtPointer clientdata, XtPointer calldata);
 static int		xioerror_handler(Display *dpy);
 static void		passphrase_cb(Widget w, XtPointer clientdata, XmTextVerifyPtr tb);
 static void		aboutCB(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		undeleteCB(Widget w, XtPointer clientdata, XtPointer calldata);
 
 /*----------------------------------------------------------------------*/
 
@@ -239,22 +243,28 @@ create_passphrase_window()
 void
 delete_message_proc()
 {
-    int		message_number;
-    MESSAGE	*m;
-    XmString	tempstring;
+    int			message_number;
+    MESSAGE		*m = messages.start;
+    XmString		tempstring;
+    int			sel_pos_count;
+    unsigned int	*sel_posns;
 
-    m = messages.start;
+    XtVaGetValues(mailslist_, XmNselectedPositionCount, &sel_pos_count, NULL);
+    sel_posns = calloc(sel_pos_count, sizeof(int));
+    XtVaGetValues(mailslist_, XmNselectedPositions, &sel_posns, NULL);
 
     while (m) {
-	if (m->flags & MESS_SELECTED) {
+	if (m->list_pos == *sel_posns) {
 	    message_number = m->list_pos;
 	    XmListDeleteItemsPos(mailslist_, 1, message_number);
-	    XmListAddItem(mailslist_,
-			  tempstring = XmStringGenerate(m->description, NULL,
-					   XmCHARSET_TEXT,
-					   (XmStringTag)"LIST_ST"),
-			  message_number);
-	    XmStringFree(tempstring);
+	    if(show_deleted){
+		XmListAddItem(mailslist_,
+			      tempstring = XmStringGenerate(m->description, NULL,
+							    XmCHARSET_TEXT,
+							    (XmStringTag)"LIST_ST"),
+			      message_number);
+		XmStringFree(tempstring);
+	    }
 	    delete_message(m);
 	}
 	m = m->next;
@@ -521,7 +531,7 @@ setup_ui(int level, int argc, char **argv)
     create_menubar(control_);
     create_toolbar(control_);
     create_workarea(control_);
-    create_msgarea(control_);
+    create_msgareas(control_);
 
     display_message(last_message_read = messages.start);
     sync_list();
@@ -621,6 +631,17 @@ update_message_list()
 COMPOSE_WINDOW *
 x_setup_send_window()
 {
+    COMPOSE_WINDOW	*w = NULL;
+
+#if 0
+    /* See if we have a window we can use */
+    w = compose_find_free();
+#endif
+
+    if(w == NULL){
+    }else{
+	/* Make sure window is visible. */
+    }
 }
 
 /*----------------------------------------------------------------------*/
@@ -646,11 +667,13 @@ create_menubar(Widget parent)
 static void
 create_toolbar(Widget parent)
 {
-    Widget	toolbar_, btn;
+    Widget	toolbar_, btn, frame;
 
-    toolbar_ = XmCreateForm(parent, "toolbar", NULL, 0);
+    frame = XmCreateFrame(parent, "toolframe", NULL, 0);
+    XtManageChild(frame);
+    toolbar_ = XmCreateForm(frame, "toolbar", NULL, 0);
     XtManageChild(toolbar_);
-    XtVaSetValues (parent, XmNcommandWindow, toolbar_, NULL);
+    XtVaSetValues (parent, XmNcommandWindow, frame, NULL);
 
     btn = XmCreatePushButtonGadget(toolbar_, "prev", NULL, 0);
     XtManageChild(btn);
@@ -726,10 +749,17 @@ create_edit_menu(Widget parent)
     button_ = XmCreatePushButton (menu_, "delete", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
-		       delete_message_proc, NULL);
+		   delete_message_proc, NULL);
 
     button_ = XmCreatePushButton (menu_, "undelete", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   undeleteCB, NULL);
+
+    button_ = XmCreatePushButton (menu_, "undel_last", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   undelete_last_proc, NULL);
 
     button_ = XmCreatePushButton (menu_, "clearpp", NULL, 0);
     XtManageChild (button_);
@@ -813,12 +843,14 @@ create_help_menu(Widget parent)
 static void
 create_workarea(Widget parent)
 {
-    Widget	swin, pwin;
+    Widget	swin, pwin, frame;
     MESSAGE	*m;
     int		i, l;
 
-    pwin = XmCreatePanedWindow(parent, "panedwin", NULL, 0);
-    XtVaSetValues (parent, XmNworkWindow, pwin, NULL);
+    frame = XmCreateFrame(parent, "frame", NULL, 0);
+    XtManageChild(frame);
+    pwin = XmCreatePanedWindow(frame, "panedwin", NULL, 0);
+    XtVaSetValues (parent, XmNworkWindow, frame, NULL);
     XtManageChild(pwin);
 
     mailslist_ = XmCreateScrolledList(pwin, "slist", NULL, 0);
@@ -882,11 +914,19 @@ update_mail_list()
 /*----------------------------------------------------------------------*/
 
 static void
-create_msgarea(Widget parent)
+create_msgareas(Widget parent)
 {
-    msgarea_ = XmCreateTextField(parent, "msg", NULL, 0);
+    Widget	form, frame;
+
+    frame = XmCreateFrame(parent, "msgframe", NULL, 0);
+    XtManageChild (frame);
+    form = XmCreateForm(frame, "msgform", NULL, 0);
+    XtManageChild (form);
+    msgarea_ = XmCreateTextField(form, "msg1", NULL, 0);
     XtManageChild (msgarea_);
-    XtVaSetValues (parent, XmNmessageWindow, msgarea_, NULL);
+    msgarea2_ = XmCreateTextField(form, "msg2", NULL, 0);
+    XtManageChild (msgarea2_);
+    XtVaSetValues (parent, XmNmessageWindow, frame, NULL);
 } /* create_msgarea */
 
 /*----------------------------------------------------------------------*/
@@ -1100,3 +1140,25 @@ aboutCB(Widget w, XtPointer clientdata, XtPointer calldata)
     }
     XtManageChild(abt_window_);
 } /* aboutCB */
+
+/*----------------------------------------------------------------------*/
+
+static void
+undeleteCB(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    MESSAGE		*m = messages.start;
+    int			sel_pos_count;
+    unsigned int	*sel_posns;
+
+    XtVaGetValues(mailslist_, XmNselectedPositionCount, &sel_pos_count, NULL);
+    sel_posns = calloc(sel_pos_count, sizeof(int));
+    XtVaGetValues(mailslist_, XmNselectedPositions, &sel_posns, NULL);
+
+    while(m){
+	if(m->list_pos == *sel_posns){
+	    undelete(m);
+	    break;
+	}
+	m = m->next;
+    }
+} /* undeleteCB */

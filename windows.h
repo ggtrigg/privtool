@@ -19,6 +19,17 @@
 /* This structure defines a compose window */
 
 #ifdef UI_MAIN
+
+#ifdef MOTIF
+/* OK so we're cheating here! Hopefully it won't confuse too many. :-)
+   ggt - Dec 18, 1996
+ */
+#define Frame		Widget
+#define Panel		Widget
+#define Textsw		Widget
+#define Panel_item	Widget
+#endif
+
 typedef struct _compose_window {
 
 	struct _compose_window	*next, *prev;
