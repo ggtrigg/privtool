@@ -19,7 +19,7 @@
 #define FALSE	0
 #endif
 
-#if (!defined(PGPTOOLS) || !defined(PGPLIB))
+#if (!defined(HAVE_PGPTOOLS) || !defined(PGPLIB))
 typedef unsigned char	byte;
 typedef unsigned short	word16;
 typedef unsigned long	word32;
@@ -64,10 +64,10 @@ extern char	*pgp_path();
 
 #define DEFAULT_CHECK_TIME	300
 
-#ifdef SYSV
+#ifdef HAVE_MEMCPY
 #define bzero(a,b)	memset((a),0,(b))
 #define bcopy(s,d,l)	memcpy((d),(s),(l))
-#ifndef linux
+#ifndef HAVE_RANDOM
 #define random()	rand()
 #define srandom(s)	srand((s))
 #endif

@@ -72,6 +72,7 @@ show_mail_folders(Widget parent)
 	folderwin = XtVaCreatePopupShell("folder",
 					 topLevelShellWidgetClass,
 					 parent,
+					 XmNdeleteResponse, XmUNMAP,
 					 NULL);
 	XtManageChild(folderwin);
 

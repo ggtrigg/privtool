@@ -36,11 +36,14 @@ typedef struct _entry {
 
 #define MAX_EXTRA_HEADERLINES 10
 
-extern	MAILRC	*new_mailrc();
-extern	void	free_mailrc();
-extern	char	*find_pgpkey();
-extern	char	*find_alias();
-extern	char	*find_mailrc();
+extern	MAILRC	*new_mailrc(void);
+extern	void	free_mailrc(MAILRC *m);
+extern	char	*find_pgpkey(char *s);
+extern	char	*find_alias(char *s);
+extern	char	*find_mailrc(char *s);
+extern  void	replace_mailrc(char *s, char *v);
+extern  void	remove_mailrc(char *s);
+extern  void	remove_retain(char *s);
 
 typedef struct {
 
@@ -52,3 +55,5 @@ typedef struct {
 } LIST;
 
 extern	void	add_to_list(LIST *l, MAILRC *m);
+extern	void	add_entry(LIST *l, char *s);
+extern	void	print_list(LIST *l);

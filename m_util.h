@@ -19,5 +19,7 @@ char		*ClassName(Widget);
 char		*ClassNameFromWClass(WidgetClass);
 char		*GetResourceString(Widget w, char *name, char *class);
 void		AddConverters(Widget toplevel);
+void		alignCaptions(Widget parent);
+Widget		parentShell(Widget w);
 
 #endif /* _M_UTIL_H */

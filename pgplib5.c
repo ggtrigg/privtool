@@ -22,11 +22,21 @@
 #include	<sys/wait.h>
 #include	"def.h"
 #include	"buffers.h"
-#include	<pgpConfig.h>
-#include	<pgpEncode.h>
-#include	<pgpErrors.h>
-#include	<pgpUtilities.h>
+#include	<pgp/pgpConfig.h>
+#include	<pgp/pgpEncode.h>
+#include	<pgp/pgpErrors.h>
+#include	<pgp/pgpUtilities.h>
 
+/* Following are for storing messages from PGP or other programs */
+static BUFFER		error_messages;
+static BUFFER		stdout_messages;
+
+static PGPContextRef	pgpContext;
+static PGPKeySetRef	pgpKeyset;
+
+static void		clear_output(void);
+static void		add_to_error(byte *, int);
+static void		add_to_std(byte *, int);
 
 /* BUF_SIZE is the general size of stack buffers. Should this ever be used 
    on DOS, you might want to reduce the value of BUF_SIZE, or replace the 
@@ -50,12 +60,26 @@ init_pgplib()
     if ( IsPGPError( err ) ) {
 	printf ("Initialization error: %d\n", err );
     }
+
+    /* Create the pgpContext. */
+    err = PGPNewContext(kPGPsdkAPIVersion, &pgpContext);
+    if ( IsPGPError( err ) ) {
+	printf ("Error creating context: %d\n", err );
+    }
+
+    /* Open the default keyring pair. */
+    err = PGPOpenDefaultKeyRings(pgpContext, 0, &pgpKeyset);
+    if ( IsPGPError( err ) ) {
+	printf ("Error opening key rings: %d\n", err );
+    }
 } /* init_pgplib */
 
 void
 close_pgplib()
 {
-    (void)PGPsdkCleanup();
+    PGPFreeKeySet(pgpKeyset);
+    PGPFreeContext(pgpContext);
+    PGPsdkCleanup();
 } /* close_pgplib */
 
 /*----------------------------------------------------------------------*/
@@ -64,14 +88,30 @@ int
 encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 		int flags, char *pass, char *key_name, byte *md5_pass)
 {
-
+				/* TODO */
 } /* encrypt_message */
 
 int
 decrypt_message(BUFFER *message, BUFFER *decrypted, BUFFER *signature,
 		char *pass, int flags, byte *md5_pass)
 {
+    int		err;
 
+    /* TODO */
+    err = PGPDecode(pgpContext,
+		    PGPOInputBuffer(pgpContext, message->message,
+				    message->length),
+		    PGPOPassphrase(pgpContext, pass),
+		    PGPOAllocatedOutputBuffer(pgpContext, &decrypted->message,
+					      (PGPSize)(1024*1024),
+					      &decrypted->length),
+		    PGPOLastOption(0));
+    if ( IsPGPError( err ) ) {
+	printf ("Error decoding: %d\n", err );
+	return DEC_BAD_FILE;
+    }
+
+    return SIG_GOOD;
 } /* decrypt_message */
 
 /*----------------------------------------------------------------------*/
@@ -79,13 +119,13 @@ decrypt_message(BUFFER *message, BUFFER *decrypted, BUFFER *signature,
 int
 buffer_contains_key(BUFFER *b)
 {
-
+    /* TODO */
 } /* buffer_contains_key */
 
 int
 add_key(BUFFER *m)
 {
-
+    /* TODO */
 } /* add_key */
 
 /*----------------------------------------------------------------------*/
@@ -374,11 +414,56 @@ run_program(char *prog, byte *message, int msg_len,
        this function and doesn't have access to the static data
        in this module */
 
-    if (ret)
+    if (ret) {
 	add_to_buffer (ret, stdout_messages.message,
 		       stdout_messages.length);
+    }
 
     /* Finally, return the exit code */
-
     return statusp;
 } /* run_program */
+
+/*----------------------------------------------------------------------*/
+
+/* Clear all the output buffers */
+static void
+clear_output(void)
+{
+    clear_buffer(&error_messages);
+    clear_buffer(&stdout_messages);
+}
+
+/* Add a string to the error messages buffer */
+static void
+add_to_error(byte *buf, int len)
+{
+    add_to_buffer(&error_messages, buf,len);
+}
+
+/* Add a string to the stdout buffer. */
+static void
+add_to_std(byte *buf, int len)
+{
+    add_to_buffer(&stdout_messages, buf,len);
+}
+
+/*----------------------------------------------------------------------*/
+
+void
+update_random(void)
+{
+    /* TODO */
+}
+
+void
+get_md5(char *pass, byte *md5_val)
+{
+    /* TODO */
+}
+
+void
+reseed_random(void)
+{
+    /* TODO */
+}
+

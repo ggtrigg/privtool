@@ -1,0 +1,457 @@
+dnl $Id$
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(pgplib.c)
+AC_CONFIG_HEADER(config.h)
+AC_PROG_INSTALL
+AC_CANONICAL_HOST
+
+AC_DEFINE_UNQUOTED(SYSTEM_TYPE, "$host")
+
+dnl Define extra variables here for holding extra cpp flags, ldflags
+dnl and libraries.
+EXTRACPPFLAGS=
+EXTRALDFLAGS=
+EXTRALIBS=
+
+dnl Set OS specific source variable.
+case "${host_os}" in
+   linux*) os_source='$(LINUX_SOURCE)'; os_cpp='$(LINUX_CPP)' ;;
+   solaris2*) XCHECKLIBS="-lSM -lICE -lgen -lsocket -lnsl" ;;
+esac
+AC_SUBST(os_source)
+AC_SUBST(os_cpp)
+
+dnl Check for explicit specifying for motif or xview
+AC_ARG_WITH(motif,
+[  --with-motif[=DIR]      use Motif for the GUI optionally using DIR
+                          as the motif base directory.],
+[
+case "$withval" in
+  yes) TRY_MOTIF=1
+    ;;
+  no) TRY_MOTIF=0 ;;
+  *) echo "Attempting to use Motif in $withval."
+     MOTIFCPPFLAGS="-I${withval}/include"
+     MOTIFLDFLAGS="-L${withval}/lib"
+     TRY_MOTIF=1
+    ;;
+esac
+],
+TRY_MOTIF=1
+)
+
+AC_ARG_WITH(xview,
+[  --with-xview[=DIR]      use XView for the GUI optionally using DIR
+                          as the xview base directory.],
+[
+case "$withval" in
+  yes) TRY_XVIEW=1; TRY_MOTIF=0
+    ;;
+  no) TRY_XVIEW=0 ;;
+  *) echo "Attempting to use XView in $withval."
+     XVIEWCPPFLAGS="-I${withval}/include"
+     XVIEWLDFLAGS="-L${withval}/lib"
+     TRY_XVIEW=1; TRY_MOTIF=0
+    ;;
+esac
+],
+TRY_XVIEW=0
+)
+
+dnl Check if a pgptools location is specified.
+AC_ARG_WITH(pgptools,
+[  --with-pgptools[=DIR]   use the pgptools library, optionally specifying
+                          the directory to find it in.],
+[
+case "$withval" in
+  yes) TRY_PGPTOOLS=1 ;;
+  no) TRY_PGPTOOLS=0 ;;
+  *) TRY_PGPTOOLS=1
+     PGPTCPPFLAGS="-I${withval}/include"
+     PGPTLDFLAGS="-L${withval}/lib" ;;
+esac
+],
+TRY_PGPTOOLS=1
+)
+
+dnl Check if a pgp executable is specified.
+AC_ARG_WITH(pgptools,
+[  --with-pgp[=prog]       use the specified pgp executable. This can be
+                          either empty, pgp or gpg.],
+[
+case "$withval" in
+  yes) TRY_PGP=1 ;;
+  no) TRY_PGP=0 ;;
+  *) TRY_PGP=1
+     PGPEXE=${withval} ;;
+esac
+],
+TRY_PGP=1
+)
+
+dnl Check if a mixmaster location is specified.
+AC_ARG_WITH(mixmaster,
+[  --with-mixmaster[=DIR]  use the mixmaster remailer, optionally specifying
+                          the directory to find it in.],
+[
+case "$withval" in
+  yes) TRY_MIXMASTER=1 ;;
+  no) TRY_MIXMASTER=0 ;;
+  *) TRY_MIXMASTER=1 
+     MIXBINDIR=${withval} ;;
+esac
+],
+TRY_MIXMASTER=0
+)
+
+dnl Check for MIXPATH
+AC_ARG_WITH(mixpath,
+[  --with-mixpath=DIR      specify the mixmaster path (eg. $HOME/.mix)],
+[
+case "$withval" in
+  yes) AC_MSG_ERROR(Must specify directory for --with-mixpath) ;;
+  no) AC_MSG_ERROR(Must specify --with-mixpath when using mixmaster.) ;;
+  *) AC_DEFINE_UNQUOTED(MIXPATH, "${withval}") ;;
+esac
+] )
+
+dnl Check if a premail location is specified.
+AC_ARG_WITH(premail,
+[  --with-premail[=DIR]    use premail, optionally specifying
+                          the directory to find it in.],
+[
+case "$withval" in
+  yes) TRY_PREMAIL=1 ;;
+  no) TRY_PREMAIL=0 ;;
+  *) TRY_PREMAIL=1 
+     PMBINDIR=${withval} ;;
+esac
+],
+TRY_PREMAIL=0
+)
+
+dnl Check whether using Xit is specified.
+AC_ARG_WITH(xit,
+[  --with-xit[=DIR]        use Xit to enable Rex support optionally
+                          specifying which directory it's in.],
+[
+case "$withval" in
+  yes) TRY_XIT=1 ;;
+  no) TRY_XIT=0 ;;
+  *) TRY_XIT=1
+     XITCPPFLAGS="-I${withval}/include"
+     XITLDFLAGS="-L${withval}/lib" ;;
+esac
+],
+TRY_XIT=1
+)
+
+dnl Check whether floppy support is specified.
+AC_ARG_ENABLE(floppy,
+[  --enable-floppy=FLOPPY_DEV
+                          enable support for reading key from floppy
+                          on the device FLOPPY_DEV.],
+[
+FLOP_FILE=""
+case "$enableval" in
+   yes) AC_MSG_ERROR(Must specify the floppy device.) ;;
+   no) ;;
+   *) floppy='$(FLOPPY_SRC)'
+      AC_SUBST(floppy)
+      AC_DEFINE_UNQUOTED(FLOP_FILE, "${enableval}")
+      AC_DEFINE(USE_FLOPPY)
+      AC_DEFINE(AUTO_EJECT) ;;
+esac
+]
+)
+
+AC_ARG_ENABLE(mailspool,
+[  --enable-mailspool=DIR  specify the mail spool directory (if necessary).],
+[
+case "$enableval" in
+   yes) AC_MSG_ERROR(Must specify the mail spool directory.) ;;
+   no) ;;
+   *) AC_DEFINE_UNQUOTED(MAIL_SPOOL_DIR, "${enableval}")
+     ;;
+esac
+]
+)
+
+dnl Check whether make sets $(MAKE)
+AC_PROG_MAKE_SET
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PATH_XTRA
+LDFLAGS="${X_LIBS} ${LDFLAGS}"
+AC_PATH_PROG(SENDMAIL_PATH, sendmail,
+  NOT_FOUND,
+  /usr/sbin /usr/lib)
+if test ${SENDMAIL_PATH} != "NOT_FOUND"; then
+  AC_DEFINE_UNQUOTED(SENDMAIL_PATH, "${SENDMAIL_PATH}")
+else
+  AC_MSG_ERROR(sendmail executable not found.)
+fi
+
+dnl Find uudecode.
+AC_PATH_PROG(UUDECODE_PATH, uudecode,
+  NOT_FOUND,
+  /usr/bin /bin /usr/local/bin /usr/ucb)
+if test ${UUDECODE_PATH} != "NOT_FOUND"; then
+  AC_DEFINE_UNQUOTED(UUDECODE_PATH, "${UUDECODE_PATH}")
+fi
+
+dnl Find uudeview if uudecode isn't found.
+AC_PATH_PROG(UUDEVIEW_PATH, uudeview,
+  NOT_FOUND,
+  /usr/bin /bin /usr/local/bin /usr/ucb)
+if test ${UUDEVIEW_PATH} != "NOT_FOUND"; then
+  AC_DEFINE_UNQUOTED(UUDEVIEW_PATH, "${UUDEVIEW_PATH}")
+fi
+
+AC_PATH_PROG(LPR_PATH, lpr,
+  NOT_FOUND,
+  /usr/bin /bin /usr/local/bin /usr/ucb)
+if test ${LPR_PATH} != "NOT_FOUND"; then
+  AC_DEFINE_UNQUOTED(LPR_PATH, "${LPR_PATH}")
+else
+  AC_MSG_ERROR(lpr executable not found.)
+fi
+
+if test ${TRY_MIXMASTER} -gt 0; then
+  AC_PATH_PROG(MIXEXEC, mixmaster,
+  NOT_FOUND,
+  $MIXBINDIR /bin /usr/bin /usr/local/bin)
+  if test ${MIXEXEC} != "NOT_FOUND"; then
+    AC_DEFINE_UNQUOTED(MIXEXEC, "${MIXEXEC}")
+    AC_DEFINE(HAVE_MIXMASTER)
+  else
+    AC_MSG_ERROR(mixmaster executable not found.)
+  fi
+fi
+
+if test ${TRY_PREMAIL} -gt 0; then
+  AC_PATH_PROG(PREMAILEXEC, premail,
+  NOT_FOUND,
+  $PMBINDIR /bin /usr/bin /usr/local/bin)
+  if test ${PREMAILEXEC} != "NOT_FOUND"; then
+    AC_DEFINE_UNQUOTED(PREMAILEXEC, "${PREMAILEXEC}")
+    AC_DEFINE(HAVE_PREMAIL)
+  else
+    AC_MSG_ERROR(premail executable not found.)
+  fi
+fi
+
+dnl Checks for libraries.
+
+dnl Checking for -lX11:
+AC_CHECK_LIB(X11, XCreateWindow)
+
+dnl Checking for -lXt:
+AC_CHECK_LIB(Xt, XtWindow,
+  EXTRALIBS="-lXt ${EXTRALIBS}",
+  AC_MSG_ERROR(Can't find -lXt.),
+  -lX11 ${XCHECKLIBS}
+)
+dnl Checking for -lXmu:
+AC_CHECK_LIB(Xmu, XmuClientWindow,
+  EXTRALIBS="-lXmu ${EXTRALIBS}",
+  AC_MSG_ERROR(Can't find -lXmu.),
+  -lX11 ${XCHECKLIBS}
+)
+dnl Checking for -lXext:
+AC_CHECK_LIB(Xext, XMissingExtension,
+  EXTRALIBS="-lXext ${EXTRALIBS}",
+  AC_MSG_ERROR(Can't find -lXext.),
+  -lX11 ${XCHECKLIBS}
+)
+dnl Checking for -lXpm:
+AC_CHECK_LIB(Xpm, XpmCreateXpmImageFromData,
+  EXTRALIBS="-lXpm ${EXTRALIBS}",
+  AC_MSG_ERROR(Can't find -lXpm.),
+  -lX11 ${XCHECKLIBS}
+)
+if test ${TRY_MOTIF} -gt 0; then
+dnl Checking for -lXm:
+  OLDCPPFLAGS=${CPPFLAGS}
+  OLDLDFLAGS=${LDFLAGS}
+  CPPFLAGS="${MOTIFCPPFLAGS} ${CPPFLAGS}"
+  LDFLAGS="${MOTIFLDFLAGS} ${LDFLAGS}"
+  AC_CHECK_LIB(Xm, XmCreateIconGadget,
+    EXTRACPPFLAGS="${MOTIFCPPFLAGS} ${EXTRACPPFLAGS}"
+    EXTRALDFLAGS="${MOTIFLDFLAGS} ${EXTRALDFLAGS}"
+    EXTRALIBS="-lXm ${EXTRALIBS}"
+    AC_DEFINE(HAVE_MOTIF)
+    HAVE_MOTIF=1; TRY_XVIEW=0; gui_source='$(MOTIF_SRC)';
+    gui_cpp='$(MOTIF_CPP)',
+    [
+      if test ${TRY_MOTIF} -gt 0 -a ${TRY_XVIEW} -gt 0; then
+        AC_MSG_WARN(Can't find -lXm. Will try XView.)
+      else
+        AC_MSG_ERROR(Can't find -lXm, Motif was explicitly specified so I can't continue.)
+      fi
+    ],
+    -lXpm -lXt -lXext -lX11 ${XCHECKLIBS}
+  )
+  CPPFLAGS=${OLDCPPFLAGS}
+  LDFLAGS=${LDFLAGS}
+fi
+
+if test ${TRY_MOTIF} -gt 0; then
+dnl Checking for -lXbae:
+  AC_CHECK_LIB(Xbae, XbaeMatrixAddRows,
+    EXTRALIBS="-lXbae ${EXTRALIBS}",
+    AC_MSG_ERROR(Can't find -lXbae.),
+    -lXpm -lXm -lXt -lXext -lX11 ${XCHECKLIBS}
+  )
+fi
+
+if test ${TRY_XVIEW} -gt 0 ; then
+dnl Checking for -lolgx:
+  OLDCPPFLAGS=${CPPFLAGS}
+  OLDLDFLAGS=${LDFLAGS}
+  CPPFLAGS="${XVIEWCPPFLAGS} ${CPPFLAGS}"
+  LDFLAGS="${XVIEWLDFLAGS} ${LDFLAGS}"
+  AC_CHECK_LIB(olgx, olgx_draw_button,
+    EXTRALIBS="-lolgx ${EXTRALIBS}",
+    AC_MSG_ERROR(Can't find -lolgx.),
+    -lX11 ${XCHECKLIBS}
+  )
+dnl Checking for -lxview:
+  AC_CHECK_LIB(xview, xv_create,
+    EXTRACPPFLAGS="${XVIEWCPPFLAGS} ${EXTRACPPFLAGS}"
+    EXTRALDFLAGS="${XVIEWLDFLAGS} ${EXTRALDFLAGS}"
+    EXTRALIBS="-lxview ${EXTRALIBS}"
+    AC_DEFINE(HAVE_XVIEW)
+    gui_source='$(XVIEW_SRC)',
+    AC_MSG_ERROR(Can't find -lxview.),
+    -lolgx -lX11 ${XCHECKLIBS}
+  )
+  CPPFLAGS=${OLDCPPFLAGS}
+  LDFLAGS=${OLDLDFLAGS}
+fi
+
+AC_SUBST(gui_source)
+AC_SUBST(gui_cpp)
+
+dnl Checking for -lXit:
+if test ${TRY_XIT} -gt 0; then
+dnl First check for -ldl
+  AC_CHECK_LIB(dl, dlopen, HAVE_DL=1)
+  if test ${HAVE_DL} -gt 0; then
+    OLDCPPFLAGS=${CPPFLAGS}
+    OLDLDFLAGS=${LDFLAGS}
+    CPPFLAGS="${CPPFLAGS} ${XITCPPFLAGS}"
+    LDFLAGS="${LDFLAGS} ${XITLDFLAGS}"
+    AC_CHECK_LIB(Xit, XitInitialize,
+      EXTRALIBS="-lXit ${EXTRALIBS} -ldl"
+      EXTRACPPFLAGS="${XITCPPFLAGS} ${EXTRACPPFLAGS}"
+      EXTRALDFLAGS="${XITLDFLAGS} ${EXTRALDFLAGS}"
+      AC_DEFINE(HAVE_XIT),
+      AC_MSG_WARN(Couldn't find -lXit; never mind.),
+      -lXm -lXpm -lXt -lXext -lX11 -ldl ${XCHECKLIBS}
+    )
+    CPPFLAGS=${OLDCPPFLAGS}
+    LDFLAGS=${OLDLDFLAGS}
+  fi
+fi
+
+dnl Checking for -lgdbm:
+HAVE_GDBM=0
+AC_CHECK_LIB(gdbm, gdbm_open,
+  HAVE_GDBM=1
+  EXTRALIBS="-lgdbm ${EXTRALIBS}"
+  AC_DEFINE(HAVE_GDBM)
+)
+
+dnl Checking for -ldb if gdbm wasn't found:
+if test ${HAVE_GDBM} -eq 0; then
+  AC_CHECK_LIB(db, dbopen,
+    HAVE_BDB=1
+    EXTRALIBS="-ldb ${EXTRALIBS}"
+    AC_DEFINE(HAVE_BDB)
+  )
+fi
+
+dnl Checking for -lpgptools:
+HAVE_PGPTOOLS=0
+if test ${TRY_PGPTOOLS} -gt 0; then
+  OLDCPPFLAGS=${CPPFLAGS}
+  OLDLDFLAGS=${LDFLAGS}
+  CPPFLAGS="${PGPTCPPFLAGS} ${CPPFLAGS}"
+  LDFLAGS="${PGPTLDFLAGS} ${LDFLAGS}"
+  AC_CHECK_LIB(pgptools, pgp_checksum,
+    HAVE_PGPTOOLS=1
+    EXTRACPPFLAGS="${PGPTCPPFLAGS} ${EXTRACPPFLAGS}"
+    EXTRALDFLAGS="${PGPTLDFLAGS} ${EXTRALDFLAGS}"
+    EXTRALIBS="-lpgptools ${EXTRALIBS}"
+    AC_DEFINE(HAVE_PGPTOOLS)
+  )
+  CPPFLAGS=${OLDCPPFLAGS}
+  LDFLAGS=${LDFLAGS}
+fi
+
+dnl Check for pgp executable if -lpgptools wasn't found.
+if test ${HAVE_PGPTOOLS} -eq 0 -a ${TRY_PGP} -gt 0; then
+  if test x"${PGPEXE}" = x; then
+    AC_PATH_PROG(pgpexec, pgp)
+    if test x"${pgpexec}" != x; then
+      AC_DEFINE_UNQUOTED(PGPEXEC, "${pgpexec}")
+    else
+      AC_PATH_PROG(pgpexec, gpg)
+      if test x"${pgpexec}" != x; then
+        AC_DEFINE_UNQUOTED(PGPEXEC, "${pgpexec}")
+      fi
+    fi
+  else
+    AC_PATH_PROG(pgpexec, ${PGPEXE})
+    if test x"${pgpexec}" != x; then
+      AC_DEFINE_UNQUOTED(PGPEXEC, "${pgpexec}")
+    fi
+  fi
+  case ${pgpexec} in
+    *gpg) AC_DEFINE(HAVE_GNUPG) ;;
+  esac
+fi
+
+dnl if test ${HAVE_PGPTOOLS} -eq 0 -a x"${pgpexec}" = x; then
+dnl  AC_MSG_ERROR(Can't find pgptools or pgp, stopping.)
+dnl fi
+
+if test ${HAVE_MOTIF} -gt 0; then
+dnl Checking for -lm:
+  AC_CHECK_LIB(m, cos,
+    EXTRALIBS="${EXTRALIBS} -lm",
+    AC_MSG_ERROR(Can't find -lm! Something is wrong.)
+  )
+fi
+
+dnl Checks for header files.
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(fcntl.h limits.h malloc.h paths.h sys/file.h sys/ioctl.h sys/time.h unistd.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_UID_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+AC_FUNC_ALLOCA
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MEMCMP
+AC_FUNC_MMAP
+AC_TYPE_SIGNAL
+dnl AC_CHECK_TYPE(byte, char)
+AC_CHECK_TYPE(int32, int)
+AC_FUNC_VFORK
+AC_CHECK_FUNCS(ftime gettimeofday memcpy mktime putenv random select strchr strdup strerror strstr usleep)
+
+CPPFLAGS="${EXTRACPPFLAGS} ${CPPFLAGS}"
+LDFLAGS="${EXTRALDFLAGS} ${LDFLAGS}"
+LIBS="${EXTRALIBS} ${LIBS}"
+
+AC_OUTPUT(Makefile)

@@ -1,19 +1,18 @@
-# Generated automatically from Makefile.in by configure.
 
+@SET_MAKE@
 
+srcdir =	@srcdir@
+VPATH =		@srcdir@:@srcdir@/liteclue:@srcdir@/linux
 
-srcdir =	.
-VPATH =		.:./liteclue:./linux
+CC =		@CC@
+CFLAGS =	@CFLAGS@ @X_CFLAGS@
+CPPFLAGS =	@CPPFLAGS@ @DEFS@ -I$(srcdir) @gui_cpp@ @os_cpp@
+LDFLAGS =	@LDFLAGS@
+LDLIBS =	@LIBS@ @X_PRE_LIBS@ @X_EXTRA_LIBS@
 
-CC =		pgcc -mpentium
-CFLAGS =	-O6  -I/usr/X11R6/include
-CPPFLAGS =	   -DHAVE_CONFIG_H -I$(srcdir) $(MOTIF_CPP) $(LINUX_CPP)
-LDFLAGS =	     -L/usr/X11R6/lib 
-LDLIBS =	-lgdbm -lXbae -lXm -lXpm -lXext -lXmu -lXt  -lm -lX11   -lSM -lICE 
-
-INSTALL =	/bin/ginstall -c
-INSTALL_PROGRAM = ${INSTALL}
-INSTALL_DATA =	${INSTALL} -m 644
+INSTALL =	@INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA =	@INSTALL_DATA@
 
 # Mixmaster variables
 MIXPATH =	$(HOME)/.mix
@@ -31,12 +30,12 @@ LINUX_CPP =	-I$(srcdir)/linux
 # Floppy source file(s).
 FLOPPY_SRC =	floppy.c
 
-GUI_SRC =	$(MOTIF_SRC)
-OS_SOURCE =	$(LINUX_SOURCE)
+GUI_SRC =	@gui_source@
+OS_SOURCE =	@os_source@
 
 SOURCE =	pgplib.c buffers.c messages.c main.c gui.c mail_reader.c \
 		liteclue/LiteClue.c \
-		$(GUI_SRC) $(OS_SOURCE) 
+		$(GUI_SRC) $(OS_SOURCE) @floppy@
 
 OBJS =		$(notdir $(SOURCE:%.c=%.o))
 
@@ -51,7 +50,9 @@ $(DIRS):
 clean:
 		$(RM) privtool $(OBJS)
 
-depend .depend:	$(SOURCE)
+depend:		.depend
+
+.depend:	$(SOURCE)
 		$(CC) $(CFLAGS) $(CPPFLAGS) -M $(SOURCE) > .depend
 
 include .depend

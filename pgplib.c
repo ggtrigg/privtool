@@ -32,8 +32,12 @@
 
 #define PGPLIB
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
-#if defined(__FreeBSD__) || defined (SYSV)
+#ifndef HAVE_VFORK_H
 #include <signal.h>
 #else
 #include <vfork.h>
@@ -44,8 +48,8 @@
 #include <stdlib.h>
 #else
 #include <malloc.h>
-#include <limits.h>
 #endif
+#include <limits.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -1515,7 +1519,6 @@ void	close_pgplib(void)
 		fwrite (privseed, RAND_SIZE, 1, fp);
 		fclose (fp);
 	}
-#endif
 
 	/* Eject floppy disk on exit if neccesary. This isn't really 
 	   useful without PGP Tools unless you link secring.pgp to
@@ -1534,6 +1537,7 @@ void	close_pgplib(void)
 #endif
 		keyfile = 0;
 	}
+#endif
 #endif
 }
 
@@ -1586,6 +1590,9 @@ int	run_program(char *prog, byte *message, int msg_len,
 	int	fds_found;
 	char	buf[BUF_SIZE];
 	int	size;
+#ifdef HAVE_GNUPG
+	char	**arg_ptr, ppfd[5];
+#endif
 #ifdef SYSV
 	struct	timeval	t, to;
 
@@ -1615,7 +1622,9 @@ int	run_program(char *prog, byte *message, int msg_len,
 
 	/* Fork and execute the program */
 	if (!(child_pid = vfork())) {
+#ifndef HAVE_GNUPG
 		char	pass_env[32];
+#endif
 
 		/* Duplicate our pipe files on stdin/stdout/stderr */
 
@@ -1645,9 +1654,35 @@ int	run_program(char *prog, byte *message, int msg_len,
 
 		if (pass) {
 			close (pass_fd[1]);
+#ifndef HAVE_GNUPG
 			sprintf	(pass_env,"PGPPASSFD=%d\n",pass_fd[0]);
 			putenv (pass_env);
+#else
+			for(arg_ptr = args; *arg_ptr != NULL; arg_ptr++) {
+			    if(!strcmp(*arg_ptr, "--passphrase-fd")) {
+				arg_ptr++;
+				sprintf(ppfd, "%d", pass_fd[0]);
+				*arg_ptr = ppfd;
+				break;
+			    }
+			}
+#endif
 		}
+
+#if 0
+		{
+		    FILE *fp;
+
+		    if((fp = fopen("fork_dump", "a")) != NULL) {
+			fprintf(fp, "%s", prog);
+			for(arg_ptr = args; *arg_ptr != NULL; arg_ptr++) {
+			    fprintf(fp, " %s", *arg_ptr);
+			}
+			fprintf(fp, "\n");
+			fclose(fp);
+		    }
+		}
+#endif
 
 		/* Exec and return an error if it fails */
 
@@ -1869,7 +1904,7 @@ static	int	run_pgp(byte *message, int msg_len, char **args,
 }
 
 /* Standard arguments for PGP */
-
+#ifndef HAVE_GNUPG
 static	char	*filter_argv[]={
 	"pgp",
 	"-f",
@@ -1877,6 +1912,16 @@ static	char	*filter_argv[]={
 	"+language=en",
 	NULL
 };
+#else
+static	char	*filter_argv[]={
+	"gpg",
+	"--batch",
+	"--passphrase-fd",
+	NULL,
+	"--decrypt",
+	NULL
+};
+#endif
 
 /* Message to tell the user that decryption failed. */
 
@@ -2937,7 +2982,9 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 
 	/* First argument will always be -f */
 
+#ifndef HAVE_GNUPG
 	strcpy(args[0],"-f");
+#endif
 
 	argv = (char **) malloc (argv_size * sizeof(char *));
 
@@ -2948,8 +2995,17 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 
 	/* Set up arguments */
 
+#ifndef HAVE_GNUPG
 	argv[0]="pgp";
+#else
+	argv[0]="gpg";
+#endif
 	argv[1]=args[0];
+
+#ifdef HAVE_GNUPG
+	argv[arg++]="--batch";
+	strcpy(args[0], "-q");
+#endif
 
 	if (flags & FL_ENCRYPT) {
 		strcat(args[0],"e");
@@ -2960,15 +3016,22 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 	if (flags & FL_SIGN) {
 		strcat(args[0],"s");
 		if (!(flags & FL_ENCRYPT)) {
+#ifndef HAVE_GNUPG
 			strcat(args[0],"t");
 			argv[arg++] = "+clearsig=on";
+#else
+			argv[arg++] = "--textmode";
+			argv[arg++] = "--clearsign";
+#endif
 		}
 	}
 
 	/* Use batchmode and set language to english when we run. */
 
+#ifndef HAVE_GNUPG
 	argv[arg++]="+batchmode";
 	argv[arg++]="+language=en";
+#endif
 
 	/* We now need to add the list of users. If we overrun the
 	   allocated array we'll have to extend it. */
@@ -2993,7 +3056,9 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 				if (!argv)
 					return ERR_NO_MEM;
 			}
-
+#ifdef HAVE_GNUPG
+			argv[arg++] = "-r";
+#endif
 			argv[arg++] = *u++;	
 		}
 	}
@@ -3009,8 +3074,13 @@ int	encrypt_message(char **user, BUFFER *message, BUFFER *encrypted,
 	/* If signing we have to pass the key name in too */
 
 	if (flags & FL_SIGN) {
+#ifndef HAVE_GNUPG
 		argv [arg++] = "-u";
 		argv [arg++] = key_name;
+#else
+		argv [arg++] = "--passphrase-fd";
+		argv [arg++] = NULL; /* Temporary - gets set in run_program */
+#endif
 	}
 
 	/* End it with a null */

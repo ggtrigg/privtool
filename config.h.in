@@ -1,0 +1,104 @@
+
+/* Define if you have ANSI C header files */
+#undef STDC_HEADERS
+
+/* Define _one_ of the following GUI systems */
+#undef HAVE_MOTIF
+#undef HAVE_XVIEW
+
+/* Define the mail spool directory if necessary */
+#undef MAIL_SPOOL_DIR
+
+/* This is for internal debugging mainly. Don't worry about it. */
+#undef HAVE_XIT
+
+/* Define if you have alloca */
+#undef HAVE_ALLOCA
+
+/* Defines for various dirent setups */
+#undef HAVE_DIRENT_H
+#undef HAVE_NDIR_H
+#undef HAVE_SYS_NDIR_H
+#undef HAVE_SYS_DIR_H
+
+/* Define if you have sys/wait.h that is POSIX.1 compatible */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if any of these header files exist. */
+#undef HAVE_FCNTL_H
+#undef HAVE_LIMITS_H
+#undef HAVE_MALLOC_H
+#undef HAVE_PATHS_H
+#undef HAVE_SYS_FILE_H
+#undef HAVE_SYS_IOCTL_H
+#undef HAVE_SYS_TIME_H
+#undef HAVE_UNISTD_H
+
+/* Define if you can define both time.h and sys/time.h */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if time.h doesn't define struct tm */
+#undef TM_IN_SYS_TIME
+
+/* Define if you have a working mmap */
+#undef HAVE_MMAP
+
+/* Define if you have vfork.h */
+#undef HAVE_VFORK_H
+
+/* Define if using pgptools library... */
+#undef HAVE_PGPTOOLS
+
+/* Define if using mixmaster executable */
+#undef HAVE_MIXMASTER
+
+/* Define if using premail executable */
+#undef HAVE_PREMAIL
+
+/* ... otherwise define where the pgp executable is found. */
+#undef PGPEXEC
+
+/* Define the required pgp version if using pgptools. */
+#define PGPVERSION "2.6"
+
+/* Defines for using the floppy device to read keys. */
+/* FLOP_FILE should be defined to the name of the floppy device */
+#undef FLOP_FILE
+#undef USE_FLOPPY
+#undef AUTO_EJECT
+
+/* Various defines if the functions are available. */
+#undef HAVE_FTIME
+#undef HAVE_GETTIMEOFDAY
+#undef HAVE_GNUPG
+#undef HAVE_MEMCPY
+#undef HAVE_MKTIME
+#undef HAVE_PUTENV
+#undef HAVE_RANDOM
+#undef HAVE_SELECT
+#undef HAVE_STRCHR
+#undef HAVE_STRDUP
+#undef HAVE_STRERROR
+#undef HAVE_STRSTR
+#undef HAVE_USLEEP
+
+/* Define to char if byte is unknown */
+#undef byte
+
+/* Define this to fork is your vfork is broken. */
+#undef vfork
+
+/* Define this as empty if your compiler doesn't understand const. */
+#undef const
+
+/* Machine/system description. */
+#undef SYSTEM_TYPE
+
+/* Pathnames to programs. */
+#undef SENDMAIL_PATH
+#undef UUDECODE_PATH
+#undef UUDEVIEW_PATH
+#undef LPR_PATH
+#undef MIXEXEC
+#undef MIXPATH
+#undef PREMAILEXEC

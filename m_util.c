@@ -19,10 +19,12 @@
 #include	<Xm/Xm.h>
 #include	<Xm/Container.h>
 #include	<Xm/IconG.h>
+#include	<Xbae/Caption.h>
 #include	"m_util.h"
 #include	"debug.h"
 #include	"pixmapcache.h"
 
+static Widget	captionLabel(Widget caption);
 static char	*GenFullName(Widget widget, int size, char *(*name_func)());
 static Boolean	cvtStringToPixmap(Display *, XrmValuePtr, Cardinal *,
 				  XrmValuePtr, XrmValuePtr, XtPointer *);
@@ -188,3 +190,72 @@ cvtStringToPixmap(Display *display, XrmValuePtr args, Cardinal *num_args,
     }
     done(Pixmap, pixmap);
 } /* cvtStringToPixmap */
+
+/*----------------------------------------------------------------------*/
+
+void
+alignCaptions(Widget parent)
+{
+    int			i, numkids;
+    WidgetList		kids;
+    Dimension		length = 0;
+    XtWidgetGeometry	curr;
+
+#if 0
+    if(XmeTraitGet(parent, XmQTcontainer) == NULL){
+	/* This widget can't contain children, esp. Captions. */
+	return;
+    }
+#endif
+
+    XtVaGetValues(parent, XmNchildren, &kids,
+		  XmNnumChildren, &numkids, NULL);
+
+    for(i = 0; i < numkids; i++){
+	if(XtClass(kids[i]) == xbaeCaptionWidgetClass){
+	    XtQueryGeometry(captionLabel(kids[i]), NULL, &curr);
+	    if(curr.width > length)
+		length = curr.width;
+	}
+    }
+    for(i = 0; i < numkids; i++){
+	if(XtClass(kids[i]) == xbaeCaptionWidgetClass){
+	    XtVaSetValues(captionLabel(kids[i]), XmNwidth, length, NULL);
+	    /* Hack Alert!! But what else to do when there is no other way? */
+	    /* This makes the Caption notice that the label has changed
+	       size. */
+	    ((CompositeWidgetClass)XtClass(kids[i]))->composite_class.change_managed(kids[i]);
+	}
+    }
+} /* alignCaptions */
+
+/*----------------------------------------------------------------------*/
+
+static Widget
+captionLabel(Widget caption)
+{
+
+    /* This is based on the assumption that the first child of a
+       caption is always the XmLabel widget. */
+    WidgetList	kids;
+
+    XtVaGetValues(caption, XmNchildren, &kids, NULL);
+
+    return kids[0];
+} /* captionLabel */
+
+/*----------------------------------------------------------------------*/
+
+Widget
+parentShell(Widget w)
+{
+    Widget	parent, current = w;
+
+    while((parent = XtParent(current)) != NULL) {
+	if( XtIsShell(parent) )
+	    return parent;
+	current = parent;
+    }
+
+    return NULL;
+} /* parentShell */

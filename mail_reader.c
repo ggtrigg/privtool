@@ -1277,7 +1277,7 @@ int	append_message(MESSAGE *m, FILE *fp, int save_all)
 			*d++ = *l++;
 		}
 		*d = 0;
-	
+
 		if (!ignore_line(temp) || save_all) 
 			if (strncasecmp(line,"Status:",7) &&
 				strncasecmp(line,"X-Lines:",8) &&

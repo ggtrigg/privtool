@@ -10,12 +10,17 @@
  * Description : Code for implementing the properties window.
  */
 
+#ifdef HAVE_CONFIG_H
+#include	"config.h"
+#endif
+
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<X11/X.h>
 #include	<X11/Xlib.h>
 #include	<X11/Intrinsic.h>
 #include	<X11/Xmu/Editres.h>
+#include	<X11/Xcms.h>
 #include	<Xm/Xm.h>
 #include	<Xm/DialogS.h>
 #include	<Xm/Frame.h>
@@ -42,7 +47,11 @@
 #include	"motif_protos.h"
 
 extern char		globRCfile[MAXPATHLEN];  /* from main.c */
-extern LIST		alias;
+extern LIST		alias, retain;
+extern MAIL_HEADER_FIELD standard_headers[];
+
+#define IGNORED		"Ignored"
+#define SHOWN		"Retained"
 
 typedef enum {
     KILL_SUBJECT,
@@ -50,8 +59,8 @@ typedef enum {
 } KillType;
 
 typedef struct {
-    Widget	mail_dir;
-    Widget	mail_menu;
+    Widget	mail_dir;		/* folder */
+    Widget	mail_menu;		/* filemenu2 */
     Widget	detached;
     Widget	aliases;
     Widget	pgpkeys;
@@ -60,6 +69,19 @@ typedef struct {
     Widget	pseudonyms;
     Widget	kill_list;
     Widget	default_nym;
+    Widget	hdr_list;
+    Widget	replyto;		/* replyto */
+    Widget	comp_sign;		/* nodefaultsign */
+    Widget	comp_encrypt;		/* nodefaultencrypt */
+    Widget	comp_remail;		/* nodefaultremail */
+    Widget	comp_log;		/* nodontlogmessages */
+    Widget	comp_lograw;		/* log-raw */
+    Widget	print_cmd;		/* printmail */
+    Widget	domain;			/* domain */
+    Widget	indent;			/* indentprefix */
+    Widget	organizn;		/* organization */
+    Widget	record;			/* record */
+    Widget	badbeep;		/* nobeepbadsig */
 } PropWidgets;
 
 static PropWidgets	propw;
@@ -69,17 +91,21 @@ static KillType		killtype = KILL_SUBJECT;
 
 static void		create_gui_page(Widget);
 static void		create_alias_page(Widget);
-/*static void		create_mail_page(Widget);*/
+static void		create_comp_page(Widget);
 static void		create_pgp_page(Widget);
+static void		create_hdr_page(Widget);
 static void		load_aliases();
 static void		load_pgpstuff();
 static void		load_guistuff();
+static void		load_compstuff();
+static void		load_hdrstuff();
 static void		savePropsCb(Widget, XtPointer, XtPointer);
 static void		closeCb(Widget, XtPointer, XtPointer);
 static void		addRowCb(Widget, XtPointer, XtPointer);
 static void		deleteRowCb(Widget, XtPointer, XtPointer);
 static void		killToggleCb(Widget, XtPointer, XtPointer);
 static void		enterCellCb(Widget, XtPointer, XtPointer);
+static void		toggleCellCb(Widget, XtPointer, XtPointer);
 
 void
 show_props(Widget parent)
@@ -114,8 +140,9 @@ show_props(Widget parent)
 			 NULL);
 
 	create_gui_page(notebook);
+	create_comp_page(notebook);
 	create_alias_page(notebook);
-	/*create_mail_page(notebook);*/
+	create_hdr_page(notebook);
 	create_pgp_page(notebook);
     }
     XtManageChild(propswin);
@@ -146,6 +173,19 @@ create_gui_page(Widget parent)
 				  page, NULL);
     propw.mail_dir = XmCreateTextField(cap, "directory", NULL, 0);
     XtManageChild(propw.mail_dir);
+
+    cap = XtVaCreateManagedWidget("prncap", xbaeCaptionWidgetClass,
+				  page, NULL);
+    propw.print_cmd = XmCreateTextField(cap, "print", NULL, 0);
+    XtManageChild(propw.print_cmd);
+
+    cap = XtVaCreateManagedWidget("orgcap", xbaeCaptionWidgetClass,
+				  page, NULL);
+    propw.organizn = XmCreateTextField(cap, "organization", NULL, 0);
+    XtManageChild(propw.organizn);
+
+    alignCaptions(page);
+
     ctrl = XmCreateRowColumn(page, "menuctrl", NULL, 0);
     XtManageChild(ctrl);
     cap = XtVaCreateManagedWidget("menucap", xbaeCaptionWidgetClass,
@@ -206,18 +246,62 @@ create_alias_page(Widget parent)
 
 /*----------------------------------------------------------------------*/
 
-#if 0
 static void
-create_mail_page(Widget parent)
+create_comp_page(Widget parent)
 {
-    Widget	w, page;
+    Widget	w, page, cap, frame, tglctrl;
 
-    page = XmCreateRowColumn(parent, "mailpage", NULL, 0);
+    page = XmCreateRowColumn(parent, "comppage", NULL, 0);
     XtManageChild(page);
-    w = XmCreatePushButton(parent, "mailbtn", NULL, 0);
+    w = XmCreatePushButton(parent, "compbtn", NULL, 0);
     XtManageChild(w);
-} /* create_mail_page */
+
+    cap = XtVaCreateManagedWidget("rplcap", xbaeCaptionWidgetClass,
+				  page, NULL);
+    propw.replyto = XmCreateTextField(cap, "replyto", NULL, 0);
+    XtManageChild(propw.replyto);
+
+    cap = XtVaCreateManagedWidget("dmncap", xbaeCaptionWidgetClass,
+				  page, NULL);
+    propw.domain = XmCreateTextField(cap, "domain", NULL, 0);
+    XtManageChild(propw.domain);
+
+    cap = XtVaCreateManagedWidget("idntcap", xbaeCaptionWidgetClass,
+				  page, NULL);
+    propw.indent = XmCreateTextField(cap, "indent", NULL, 0);
+    XtManageChild(propw.indent);
+
+    cap = XtVaCreateManagedWidget("rcdcap", xbaeCaptionWidgetClass,
+				  page, NULL);
+    propw.record = XmCreateTextField(cap, "record", NULL, 0);
+    XtManageChild(propw.record);
+
+    alignCaptions(page);
+
+    frame = XmCreateFrame(page, "frame", NULL, 0);
+    XtManageChild(frame);
+    tglctrl = XmCreateRowColumn(frame, "tglctrl", NULL, 0);
+    XtManageChild(tglctrl);
+    w = XmCreateLabel(frame, "flabel", NULL, 0);
+    XtManageChild(w);
+
+    propw.comp_sign = XmCreateToggleButton(tglctrl, "sign", NULL, 0);
+    XtManageChild(propw.comp_sign);
+    propw.comp_encrypt = XmCreateToggleButton(tglctrl, "encrypt", NULL, 0);
+    XtManageChild(propw.comp_encrypt);
+    propw.comp_log = XmCreateToggleButton(tglctrl, "log", NULL, 0);
+    XtManageChild(propw.comp_log);
+    propw.comp_lograw = XmCreateToggleButton(tglctrl, "lograw", NULL, 0);
+    XtManageChild(propw.comp_lograw);
+#ifndef NO_MIXMASTER
+    propw.comp_remail = XmCreateToggleButton(tglctrl, "remail", NULL, 0);
+    XtManageChild(propw.comp_remail);
 #endif
+    propw.badbeep = XmCreateToggleButton(tglctrl, "badbeep", NULL, 0);
+    XtManageChild(propw.badbeep);
+
+    load_compstuff();
+} /* create_comp_page */
 
 /*----------------------------------------------------------------------*/
 
@@ -317,6 +401,51 @@ create_pgp_page(Widget parent)
 
     load_pgpstuff();
 } /* create_pgp_page */
+
+/*----------------------------------------------------------------------*/
+
+static void
+create_hdr_page(Widget parent)
+{
+    char	*bgnd;
+    Widget	w, page, cap;
+    Colormap	cmap;
+    XcmsColor	cexact, cscreen;
+
+    page = XmCreateRowColumn(parent, "hdrpage", NULL, 0);
+    XtManageChild(page);
+    w = XmCreatePushButton(parent, "hdrbtn", NULL, 0);
+    XtManageChild(w);
+
+    cap = XtVaCreateManagedWidget("hdrcap",
+			    xbaeCaptionWidgetClass, page,
+			    NULL);
+    propw.hdr_list = XtVaCreateManagedWidget("hdrgrid",
+					      xbaeMatrixWidgetClass, cap,
+					      NULL);
+    XtAddCallback(propw.hdr_list, XmNselectCellCallback, toggleCellCb,
+		  NULL);
+
+    /* Get color for header notebook. */
+    bgnd = GetResourceString(propw.hdr_list, "retainColor", "Background");
+    if( bgnd != NULL ) {
+	XtVaGetValues(propw.hdr_list, XmNcolormap, &cmap, NULL);
+	XcmsAllocNamedColor(XtDisplay(propw.hdr_list), cmap, bgnd,
+			    &cexact, &cscreen, XcmsRGBFormat);
+	XtVaSetValues(propw.hdr_list, XmNuserData,
+		      (XtPointer)cscreen.pixel, NULL);
+    }
+    else {
+	Pixel	bg;
+
+	XtVaGetValues(propw.hdr_list, XmNbackground, &bg, NULL);
+		XtVaSetValues(propw.hdr_list, XmNuserData,
+		      (XtPointer)bg, NULL);
+    }
+
+
+    load_hdrstuff();
+} /* create_hdr_page */
 
 /*----------------------------------------------------------------------*/
 
@@ -446,6 +575,59 @@ load_pgpstuff()
 /*----------------------------------------------------------------------*/
 
 static void
+load_hdrstuff()
+{
+    int		hdr_num, i;
+    Pixel	rcolor;
+
+    XtVaGetValues(propw.hdr_list, XmNuserData, &rcolor, NULL);
+
+    for(hdr_num = 0; standard_headers[hdr_num].name != NULL; hdr_num++)
+	;
+
+    i = XbaeMatrixNumRows(propw.hdr_list);
+    if( i < hdr_num ) {
+	XbaeMatrixAddRows(propw.hdr_list, i, NULL, NULL, NULL,
+			  hdr_num - i);
+    }
+    for( i = 0; i < hdr_num; i++ ) {
+	XbaeMatrixSetCell(propw.hdr_list, i, 0,
+			  standard_headers[i].name);
+	if( retain_line(standard_headers[i].name) ) {
+	    XbaeMatrixSetCell(propw.hdr_list, i, 1, SHOWN);
+	    XbaeMatrixSetRowUserData(propw.hdr_list, i, (XtPointer)True);
+	    XbaeMatrixSetRowBackgrounds(propw.hdr_list, i, &rcolor, 1);
+	}
+	else {
+	    XbaeMatrixSetCell(propw.hdr_list, i, 1, IGNORED);
+	    XbaeMatrixSetRowUserData(propw.hdr_list, i, False);
+	}
+    }
+} /* load_hdrstuff */
+
+/*----------------------------------------------------------------------*/
+
+static void
+toggleCellCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XbaeMatrixSelectCellCallbackStruct *cbs =
+	(XbaeMatrixSelectCellCallbackStruct *)calldata;
+    Boolean	is_set;
+    Pixel	rcolor, bg;
+
+    XtVaGetValues(propw.hdr_list, XmNuserData, &rcolor, NULL);
+    XtVaGetValues(propw.hdr_list, XmNbackground, &bg, NULL);
+
+    is_set = (int)XbaeMatrixGetRowUserData(w, cbs->row);
+    XbaeMatrixSetRowUserData(w, cbs->row, (XtPointer) !is_set);
+    XbaeMatrixSetCell(w, cbs->row, 1, (is_set? IGNORED: SHOWN));
+    XbaeMatrixSetRowBackgrounds(propw.hdr_list, cbs->row,
+				(is_set? &bg: &rcolor), 1);
+} /* toggleCellCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
 addRowCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     Widget	matrix = (Widget)clientdata;
@@ -521,12 +703,10 @@ load_guistuff()
     int		rownum = 0;
     char	*rcval, *temp, *ent;
 
-    rcval = find_mailrc("folder");
-    if(rcval)
+    if( rcval = find_mailrc("folder") )
 	XtVaSetValues(propw.mail_dir, XmNvalue, rcval, NULL);
 
-    rcval = find_mailrc("filemenu2");
-    if(rcval){
+    if( rcval = find_mailrc("filemenu2") ) {
 	temp = strdup(rcval);
 	ent = strtok(temp, " \n\r\t");
 	do{
@@ -535,9 +715,59 @@ load_guistuff()
 	}while((ent = strtok(NULL, " \n\r\t")));
 	free(temp);
     }
+
+    if( rcval = find_mailrc("printmail") ) {
+	XtVaSetValues(propw.print_cmd, XmNvalue, rcval, NULL);
+    }
+    else {
+	XtVaSetValues(propw.print_cmd, XmNvalue, "|lpr", NULL);
+    }
+
     XmToggleButtonSetState(propw.detached,
 			   (int)find_mailrc("detachedmessagewin"), False);
 } /* load_guistuff */
+
+/*----------------------------------------------------------------------*/
+
+static void
+load_compstuff()
+{
+    char	*rcval;
+
+    if( rcval = find_mailrc("replyto") )
+	XtVaSetValues(propw.replyto, XmNvalue, rcval, NULL);
+
+    if( rcval = find_mailrc("organization") )
+	XtVaSetValues(propw.organizn, XmNvalue, rcval, NULL);
+
+    if( rcval = find_mailrc("record") )
+	XtVaSetValues(propw.record, XmNvalue, rcval, NULL);
+
+    if( rcval = find_mailrc("indentprefix") ) {
+	XtVaSetValues(propw.indent, XmNvalue, rcval, NULL);
+    }
+    else {
+	XtVaSetValues(propw.indent, XmNvalue, "> ", NULL);
+    }
+
+    if( rcval = find_mailrc("domain") )
+	XtVaSetValues(propw.domain, XmNvalue, rcval, NULL);
+
+    XmToggleButtonSetState(propw.comp_sign,
+			   !(int)find_mailrc("nodefaultsign"), False);
+    XmToggleButtonSetState(propw.comp_encrypt,
+			   !(int)find_mailrc("nodefaultencrypt"), False);
+    XmToggleButtonSetState(propw.comp_log,
+			   (int)find_mailrc("nodontlogmessages"), False);
+    XmToggleButtonSetState(propw.comp_lograw,
+			   (int)find_mailrc("log-raw"), False);
+#ifndef NO_MIXMASTER
+    XmToggleButtonSetState(propw.comp_remail,
+			   !(int)find_mailrc("nodefaultremail"), False);
+#endif
+    XmToggleButtonSetState(propw.badbeep,
+			   !(int)find_mailrc("nobeepbadsig"), False);
+} /* load_compstuff */
 
 /*----------------------------------------------------------------------*/
 
@@ -597,6 +827,7 @@ savePropsCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	}
 
 	/* Write all our aliases first and update in-memory list. */
+	fprintf(nprivrc, "#\n# Aliases\n#\n");
 	clear_aliases();
 	XbaeMatrixCommitEdit(propw.aliases, True);
 	XbaeMatrixDeselectAll(propw.aliases);
@@ -613,11 +844,88 @@ savePropsCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	    add_to_list(&alias, m);
 	}
 
+	/* Followed by the retain line. */
+	fprintf(nprivrc, "#\n# Retained headers\n#\n");
+	fprintf(nprivrc, "retain");
+	numrows = XbaeMatrixNumRows(propw.hdr_list);
+	for(i = 0; i < numrows; i++) {
+	    buf = XbaeMatrixGetCell(propw.hdr_list, i, 0);
+	    if( (int)XbaeMatrixGetRowUserData(propw.hdr_list, i) ) {
+		fprintf(nprivrc, " %s", buf);
+		add_entry(&retain, buf );
+	    }
+	    else {
+		remove_retain(buf);
+	    }
+	}
+	fprintf(nprivrc, "\n");
+
 	/* Followed by set values. */
+	fprintf(nprivrc, "#\n# Set values\n#\n");
 	buf = XmTextFieldGetString(propw.mail_dir);
-	if(*buf != '\0')
+	if(*buf != '\0') {
 	    fprintf(nprivrc, "set folder='%s'\n", buf);
+	    replace_mailrc("folder", buf);
+	}
+	else {
+	    remove_mailrc("folder");
+	}
 	XtFree(buf);
+	buf = XmTextFieldGetString(propw.print_cmd);
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set printmail='%s'\n", buf);
+	    replace_mailrc("printmail", buf);
+	}
+	else {
+	    remove_mailrc("printmail");
+	}
+	XtFree(buf);
+	buf = XmTextFieldGetString(propw.replyto);
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set replyto='%s'\n", buf);
+	    replace_mailrc("replyto", buf);
+	}
+	else {
+	    remove_mailrc("replyto");
+	}
+	XtFree(buf);
+	buf = XmTextFieldGetString(propw.domain);
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set domain='%s'\n", buf);
+	    replace_mailrc("domain", buf);
+	}
+	else {
+	    remove_mailrc("domain");
+	}
+	XtFree(buf);
+	buf = XmTextFieldGetString(propw.indent);
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set indentprefix='%s'\n", buf);
+	    replace_mailrc("indentprefix", buf);
+	}
+	else {
+	    remove_mailrc("indentprefix");
+	}
+	XtFree(buf);
+	buf = XmTextFieldGetString(propw.organizn);
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set organization='%s'\n", buf);
+	    replace_mailrc("organization", buf);
+	}
+	else {
+	    remove_mailrc("organization");
+	}
+	XtFree(buf);
+	buf = XmTextFieldGetString(propw.record);
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set record='%s'\n", buf);
+	    replace_mailrc("record", buf);
+	}
+	else {
+	    remove_mailrc("record");
+	}
+	XtFree(buf);
+
 	fprintf(nprivrc, "set filemenu2='");
 	XbaeMatrixCommitEdit(propw.mail_menu, True);
 	XbaeMatrixDeselectAll(propw.mail_menu);
@@ -632,6 +940,54 @@ savePropsCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	fprintf(nprivrc, "'\n");
 	if(XmToggleButtonGetState(propw.detached)) {
 	    fprintf(nprivrc, "set detachedmessagewin\n");
+	    replace_mailrc("detachedmessagewin", "");
+	}
+	else {
+	    remove_mailrc("detachedmessagewin");
+	}
+	if(!XmToggleButtonGetState(propw.comp_sign)) {
+	    fprintf(nprivrc, "set nodefaultsign\n");
+	    replace_mailrc("nodefaultsign", "");
+	}
+	else {
+	    remove_mailrc("nodefaultsign");
+	}
+	if(!XmToggleButtonGetState(propw.comp_encrypt)) {
+	    fprintf(nprivrc, "set nodefaultencrypt\n");
+	    replace_mailrc("nodefaultencrypt", "");
+	}
+	else {
+	    remove_mailrc("nodefaultencrypt");
+	}
+	if(XmToggleButtonGetState(propw.comp_log)) {
+	    fprintf(nprivrc, "set nodontlogmessages\n");
+	    replace_mailrc("nodontlogmessages", "");
+	}
+	else {
+	    remove_mailrc("nodontlogmessages");
+	}
+	if(XmToggleButtonGetState(propw.comp_lograw)) {
+	    fprintf(nprivrc, "set log-raw\n");
+	    replace_mailrc("log-raw", "");
+	}
+	else {
+	    remove_mailrc("log-raw");
+	}
+#ifndef NO_MIXMASTER
+	if(!XmToggleButtonGetState(propw.comp_remail)) {
+	    fprintf(nprivrc, "set nodefaultremail\n");
+	    replace_mailrc("nodefaultremail", "");
+	}
+	else {
+	    remove_mailrc("nodefaultremail");
+	}
+#endif
+	if(!XmToggleButtonGetState(propw.badbeep)) {
+	    fprintf(nprivrc, "set nobeepbadsig\n");
+	    replace_mailrc("nobeepbadsig", "");
+	}
+	else {
+	    remove_mailrc("nobeepbadsig");
 	}
 
 	/* Now copy over any set lines from the old file that we don't
@@ -641,15 +997,29 @@ savePropsCb(Widget w, XtPointer clientdata, XtPointer calldata)
 		continue;
 
 	    if( (strncmp(buf2, "set folder=", 11) != 0) &&
+		(strncmp(buf2, "set printmail=", 14) != 0) &&
+		(strncmp(buf2, "set domain=", 11) != 0) &&
+		(strncmp(buf2, "set indentprefix=", 17) != 0) &&
+		(strncmp(buf2, "set organization=", 17) != 0) &&
+		(strncmp(buf2, "set record=", 11) != 0) &&
 		(strncmp(buf2, "set filemenu2=", 14) != 0) &&
-		(!XmToggleButtonGetState(propw.detached) &&
-		 (strncmp(buf2, "set detachedmessagewin", 22) != 0)) ) {
+		(strncmp(buf2, "set detachedmessagewin", 22) != 0) &&
+		(strncmp(buf2, "set nodefaultsign", 17) != 0) &&
+		(strncmp(buf2, "set nodefaultencrypt", 20) != 0) &&
+		(strncmp(buf2, "set nodontlogmessages", 21) != 0) &&
+		(strncmp(buf2, "set log-raw", 11) != 0) &&
+		(strncmp(buf2, "set nobeepbadsig", 16) != 0) &&
+		(strncmp(buf2, "set replyto", 11) != 0) &&
+		(strncmp(buf2, "set nodefaultremail", 19) != 0)
+		) {
 		fputs(buf2, nprivrc);
 	    }
 	}
+
 	fclose(privrc);
 
 	/* Now pgp keys. */
+	fprintf(nprivrc, "#\n# PGP Settings\n#\n");
 	XbaeMatrixCommitEdit(propw.pgpkeys, True);
 	XbaeMatrixDeselectAll(propw.pgpkeys);
 	numrows = XbaeMatrixNumRows(propw.pgpkeys);

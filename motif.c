@@ -23,6 +23,10 @@
 
 #define UI_MAIN
 
+#ifdef HAVE_CONFIG_H
+#include	"config.h"
+#endif
+
 #include	<stdlib.h>
 #include	<malloc.h>
 #include	<X11/X.h>
@@ -74,36 +78,38 @@
 #include	<sys/stat.h>
 #include	<fcntl.h>
 #include	<sys/mman.h>
-#ifdef USE_XIT
+#ifdef HAVE_XIT
 #include	<Xit/rex_init.h>
 #endif
 
-#include	"prev.xpm"
-#include	"prev_is.xpm"
-#include	"next.xpm"
-#include	"next_is.xpm"
-#include	"delete.xpm"
-#include	"undelete.xpm"
-#include	"undelete_is.xpm"
-#include	"folderwin.xpm"
-#include	"letter.xpm"
-#include	"dir.xpm"
-#include	"compose.xpm"
-#include	"reply.xpm"
-#include	"privtool_empty.xpm"
-#include	"privtool_new.xpm"
-#include	"privtool-logo-hc.xpm"
-#include	"privtool-logo-lc.xpm"
-#include	"expanded.xpm"
-#include	"collapsed.xpm"
+#include	"images/prev.xpm"
+#include	"images/prev_is.xpm"
+#include	"images/next.xpm"
+#include	"images/next_is.xpm"
+#include	"images/delete.xpm"
+#include	"images/undelete.xpm"
+#include	"images/undelete_is.xpm"
+#include	"images/folderwin.xpm"
+#include	"images/letter.xpm"
+#include	"images/dir.xpm"
+#include	"images/compose.xpm"
+#include	"images/reply.xpm"
+#include	"images/privtool_empty.xpm"
+#include	"images/privtool_new.xpm"
+#include	"images/privtool-logo-hc.xpm"
+#include	"images/privtool-logo-lc.xpm"
+#include	"images/expanded.xpm"
+#include	"images/collapsed.xpm"
 
 /* Standard mail header field names, taken from rfc822. */
 MAIL_HEADER_FIELD standard_headers[] = {
-    {"bcc", True},
-    {"cc", True},
-    {"Comments", True},
+    {"To", True},
+    {"Subject", True},
     {"Date", False},
     {"From", False},
+    {"cc", True},
+    {"bcc", True},
+    {"Comments", True},
     {"In-Reply-To", False},
     {"Keywords", True},
     {"Message-ID", False},
@@ -120,8 +126,7 @@ MAIL_HEADER_FIELD standard_headers[] = {
     {"Resent-cc", False},
     {"Return-path", False},
     {"Sender", False},
-    {"Subject", True},
-    {"To", True}
+    {NULL, False}
 };
 
 extern char		*our_userid;
@@ -221,10 +226,7 @@ static void		shadowsAC(Widget, XEvent *, String *, Cardinal *);
 static void		compose_post_menuAC(Widget, XEvent *, String *, Cardinal *);
 static void		mapAC(Widget, XEvent *, String *, Cardinal *);
 static void		loadNewCB(Widget, XtPointer, XtPointer);
-static void		alignCaptions(Widget);
-static Widget		captionLabel(Widget);
 static void		deliverCb(Widget, XtPointer, XtPointer);
-static void		WMcancelCb(Widget, XtPointer, XtPointer);
 static Widget		create_toolbar_button(Widget, char *, char *,
 					      XtCallbackProc, XtPointer);
 static Widget		create_toolbar_toggle(Widget, char *, char *,
@@ -249,6 +251,7 @@ static void		show_undelete(Boolean);
 static void		mail_check(XtPointer, XtIntervalId);
 static void		compose_indent_region(Widget, XtPointer, XtPointer);
 static void		compose_format_region(Widget, XtPointer, XtPointer);
+static void		reset_deliver_flags(COMPOSE_WINDOW *);
 
 static XtActionsRec actions[] = {
     {"view", (XtActionProc)viewAC},
@@ -314,6 +317,7 @@ alert(Widget w, char *name, int buttons)
 	XtUnmanageChild(XtNameToWidget(alert, "Cancel"));
     XtManageChild(alert);
 
+    XtVaSetValues(XtParent(alert), XmNdeleteResponse, XmUNMAP, NULL);
     /* Add a window manager cancel handler */
     XmAddWMProtocolCallback(XtParent(alert),
 			    XmInternAtom(XtDisplay(alert),
@@ -561,9 +565,22 @@ display_message_body(BUFFER *b)
     XmTextDisableRedisplay(text_);
     XmTextSetString(text_, b->message);
 
-    XmStringFree(body);
+    if(b != NULL && b->message != NULL) {
+	XmStringFree(body);
+    }
     XmTextSetTopCharacter(text_, 0);
     XmTextEnableRedisplay(text_);
+
+    /* If the message window is detached, check whether it is unmapped
+       and make it mapped if it is. */
+    if( separate_windows ) {
+	XWindowAttributes	attribs;
+
+	XGetWindowAttributes(XtDisplay(message_frame),
+			     XtWindow(message_frame), &attribs);
+	if (attribs.map_state != IsViewable)
+	    XtMapWidget(message_frame);
+    }
 }
 
 /*----------------------------------------------------------------------*/
@@ -626,6 +643,7 @@ display_sender_info(MESSAGE *m)
     if(m == NULL)
 	return;
 
+#if 0
     if(!full_header_){
 	info = XmStringGenerate("From:\t", NULL, XmCHARSET_TEXT,
 				(XmStringTag)"HDR_B");
@@ -652,20 +670,18 @@ display_sender_info(MESSAGE *m)
 					 XmStringGenerate(m->date, NULL,
 							  XmCHARSET_TEXT,
 							  (XmStringTag)"HDR"));
-#if 0
-	info = XmStringConcatAndFree(info,
-				     XmStringGenerate("\n\n", NULL,
-						      XmCHARSET_TEXT,
-						      (XmStringTag)"HDR"));
-#endif
 	XmCSTextSetString(hdrtext_, info);
 
 	XmStringFree(info);
     }
-    else{
+    else
+#endif
+    {
 	char		*allhdr = strdup(m->header->message), *ptr, *split;
+	char		colon;
 	char		keyword[256];	/* Should be long enough? :-) */
-	int		length;
+	int		length, skip = 0;
+
 	XmTextPosition	pos = 0;
 
 	ptr = strtok(allhdr, "\n");
@@ -686,6 +702,19 @@ display_sender_info(MESSAGE *m)
 		length = split - ptr;
 		strncpy(keyword, ptr, length);
 		keyword[length] = '\0';
+		if( ! full_header_ ) {
+		    /* Check if this header should be shown. */
+		    if( (colon = keyword[length-1]) == ':' )
+			keyword[length-1] = '\0';	/* Strip ':' */
+		    if(! retain_line(keyword) ) {
+			skip = 1;
+			continue;
+		    }
+		    keyword[length-1] = colon;
+		    *split = '\t';
+		}
+		skip = 0;
+
 		info = XmStringGenerate(keyword, NULL, XmCHARSET_TEXT,
 					(XmStringTag)"HDR_B");
 		if(!strncmp(keyword, "From:", 5)){
@@ -712,6 +741,8 @@ display_sender_info(MESSAGE *m)
 		XmStringFree(info);
 	    }
 	    else{
+		if( skip )
+		    continue;
 		info = XmStringGenerate(ptr, NULL, XmCHARSET_TEXT,
 					(XmStringTag)"HDR");
 		info = XmStringConcatAndFree(info,
@@ -943,7 +974,7 @@ setup_ui(int level, int argc, char **argv)
 				    &argc, argv, NULL,
 				    applicationShellWidgetClass, 0);
 
-#ifdef USE_REX
+#ifdef HAVE_XIT
     _XitAddRex(toplevel_);
 #endif
 
@@ -1193,8 +1224,7 @@ compose_find_free()
 {
     COMPOSE_WINDOW	*win;
     Widget		msgbox, topform, ctrl, cap, tbox, button;
-    int			i, log, dontlog;
-    char		*nym;
+    int			i;
 
     win = compose_first;
 
@@ -1210,6 +1240,7 @@ compose_find_free()
     win->deliver_frame = XtVaCreatePopupShell("compose",
 					      topLevelShellWidgetClass,
 					      toplevel_,
+					      XmNdeleteResponse, XmDO_NOTHING,
 					      NULL);
     win->next = NULL;
     if (compose_last) {
@@ -1226,7 +1257,7 @@ compose_find_free()
     XmAddWMProtocolCallback(win->deliver_frame,
 			    XmInternAtom(XtDisplay(win->deliver_frame),
 					 "WM_DELETE_WINDOW", False),
-			    WMcancelCb, win);
+			    deliverCb, win);
 
     /* Add editres protocol support */
     XtAddEventHandler(win->deliver_frame, 0, True,
@@ -1328,6 +1359,17 @@ compose_find_free()
 		  (XtCallbackProc)filerCb, win->text);
     XtManageChild(win->text);
 
+    reset_deliver_flags(win);
+
+    return win;
+}
+
+static void
+reset_deliver_flags(COMPOSE_WINDOW *win)
+{
+    int		log, dontlog;
+    char	*nym;
+
     /* Default to encryption and signature */
     win->deliver_flags = DELIVER_SIGN|DELIVER_ENCRYPT;
 
@@ -1356,8 +1398,6 @@ compose_find_free()
     if (find_mailrc("log-raw")) {
 	win->deliver_flags |= DELIVER_RAW;
     }
-
-    return win;
 }
 
 /*----------------------------------------------------------------------*/
@@ -1386,6 +1426,7 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype,
     }
 
     /* Set state of toggles (encrypt, sign etc.) */
+    reset_deliver_flags(win);
     XmToggleButtonSetState(win->sign,
 			   win->deliver_flags & DELIVER_SIGN, False);
     XmToggleButtonSetState(win->encrypt,
@@ -1413,7 +1454,7 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype,
 	if (last_message_read->reply_to &&
 		!find_mailrc("defaultusefrom")) {
 		if (find_mailrc("defaultusereplyto") ||
-			alert(toplevel_, "usereplyto", 2)) {
+			alert(parentShell(win->text), "usereplyto", 2)) {
 			send_to = last_message_read->reply_to;
 		}
 	}
@@ -1614,7 +1655,7 @@ deliverCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	/* Check for an empty message body which is indicative of return
 	   being pressed accidently. If it's empty post an alert. */
 	if(XmTextGetLastPosition(win->text) == 0) {
-	    if(alert(toplevel_, "emptysend", 2) != XmCR_OK) {
+	    if(alert(parentShell(w), "emptysend", 2) != XmCR_OK) {
 		return;
 	    }
 	}
@@ -1624,7 +1665,7 @@ deliverCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	/* Check for non-empty message body which is indicative of an
 	   accidental cancel. If it's not empty post an alert. */
 	if(XmTextGetLastPosition(win->text) != 0) {
-	    if(alert(toplevel_, "fullcan", 2) != XmCR_OK) {
+	    if(alert(parentShell(w), "fullcan", 2) != XmCR_OK) {
 		return;
 	    }
 	}
@@ -1632,17 +1673,6 @@ deliverCb(Widget w, XtPointer clientdata, XtPointer calldata)
     }
     win->in_use = 0;
 } /* deliverCb */
-
-/*----------------------------------------------------------------------*/
-
-static void
-WMcancelCb(Widget w, XtPointer clientdata, XtPointer calldata)
-{
-    COMPOSE_WINDOW	*win = (COMPOSE_WINDOW *)clientdata;
-
-    win->in_use = 0;
-    XtPopdown(win->deliver_frame);
-} /* WMdeliverCb */
 
 /*----------------------------------------------------------------------*/
 
@@ -1971,6 +2001,11 @@ create_fold_menu(Widget parent)
     XtAddCallback (button_, XmNactivateCallback,
 		   (XtCallbackProc)folderCb,
 		   (XtPointer)FOLDER_LOAD);
+
+    button_ = XmCreatePushButtonGadget (menu_, "load-in", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   (XtCallbackProc)loadNewCB, NULL);
 } /* create_fold_menu */
 
 /*----------------------------------------------------------------------*/
@@ -2110,6 +2145,7 @@ create_workarea(Widget parent)
 	message_frame = XtVaCreatePopupShell("message",
 					     topLevelShellWidgetClass,
 					     toplevel_,
+					     XmNdeleteResponse, XmUNMAP,
 					     NULL);
 	XtManageChild(message_frame);
 	form = XmCreatePanedWindow(message_frame, "msgpane", NULL, 0);
@@ -2161,6 +2197,7 @@ detachMW(Boolean detached)
 	message_frame = XtVaCreatePopupShell("message",
 					     topLevelShellWidgetClass,
 					     toplevel_,
+					     XmNdeleteResponse, XmUNMAP,
 					     NULL);
 	XtManageChild(message_frame);
 	form = XmCreatePanedWindow(message_frame, "msgpane", NULL, 0);
@@ -2308,12 +2345,14 @@ sync_list()
 	XtVaSetValues(nextbtn_, XmNsensitive, True, NULL);
 	XtVaSetValues(prevmi_, XmNsensitive, False, NULL);
 	XtVaSetValues(nextmi_, XmNsensitive, True, NULL);
+	check_shadows(prevbtn_, "off");
     }
     else if(last_message_read->list_pos == numItems) {
 	XtVaSetValues(prevbtn_, XmNsensitive, True, NULL);
 	XtVaSetValues(nextbtn_, XmNsensitive, False, NULL);
 	XtVaSetValues(prevmi_, XmNsensitive, True, NULL);
 	XtVaSetValues(nextmi_, XmNsensitive, False, NULL);
+	check_shadows(nextbtn_, "off");
     }
     else {
 	XtVaSetValues(prevbtn_, XmNsensitive, True, NULL);
@@ -2570,7 +2609,7 @@ shadowsAC(Widget w, XEvent *ev, String *args, Cardinal *numargs)
     Cardinal	numkids, i;
     Pixel	bg, top, btm;
     Colormap	cmap;
-    Boolean	is_radio;
+    Boolean	is_radio = 0;
 
     if(*numargs != 1){
 	XtWarning("Incorrect number of parameters to the \"custom_shadows\" action");
@@ -2630,6 +2669,16 @@ shadowsAC(Widget w, XEvent *ev, String *args, Cardinal *numargs)
 
 /*----------------------------------------------------------------------*/
 
+void
+check_shadows(Widget w, String arg)
+{
+    int			numargs = 1;
+
+    shadowsAC(w, NULL, &arg, &numargs);
+} /* check_shadows */
+
+/*----------------------------------------------------------------------*/
+
 static void
 mapAC(Widget w, XEvent *ev, String *args, Cardinal *numargs)
 {
@@ -2677,59 +2726,6 @@ loadNewCB(Widget w, XtPointer clientdata, XtPointer calldata)
     update_message_list();
     show_undelete(False);
 } /* loadNewCB */
-
-/*----------------------------------------------------------------------*/
-
-static void
-alignCaptions(Widget parent)
-{
-    int			i, numkids;
-    WidgetList		kids;
-    Dimension		length = 0;
-    XtWidgetGeometry	curr;
-
-#if 0
-    if(XmeTraitGet(parent, XmQTcontainer) == NULL){
-	/* This widget can't contain children, esp. Captions. */
-	return;
-    }
-#endif
-
-    XtVaGetValues(parent, XmNchildren, &kids,
-		  XmNnumChildren, &numkids, NULL);
-
-    for(i = 0; i < numkids; i++){
-	if(XtClass(kids[i]) == xbaeCaptionWidgetClass){
-	    XtQueryGeometry(captionLabel(kids[i]), NULL, &curr);
-	    if(curr.width > length)
-		length = curr.width;
-	}
-    }
-    for(i = 0; i < numkids; i++){
-	if(XtClass(kids[i]) == xbaeCaptionWidgetClass){
-	    XtVaSetValues(captionLabel(kids[i]), XmNwidth, length, NULL);
-	    /* Hack Alert!! But what else to do when there is no other way? */
-	    /* This makes the Caption notice that the label has changed
-	       size. */
-	    ((CompositeWidgetClass)XtClass(kids[i]))->composite_class.change_managed(kids[i]);
-	}
-    }
-} /* alignCaptions */
-
-/*----------------------------------------------------------------------*/
-
-static Widget
-captionLabel(Widget caption)
-{
-
-    /* This is based on the assumption that the first child of a
-       caption is always the XmLabel widget. */
-    WidgetList	kids;
-
-    XtVaGetValues(caption, XmNchildren, &kids, NULL);
-
-    return kids[0];
-} /* captionLabel */
 
 /*----------------------------------------------------------------------*/
 
@@ -2874,6 +2870,7 @@ set_foldwin_toggles(Boolean set)
 {
     XmToggleButtonSetState(foldwin_[0], set, False);
     XmToggleButtonSetState(foldwin_[1], set, False);
+    check_shadows(foldwin_[1], set? "on": "off");
 } /* set_foldwin_toggles */
 
 /*----------------------------------------------------------------------*/
@@ -3152,7 +3149,7 @@ filerCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     Widget	filer;
 
-    filer = XmCreateFileSelectionDialog(toplevel_, "filer", NULL, 0);
+    filer = XmCreateFileSelectionDialog(parentShell(w), "filer", NULL, 0);
     XtUnmanageChild(XtNameToWidget(filer, "*Help"));
     XtAddCallback(filer, XmNokCallback,
 		  (XtCallbackProc)insert_file, clientdata);
@@ -3181,12 +3178,12 @@ insert_file(Widget w, XtPointer clientdata, XtPointer calldata)
 	stat(name, &stbuf);
 	if(S_ISREG(stbuf.st_mode)){
 	    if((fd = open(name, O_RDONLY)) == -1){
-		alert(toplevel_, "fileerror", 1);
+		alert(parentShell(w), "fileerror", 1);
 	    }
 	    else{
 		buf = mmap(NULL, stbuf.st_size, PROT_READ, MAP_SHARED, fd, 0L);
 		if(buf == (char *)-1){
-		    alert(toplevel_, "mmapfailed", 1);
+		    alert(parentShell(w), "mmapfailed", 1);
 		}
 		else{
 		    XmTextDisableRedisplay(textbox);
@@ -3199,7 +3196,7 @@ insert_file(Widget w, XtPointer clientdata, XtPointer calldata)
 	    }
 	}
 	else{
-	    alert(toplevel_, "notregfile", 1);
+	    alert(parentShell(w), "notregfile", 1);
 	    DEBUG2(("not a regular file.\n"));
 	}
     }

@@ -26,7 +26,7 @@ typedef struct _compose_window {
 
 	struct _compose_window	*next, *prev;
 
-#ifndef MOTIF
+#ifndef HAVE_MOTIF
 	Frame	deliver_frame;
 	Panel	deliver_panel;
 	Textsw	deliver_body_window;
@@ -51,7 +51,7 @@ typedef struct _display_window {
 
 	struct	_display_window	*next, *prev;
 
-#ifndef MOTIF
+#ifndef HAVE_MOTIF
 	Frame	display_frame;
 	Panel	display_panel;
 
@@ -71,7 +71,7 @@ typedef	int	COMPOSE_WINDOW;
 typedef int	DISPLAY_WINDOW;
 #endif
 
-#ifdef MOTIF
+#ifdef HAVE_MOTIF
 typedef struct _mail_header_field {
     String	name;
     Boolean	editable;

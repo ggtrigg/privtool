@@ -22,5 +22,6 @@ void deleteAllMessages(void);
 int  alert(Widget, char *, int);
 void add_to_combo(char *path);
 void detachMW(Boolean);
+void check_shadows(Widget, String);
 
 #endif /* _MOTIF_PROTOS_H */

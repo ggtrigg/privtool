@@ -24,6 +24,10 @@
  *              - Scott Cannon Jr. (scottjr@silver.cal.sdl.usu.edu) 5/30/96
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -66,6 +70,7 @@ LIST	cfeed;
 LIST    template_list;
 LIST    template_list_fname;
 LIST	ignore;
+LIST	retain;
 
 /* These store the group ids when we're running setgid mail */
 
@@ -73,6 +78,21 @@ LIST	ignore;
 gid_t	real_gid;
 gid_t	mail_gid;
 #endif
+
+/* Static prototypes */
+static void	move_to_top(LIST *l, MAILRC *m);
+static MAILRC	*msearch_list(LIST *l, char *s);
+static void	remove_from_list(LIST *l, char *s);
+static void	replace_in_list(LIST *l, char *s, char *v);
+static char	*search_list(LIST *l, char *s);
+static void	add_cfeed(char *s);
+static void	add_nym(char *s);
+static void	add_template(char *s, char *sn);
+static void	default_nym (char *s);
+static void	add_ignore(char *s);
+static void	add_retain(char *s);
+static void	add_alias(char *s);
+static void	read_contents(FILE *fp);
 
 /* Mail spool directory */
 
@@ -112,6 +132,7 @@ static	char	*strip_quotes[] = {
 	"organization",
 	"sigfile",
 	"replyto",
+	"normalheaders",
 	NULL,
 
 };
@@ -204,7 +225,7 @@ add_to_list(LIST *l, MAILRC *m)
 
 /* Move a mailrc entry to the top of the list */
 
-static	move_to_top(LIST *l, MAILRC *m)
+static	void move_to_top(LIST *l, MAILRC *m)
 
 {
 	if (l->start == m) 
@@ -238,6 +259,68 @@ static	MAILRC	*msearch_list(LIST *l, char *s)
 	}
 
 	return NULL;
+}
+
+static void remove_from_list(LIST *l, char *s)
+{
+    MAILRC	*m;
+
+    m = l->start;
+
+    while (m) {
+	if (!strcasecmp (m->name,s)) {
+	    if(m->prev)
+		m->prev->next = m->next;
+	    if(m->next)
+		m->next->prev = m->prev;
+
+	    l->number--;
+	    free_mailrc(m);
+
+	    return;
+	}
+	m = m->next;
+    }
+}
+
+void print_list(LIST *l)
+{
+    MAILRC	*m;
+
+    m = l->start;
+
+    while(m) {
+	fprintf(stderr, "%s: %s\n", m->name, m->value);
+	m = m->next;
+    }
+}
+
+static void replace_in_list(LIST *l, char *s, char *v)
+{
+    MAILRC	*m;
+
+    m = l->start;
+
+    while (m) {
+	if (!strcasecmp (m->name,s)) {
+	    if(m->value) {
+		free(m->value);
+	    }
+	    m->value = strdup(v);
+	    return;
+	}
+	m = m->next;
+    }
+
+    m = new_mailrc();
+
+    if (m) {
+	m->value = strdup(v);
+	m->name = strdup(s);
+	m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
+
+	add_to_list(l, m);
+    }
 }
 
 void	clear_pgpkey (void)
@@ -323,6 +406,21 @@ char	*find_mailrc(char *s)
 	return search_list(&mailrc,s);
 }
 
+void	remove_mailrc(char *s)
+{
+    remove_from_list(&mailrc, s);
+}
+
+void	remove_retain(char *s)
+{
+    remove_from_list(&retain, s);
+}
+
+void	replace_mailrc(char *s, char *v)
+{
+    replace_in_list(&mailrc, s, v);
+}
+
 char	*find_alias(char *s)
 
 {
@@ -339,6 +437,12 @@ int	ignore_line(char *s)
 
 {
 	return (search_list(&ignore,s) != NULL);
+}
+
+int	retain_line(char *s)
+
+{
+	return (search_list(&retain,s) != NULL);
 }
 
 int	kill_user(char *s)
@@ -369,7 +473,7 @@ int	maybe_cfeed(char *s)
 	return (search_list(&cfeed,s) != NULL);
 }
 
-static	void	add_entry(LIST *l, char *s)
+void	add_entry(LIST *l, char *s)
 
 {
 	MAILRC	*m;
@@ -392,7 +496,7 @@ static	void	add_entry(LIST *l, char *s)
 	}
 }
 
-static	add_cfeed(char *s)
+static	void add_cfeed(char *s)
 
 {
 	add_entry(&cfeed,s);
@@ -410,20 +514,20 @@ void	add_killu(char *s)
 	add_entry(&killu_l,s);
 }
 
-static	add_nym (char *s)
+static	void add_nym (char *s)
 
 {
 	add_entry(&nym_list, s);
 }
 
-static  add_template (char *s, char *sn)
+static  void add_template (char *s, char *sn)
 
 {
         add_entry(&template_list, s);
         add_entry(&template_list_fname, sn);
 }
                 
-static	default_nym (char *s)
+static	void default_nym (char *s)
 
 {
 	MAILRC	*m;
@@ -511,7 +615,7 @@ void	add_kills(char *s)
 	add_entry(&kills_l,s);
 }
 
-static	add_ignore(char *s)
+static	void add_ignore(char *s)
 
 {
 	char	*n;
@@ -542,7 +646,37 @@ static	add_ignore(char *s)
 	}
 }
 
-static	add_alias(char *s)
+static	void add_retain(char *s)
+{
+    char	*n;
+
+    n = s;
+    while (*n) {
+
+	/* Ignore spaces or quotes */
+
+	while (*n == '\'' || *n == ' ') 
+	    n++;
+
+	s = n;
+
+	/* Find end */
+
+	while (*n != ' ' && *n && *n != '\'')
+	    n++;
+
+	if (*n) {
+	    *n = 0;
+	    n++;
+	}
+
+	if (n != s) {
+	    add_entry(&retain,s);
+	}
+    }
+}
+
+static	void add_alias(char *s)
 
 {
 	char	*n,*v;
@@ -579,6 +713,7 @@ static	void	read_contents(FILE *fp)
 	int	prefixed;
 	MAILRC	*m;
 
+	rewind(fp);
 	while (!feof(fp)) {
 
 		s = line;
@@ -685,6 +820,8 @@ static	void	read_contents(FILE *fp)
 					add_alias(line+5);
 				if (!strncasecmp(line,"ignore",6))
 					add_ignore(line+6);
+				if (!strncasecmp(line,"retain",6))
+					add_retain(line+6);
 
 				continue;
 			}
@@ -797,8 +934,8 @@ void	read_mailrc(void)
 
 	/* See if we can open it */
 
-	if ((mailrcf = fopen(path,"rt")) == NULL) {
-	  if ((mailrcf = fopen(path2,"rt")) == NULL)
+	if ((mailrcf = fopen(path,"a+")) == NULL) {
+	  if ((mailrcf = fopen(path2,"a+")) == NULL)
 	    {
 	      printf ("Can't read %s nor %s !\n", path, path2);
 	      globRCfile[0] = 0;
@@ -816,6 +953,14 @@ void	read_mailrc(void)
 	/* Read the contents here */
 
 	read_contents(mailrcf);
+
+	/* If retain list is empty add some defaults so that the header
+	   window isn't completely empty. */
+	if( retain.number == 0 ) {
+	    add_entry(&retain, "From");
+	    add_entry(&retain, "Subject");
+	    add_entry(&retain, "Date");
+	}
 
 	/* Then close the file */
 

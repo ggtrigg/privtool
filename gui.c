@@ -36,14 +36,18 @@
  *                30 May 1996
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#ifdef SYSV
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef linux
+#ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
 
@@ -51,7 +55,7 @@
 #include "buffers.h"
 #include "message.h"
 #include "mailrc.h"
-#ifdef MOTIF
+#ifdef HAVE_MOTIF
 #include <X11/Intrinsic.h>
 #endif
 #include "windows.h"
@@ -128,7 +132,7 @@ static	char	*print_args[] =
 	NULL
 };
 
-#ifndef NO_MIXMASTER
+#ifdef MIXEXEC
 static	char	*remail_args[32] =
 {
 	MIXEXEC,
@@ -145,7 +149,7 @@ static	char	*remail_args[32] =
 static	char	mix_path[] = MIXPATH;
 #endif
 
-#ifndef NO_PREMAIL
+#ifdef PREMAILEXEC
 static	char	premail_exec[] = PREMAILEXEC;
 
 static	char	*premail_send_args[3] =
@@ -604,7 +608,7 @@ MESSAGE	*m;
 		clear_busy ();
 	}
 
-#ifndef NO_PREMAIL
+#ifdef PREMAILEXEC
 	/* Deal with mail to a nym */
 
 	else if (m->flags & MESS_NYM) {
@@ -1287,7 +1291,7 @@ char	*expand_filename (char *s)
 	return s;
 }
 
-#ifndef NO_MIXMASTER
+#ifdef MIXEXEC
 static	setup_remail_args(char *addrs, char *subject, char *temp)
 
 {
@@ -1873,7 +1877,7 @@ try_again:
 
 		/* Do we remail or send direct ? */
 
-#ifndef NO_MIXMASTER
+#ifdef MIXEXEC
 		if (deliver_flags & DELIVER_REMAIL) {
 			char	*addr;
 #ifdef MIXMASTER_STDIN
@@ -1983,7 +1987,7 @@ remail_error_exit:
 #endif
 			run_program(mail_args[0],mail_message->message,
 				mail_message->length,mail_args,NULL, NULL);
-#ifndef NO_MIXMASTER
+#ifdef MIXEXEC
 		}
 #endif
 

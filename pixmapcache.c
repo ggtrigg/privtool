@@ -62,17 +62,15 @@ cache_pixmap_from_data(char **data, char *name)
 Pixmap
 get_cached_pixmap(Widget w, char *name, Pixmap *mask)
 {
-    int		i;
+    int		i = 0;
     PMCEntry	*entry;
-    Pixmap	pixmap, masktemp;
-    Pixmap	armap, armask;
-    char	*bgnd, *arm;
+    Pixmap	pixmap;
+    char	*bgnd, *color_save = NULL;
 
     if(first_entry == NULL)
 	return 0;
 
     bgnd = GetResourceString(w, "background", "Background");
-    arm = GetResourceString(w, "armColor", "ArmColor");
 
     for(entry = first_entry; entry != NULL; entry = entry->next){
 	if(!strcmp(name, entry->name)){
@@ -83,7 +81,7 @@ get_cached_pixmap(Widget w, char *name, Pixmap *mask)
 		    /* Set the background color (defined by color name "None"
 		       to the background color of the widget. */
 		    if( !strcmp(entry->image->colorTable[i].c_color, "None")){
-			free(entry->image->colorTable[i].c_color);
+			color_save = entry->image->colorTable[i].c_color;
 			entry->image->colorTable[i].c_color = strdup(bgnd);
 			break;
 		    }
@@ -96,6 +94,14 @@ get_cached_pixmap(Widget w, char *name, Pixmap *mask)
 					&pixmap,
 					mask,
 					NULL);
+	    if(mask == NULL) {
+		if(i < entry->image->ncolors ) {
+		    /* Set the color back to "None" for future use. */
+		    free(entry->image->colorTable[i].c_color);
+		    entry->image->colorTable[i].c_color = color_save;
+		}
+	    }
+
 	    return pixmap;
 	}
     }

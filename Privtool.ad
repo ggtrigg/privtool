@@ -20,6 +20,7 @@
 *props.XmNotebook.backPageBackground:		lightsteelblue2
 *props.XmNotebook*XbaeMatrix.textBackground:	white smoke
 *XmToggleButton.selectColor:			goldenrod
+*hdrpage.?.hdrgrid.retainColor:			green3
 
 *.validCursorForeground:			forestgreen
 *.invalidCursorForeground:			red
@@ -127,12 +128,12 @@
 !
 *.menu_bar*next.labelString:		Next
 *.menu_bar*next.mnemonic:		N
-*.menu_bar*next.accelerator:		Ctrl<Key>n
-*.menu_bar*next.acceleratorText:	Ctrl-N
+*.menu_bar*next.accelerator:		Alt<Key>n
+*.menu_bar*next.acceleratorText:	Alt-N
 *.menu_bar*prev.labelString:		Previous
 *.menu_bar*prev.mnemonic:		P
-*.menu_bar*prev.accelerator:		Ctrl<Key>p
-*.menu_bar*prev.acceleratorText:	Ctrl-P
+*.menu_bar*prev.accelerator:		Alt<Key>p
+*.menu_bar*prev.acceleratorText:	Alt-P
 *.menu_bar*sortby.labelString:		Sort By
 *.menu_bar*sortby.sensitive:		true
 *.menu_bar*sortby.mnemonic:		S
@@ -177,22 +178,38 @@
 !
 *.menu_bar*fold_pane.copy.labelString:	Copy to folder
 *.menu_bar*fold_pane.copy.mnemonic:	C
+*.menu_bar*fold_pane.copy.accelerator:	Alt<Key>c
+*.menu_bar*fold_pane.copy.acceleratorText: Alt-C
 *.menu_bar*fold_pane.move.labelString:	Move to folder
 *.menu_bar*fold_pane.move.mnemonic:	M
+*.menu_bar*fold_pane.move.accelerator:	Alt<Key>m
+*.menu_bar*fold_pane.move.acceleratorText: Alt-M
 *.menu_bar*fold_pane.load.labelString:	Load folder
 *.menu_bar*fold_pane.load.mnemonic:	L
+*.menu_bar*fold_pane.load.accelerator:	Alt<Key>l
+*.menu_bar*fold_pane.load.acceleratorText: Alt-L
+*.menu_bar*fold_pane.load-in.labelString:	Load In-Box
+*.menu_bar*fold_pane.load-in.mnemonic:	I
+*.menu_bar*fold_pane.load-in.accelerator:	Ctrl<Key>l
+*.menu_bar*fold_pane.load-in.acceleratorText: Ctrl-L
 
 !
 ! Compose menu items
 !
 *.menu_bar*new.labelString:		New...
 *.menu_bar*new.mnemonic:		N
+*.menu_bar*new.accelerator:		Alt<Key>n
+*.menu_bar*new.acceleratorText:		Alt-N
 *.menu_bar*reply.labelString:		Reply...
 *.menu_bar*reply.mnemonic:		R
 *.menu_bar*forward.labelString:		Forward...
 *.menu_bar*forward.mnemonic:		F
+*.menu_bar*forward.accelerator:		Alt<Key>f
+*.menu_bar*forward.acceleratorText:	Alt-F
 *.menu_bar*resend.labelString:		Resend...
 *.menu_bar*resend.mnemonic:		s
+*.menu_bar*resend.accelerator:		Alt<Key>r
+*.menu_bar*resend.acceleratorText:	Alt-R
 
 !
 ! Reply sub-menu items
@@ -492,6 +509,7 @@ Error mmapping file.
 Not a regular file.
 *.notregfile_alert.symbolPixmap:	xm_warning
 *.notregfile_alert_popup.title:		Alert
+*notregfile_alert.okLabelString:	OK
 
 *.noprops_alert.messageString:	\
 Can't write to .privrc file.
@@ -516,7 +534,10 @@ Sending an empty message body.
 *.emptysend_alert_popup.title:		Alert
 
 *.fullcan_alert.messageString:		\
-Cancelling a non-empty message body.
+You are cancelling a non-empty message body.\n\
+Is this what you want to do?
+*.fullcan_alert.okLabelString:		Yes
+*.fullcan_alert.cancelLabelString:	No
 *.fullcan_alert.symbolPixmap:		xm_warning
 *.fullcan_alert_popup.title:		Alert
 
@@ -617,6 +638,7 @@ Cancelling a non-empty message body.
 
 *props.autoUnmanage:				False
 *props.apply.labelString:			Apply
+*props.XmNotebook.majorTabSpacing:		1
 *props.XmNotebook*XbaeMatrix.allowColumnResize:	True
 
 *props.XmNotebook.orientation:			vertical
@@ -624,10 +646,11 @@ Cancelling a non-empty message body.
 *props.XmNotebook.backPagePlacement:		top_right
 *props.XmNotebook.backPageSize:			1
 
-*props.XmNotebook.guibtn.labelString:		User Interface
+*props.XmNotebook.guibtn.labelString:		Mailer
 *props.XmNotebook.aliasbtn.labelString:		Alias
-*props.XmNotebook.mailbtn.labelString:		Mail Filing
+*props.XmNotebook.compbtn.labelString:		Compose
 *props.XmNotebook.pgpbtn.labelString:		Privtool
+*props.XmNotebook.hdrbtn.labelString:		Mail Headers
 *props.XmNotebook*XbaeMatrix.gridType:		grid_shadow_in
 *props.XmNotebook*XmPushButton.alignment:	alignment_center
 
@@ -635,19 +658,32 @@ Cancelling a non-empty message body.
 ! GUI/Mail Filing page
 !
 *props.XmNotebook*dircap.labelString:		Mail File Directory
+*props.XmNotebook*prncap.labelString:		Print Command
+*props.XmNotebook*dmncap.labelString:		Domain
+*props.XmNotebook*idntcap.labelString:		Indent Prefix
+*props.XmNotebook*orgcap.labelString:		Organization
+*props.XmNotebook*rcdcap.labelString:		Log Folder Name
+*props.XmNotebook*rplcap.labelString:		Reply-To Address
 *props.XmNotebook*menucap.labelString:		Initial Mail Menu
 *props.XmNotebook*menucap.labelPosition:	top
 *props.XmNotebook*menucap.labelAlignment:	left
 *props.XmNotebook*menugrid.columns:		1
 *props.XmNotebook*menugrid.columnWidths:	20
-*props.XmNotebook*menugrid.rows:		10
-*props.XmNotebook*menugrid.visibleRows:		10
+*props.XmNotebook*menugrid.rows:		7
+*props.XmNotebook*menugrid.visibleRows:		7
 *props.XmNotebook*menuctrl.orientation:		horizontal
+*props*comppage*frame.shadowType:		shadow_etched_in
 *props*guipage*frame.shadowType:		shadow_etched_in
 *props*guipage.menuctrl.entryVerticalAlignment:	alignment_baseline_top
 *props*detached.labelString:			Detached Message Window
-*props*guipage*flabel.frameChildType:		frame_title_child
-*props*guipage*flabel.labelString:		Window Layout
+*props*sign.labelString:			Sign Outgoing Mail
+*props*encrypt.labelString:			Encrypt Outgoing Mail
+*props*remail.labelString:			Use Remailer
+*props*log.labelString:				Log Outgoing Mail
+*props*lograw.labelString:			Log As Ascii
+*props*badbeep.labelString:			Beep on Bad Signature
+*props*flabel.frameChildType:			frame_title_child
+*props*flabel.labelString:			Options
 *props*btnctrl.marginHeight:			15
 
 !
@@ -706,6 +742,21 @@ Cancelling a non-empty message body.
 *props.XmNotebook*security.minimumValue:	1
 *props.XmNotebook*security.maximumValue:	4
 *props*keyctrl.btnctrl.marginHeight:		41
+
+!
+! Mail headers page
+!
+*hdrpage.hdrcap.labelString:			Mail Headers Normally Shown
+*hdrpage.hdrcap.labelPosition:			top
+*hdrpage.hdrcap.labelAlignment:			toporleft
+*hdrpage.?.hdrgrid.boldLabels:			True
+*hdrpage.?.hdrgrid.columns:			2
+*hdrpage.?.hdrgrid.columnLabels:		Header, Shown
+*hdrpage.?.hdrgrid.columnWidths:		30, 20
+*hdrpage.?.hdrgrid.fixedColumns:		1
+*hdrpage.?.hdrgrid.visibleRows:			13
+*hdrpage.?.hdrgrid.translations: #override \n\
+:<Btn1Down>:			SelectCell()\n
 
 !
 ! Modern toolbar button style translations.
