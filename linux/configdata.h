@@ -99,7 +99,7 @@ typedef char           *CSTRING;
 #define DONT_HAVE_SETSID
     /* Does your (struct tm) have a tm_gmtoff field? */
     /* =()<#define @<HAVE_TM_GMTOFF>@_HAVE_TM_GMTOFF>()= */
-#define DONT_HAVE_TM_GMTOFF
+#define DO_HAVE_TM_GMTOFF
     /* Does your (struct stat) have a st_blksize field? */
     /* =()<#define @<HAVE_ST_BLKSIZE>@_HAVE_ST_BLKSIZE>()= */
 #define DO_HAVE_ST_BLKSIZE

@@ -26,14 +26,21 @@ FLOPPY_OBJECT =
 FLOPPY_FLAGS = 
 FLOP_FILE =
 
+#
+# You may need to use the first line for Solaris.
+#
+
+#MAIL_SPOOL_DIR=-DMAIL_SPOOL_DIR=\"/var/mail/\"
+MAIL_SPOOL_DIR=
+
 OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
 
 #
 # Use the following lines if you don't have PGP Tools.
 #
-PGPLDFLAGS=
-PGPTOOLDIR=
+#PGPLDFLAGS=
+#PGPTOOLDIR=
 
 #
 # Use the following lines if you do have PGP Tools, and set PGPTOOLDIR
@@ -41,14 +48,14 @@ PGPTOOLDIR=
 # may want to simply create a link from this directory to the PGP Tools
 # directory.
 #
-#PGPTOOLDIR=./pgptools
-#PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+PGPTOOLDIR=./pgptools
+PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
 
 #
 # Set the following to the path for your PGP executable - can be blank
 # if using PGP Tools
 #
-PGPEXEC=/usr/local/bin/pgp
+PGPEXEC=$(HOME)/bin/pgp
 
 #
 # Set the following to the path for your Mixmaster executable, and
@@ -75,8 +82,7 @@ PGPVERSION=2.6
 #OPENWINLDFLAGS=
 #OPENWINCPPFLAGS=
 
-OPENWINHOME=/cdrom/usr/openwin
-OPENWINLDFLAGS=-L$(OPENWINHOME)/lib -L/usr/X11R6/lib
+OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
 
 #
@@ -84,7 +90,7 @@ OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
 # second definition.
 #
 
-LDFLAGS= $(OPENWINLDFLAGS) /cdrom/usr/openwin/lib/libxview.a /cdrom/usr/openwin/lib/libolgx.a -lX11 -lm \
+LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
 	$(PGPLDFLAGS)
 
 #LDFLAGS=$(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm $(PGPLDFLAGS) \
@@ -103,16 +109,16 @@ LDFLAGS= $(OPENWINLDFLAGS) /cdrom/usr/openwin/lib/libxview.a /cdrom/usr/openwin/
 # pubring.pgp.
 #
 
-#PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
+PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
 	-DNO_ASM -DHIGHFIRST -DIDEA32 -DUSE_AUDIO
-PGPTOOLS=
+#PGPTOOLS=
 
 #
 # Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
 # default fixed width font.
 #
 #DEFAULT_FONT=-DFIXED_WIDTH_FONT=FONT_FAMILY_COUR
-DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
+#DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
 
 #
 # Define XResources below to override the default ".Xdefaults"
@@ -141,11 +147,11 @@ DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
 #
 
 #DEBUG=-g
-DEBUG=-O6
+DEBUG=-O
 
 CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
-	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
-	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT -DSTART_OPEN
+	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
+	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON $(MAIL_SPOOL_DIR)
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -158,7 +164,7 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 #
 
 #CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
-CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS) -Ilinux
+CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
 
 #
 # Code is written for cc, but should work with gcc. However, I'm wary
@@ -167,7 +173,7 @@ CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS) -Ilinux
 #
 
 #CC=gcc
-CC=cc -DNON_ANSI -mpentium -DSYSV
+CC=cc -DNON_ANSI
 
 # Or, use acc for Solaris 2.x
 #CC=acc -DSYSV
@@ -177,8 +183,8 @@ CC=cc -DNON_ANSI -mpentium -DSYSV
 
 # If using Linux, use the first line, otherwise use the second.
 
-LINUX_OBJ = linux/gettime.o linux/parsedate.o
-#LINUX_OBJ = 
+#LINUX_OBJ = linux/gettime.o linux/parsedate.o
+LINUX_OBJ = 
 
 #
 # Following provides automatic dependencies on SunOS

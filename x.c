@@ -1,7 +1,8 @@
 /*
- *	@(#)x.c	1.78 6/11/96
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	(c) Copyright 1993-1995 by Mark Grant, and by other
+ *	(c) Copyright 1993-1996 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -105,6 +106,10 @@
 #define XRESOURCES ".Xdefaults"
 #endif
 
+#ifdef	USE_NEW_XBM
+#define	USE_XBM
+#endif
+
         Frame	main_frame;
 int	font_size;
         Panel_item	mail_file_button;
@@ -114,7 +119,7 @@ static  char	glob_isMainMenu = 0;
 static	Panel	top_panel,alias_panel,panel2,panel3,panel4;
 static	Panel	display_panel;
 static	Canvas	list_canvas;
-static	Icon	icon,newmail_icon;
+static	Icon	icon,newmail_icon,nomail_icon;
 
 static	Panel_item	file_name_item;
 static	Panel_item	nym_item;
@@ -122,9 +127,13 @@ static	Panel_item	addkey_item;
 static	Scrollbar	v_scroll;
 static	Xv_font		list_font, default_font;
 #ifdef USE_XBM
-static	Pixmap		icon_pm, newmail_icon_pm, mask_icon_pm;
+static	Pixmap		privtool_pm, privtool_new_pm, privtool_empty_pm;
+static	Pixmap		privtool_mask_pm, privtool_new_mask_pm
+			,privtool_empty_mask_pm;
 #endif
-static	Server_image	icon_image, newmail_icon_image, icon_image_mask;
+static	Server_image	icon_image, icon_image_mask;
+static	Server_image	newmail_icon_image, newmail_icon_image_mask;
+static	Server_image	nomail_icon_image, nomail_icon_image_mask;
 static	Xv_window	list_window;
 
 static	COMPOSE_WINDOW	*compose_first = NULL;
@@ -135,17 +144,26 @@ static	DISPLAY_WINDOW	*display_last = NULL;
 
 #define LIST_DISPLACEMENT	16
 
-#ifdef USE_XBM
+#ifdef	USE_XBM
 
-#include "privtool.xbm"
-#include "privtool-new.xbm"
-#include "privtool-mask.xbm"
+#ifdef	USE_NEW_XBM
+#include "images/privtool_done.xbm"
+#include "images/privtool_done_mask.xbm"
+#include "images/privtool_new.xbm"
+#include "images/privtool_new_mask.xbm"
+#include "images/privtool_empty.xbm"
+#include "images/privtool_empty_mask.xbm"
+#else	/* USE_NEW_XBM */
+#include "images/privtool.xbm"
+#include "images/privtool-new.xbm"
+#include "images/privtool-mask.xbm"
+#endif	/* USE_NEW_XBM */
 
 #else /* USE_XBM */
 
 static unsigned short icon_bits[] = {
 #ifdef NSA_ICON
-#include "privtool.icon"
+#include "images/privtool.icon"
 #else
 #include <images/mailseen.icon>
 #endif
@@ -153,15 +171,23 @@ static unsigned short icon_bits[] = {
 
 static unsigned short	newmail_icon_bits[] = {
 #ifdef NSA_ICON
-#include "privtool-new.icon"
+#include "images/privtool-new.icon"
 #else
 #include <images/mail.icon>
 #endif
 };
 
+static unsigned short nomail_icon_bits[] = {
+#ifdef NSA_ICON
+#include "images/privtool.icon"
+#else
+#include <images/mailseen.icon>
+#endif
+};
+
 #ifdef NSA_ICON
 static unsigned short	icon_bits_mask[] = {
-#include "privtool-mask.icon"
+#include "images/privtool-mask.icon"
 };
 #endif
 #endif /* USE_XBM */
@@ -503,6 +529,7 @@ void	clear_main_footer()
 
 #define NORMAL_ICON	0
 #define NEWMAIL_ICON	1
+#define NOMAIL_ICON	2
 
 static	int	icon_type;
 
@@ -511,6 +538,12 @@ static	int	icon_type;
 void	show_newmail_icon()
 
 {
+	Xv_Server Privtool_Server;
+	Xv_Screen Privtool_Screen;
+	Privtool_Screen = (Xv_Screen) xv_get (main_frame, XV_SCREEN); 
+	Privtool_Server = (Xv_Server) xv_get (Privtool_Screen, SCREEN_SERVER);
+/*	xv_set (Privtool_Server, SERVER_SYNC_AND_PROCESS_EVENTS, NULL); */
+
 	if (newmail_icon && icon_type != NEWMAIL_ICON) {
 
 		/* Update the icon image */
@@ -527,18 +560,28 @@ void	show_newmail_icon()
 			xv_set (main_frame,
 				WIN_ALARM, 
 				NULL);
-#ifndef USE_XBM
-			xv_set (icon,
-				ICON_IMAGE, icon_image,
-				NULL);
-#else
+
 			xv_set (icon,
 				ICON_IMAGE, newmail_icon_image,
-				ICON_MASK_IMAGE, icon_image_mask,
+#ifdef USE_XBM
+				ICON_MASK_IMAGE, newmail_icon_image_mask,
 				ICON_TRANSPARENT, TRUE,
-				NULL);
 #endif
+				NULL);
+		} else {
+			xv_set (main_frame,
+				WIN_ALARM, 
+				NULL);
+
+			xv_set (icon,
+				ICON_IMAGE, newmail_icon_image,
+#ifdef USE_XBM
+				ICON_MASK_IMAGE, newmail_icon_image_mask,
+				ICON_TRANSPARENT, TRUE,
+#endif
+				NULL);
 		}
+
 
 		icon_type = NEWMAIL_ICON;
 	}
@@ -549,6 +592,12 @@ void	show_newmail_icon()
 void	show_normal_icon()
 
 {
+	Xv_Server Privtool_Server;
+	Xv_Screen Privtool_Screen;
+	Privtool_Screen = (Xv_Screen) xv_get (main_frame, XV_SCREEN); 
+	Privtool_Server = (Xv_Server) xv_get (Privtool_Screen, SCREEN_SERVER);
+/*	xv_set (Privtool_Server, SERVER_SYNC_AND_PROCESS_EVENTS, NULL); */
+
 	if (icon && icon_type != NORMAL_ICON) {
 
 		/* Update the icon image */
@@ -565,6 +614,15 @@ void	show_normal_icon()
 			xv_set (icon,
 				ICON_IMAGE, icon_image,
 #ifdef USE_XBM
+				ICON_MASK_IMAGE, icon_image_mask,
+				ICON_TRANSPARENT, TRUE,
+#endif
+				NULL);
+		} else {
+			xv_set (icon,
+				ICON_IMAGE, icon_image,
+#ifdef USE_XBM
+				ICON_MASK_IMAGE, icon_image_mask,
 				ICON_TRANSPARENT, TRUE,
 #endif
 				NULL);
@@ -573,6 +631,52 @@ void	show_normal_icon()
 		icon_type = NORMAL_ICON;
 	}
 }
+
+/* Display the icon for no mail at all*/
+
+void    show_nomail_icon()
+                                
+{
+	Xv_Server Privtool_Server;
+	Xv_Screen Privtool_Screen;
+	Privtool_Screen = (Xv_Screen) xv_get (main_frame, XV_SCREEN); 
+	Privtool_Server = (Xv_Server) xv_get (Privtool_Screen, SCREEN_SERVER);
+/*	xv_set (Privtool_Server, SERVER_SYNC_AND_PROCESS_EVENTS, NULL); */
+
+	if (icon && icon_type != NOMAIL_ICON) {
+
+		/* Update the icon image */
+                                
+#ifndef USE_XBM
+		xv_set (icon_image,
+			SERVER_IMAGE_BITS, nomail_icon_bits,
+			NULL);
+#endif
+
+		/* Force a repaint */   
+
+		if (xv_get (main_frame, FRAME_CLOSED)) {
+			xv_set (icon,
+				ICON_IMAGE, nomail_icon_image,
+#ifdef USE_XBM
+				ICON_MASK_IMAGE, nomail_icon_image_mask,
+				ICON_TRANSPARENT, TRUE,
+#endif                          
+				NULL);
+		}  else {
+			xv_set (icon,
+				ICON_IMAGE, nomail_icon_image,
+#ifdef USE_XBM
+				ICON_MASK_IMAGE, nomail_icon_image_mask,
+				ICON_TRANSPARENT, TRUE,
+#endif                          
+				NULL);
+		}
+
+		icon_type = NOMAIL_ICON;
+	}
+}
+
 
 /* Close the passphrase window */
 
@@ -975,6 +1079,9 @@ void	update_message_list()
 	o = oldh / LIST_DISPLACEMENT;
 	h = messages.number;
 
+	if (messages.number == 0)
+	show_nomail_icon();
+
 	w = xv_get (list_canvas, XV_WIDTH);
 	if (dpy)
 		XClearArea (dpy, map_win, 0, newh, w, oldh - newh, FALSE);
@@ -994,6 +1101,7 @@ void	update_message_list()
 	if (messages.new) {
 		sprintf (b, ", %d new", messages.new);
 		strcat (s, b);
+		show_newmail_icon();
 	}
 
 	if (messages.unread) {
@@ -1371,6 +1479,7 @@ COMPOSE_WINDOW	*x_setup_send_window()
 				NULL,
 			FRAME_LABEL, "Compose Window",
 			FRAME_NO_CONFIRM, FALSE,
+			XV_SHOW, FALSE,
 			NULL);
 
 		templates_menu = (Menu) xv_create(XV_NULL, MENU, NULL) ;
@@ -1385,7 +1494,7 @@ COMPOSE_WINDOW	*x_setup_send_window()
 		        xv_set (templates_menu, MENU_APPEND_ITEM, mi_temp, NULL);
 		}
 	
-		button_menu = (Menu) xv_create(NULL, MENU,
+		button_menu = (Menu) xv_create(XV_NULL, MENU,
 			MENU_ITEM,
 				MENU_STRING, "Orig Mail..",
 				MENU_NOTIFY_PROC, reply_to_sender_local,
@@ -1593,15 +1702,47 @@ COMPOSE_WINDOW	*x_setup_send_window()
 
 	textsw_erase(w->deliver_body_window,0,TEXTSW_INFINITY);
 
-	/* All set ? Ok, show the frame ! */
-
-	show_deliver_frame(w);
-
 	/* And mark it as in use */
 
 	w->in_use = TRUE;
 
 	return	w;
+}
+
+/* Append the signature file to the compose window */
+
+static	void	add_signature (w)
+
+COMPOSE_WINDOW	*w;
+
+{
+	FILE	*sig_fp;
+	char	*sig_name;
+	char	*home;
+	char	file[MAXPATHLEN];
+	char	buf[BUFSIZE];
+	int	l;
+	
+	if (!(sig_name = find_mailrc ("sigfile")) || !*sig_name)
+		return;
+  	home = getenv("HOME");
+	if (home && (*sig_name != '/')) 
+		sprintf(file, "%s/%s", home, sig_name);
+	else
+		strcpy (file, sig_name);
+
+	sig_fp = fopen (file, "rt");
+	if (!sig_fp)
+		return;
+
+	while (!feof (sig_fp)) {
+		l = fread (buf, 1, BUFSIZE, sig_fp);
+		if (l) 
+			textsw_insert(w->deliver_body_window,
+				buf, l);
+	}
+
+	fclose (sig_fp);
 }
 
 /* Set up a compose window */
@@ -1629,11 +1770,14 @@ static	void	send_message()
 		xv_set (w->send_bcc_item,
 			PANEL_VALUE,"",
 			NULL);
+
+	add_signature (w);
+	show_deliver_frame(w);
 }
 
 /* Reply to the sender without including the message */
 
-COMPOSE_WINDOW	*reply_sender_no_include ()
+COMPOSE_WINDOW	*reply_sender_no_include_inner ()
 
 {
 	char	subject[256];
@@ -1683,6 +1827,16 @@ COMPOSE_WINDOW	*reply_sender_no_include ()
 	return (w) ;
 }
 
+void	reply_sender_no_include ()
+
+{
+	COMPOSE_WINDOW	*w;
+
+	w = reply_sender_no_include_inner();
+	add_signature (w);
+	show_deliver_frame(w);
+}
+
 /* Reply to all without including the message */
 
 static	reply_to_all_no_include ()
@@ -1693,7 +1847,7 @@ static	reply_to_all_no_include ()
 	if (!last_message_read)
 		return;
 
-	w=reply_sender_no_include() ;
+	w=reply_sender_no_include_inner ();
 	
 	if (last_message_read->to)     /* to, cc disjunct, put together */ 
 		strcpy(cc,last_message_read->to);
@@ -1729,6 +1883,9 @@ static	reply_to_all_no_include ()
 			PANEL_VALUE, cc,
 			NULL);
 			}
+
+	add_signature (w);
+	show_deliver_frame (w);
 }
 
 static	char	begin_forward[] = "-- Begin forwarded message ---\n";
@@ -1799,9 +1956,13 @@ static	void	forward_message ()
 		PANEL_VALUE,"",
 		NULL);
 
+	add_signature (w);
+
 	xv_set(w->deliver_body_window,
 		TEXTSW_INSERTION_POINT,0,
 		TEXTSW_FIRST_LINE,0,NULL);
+
+	show_deliver_frame(w);
 }
 
 /* Resend a message */
@@ -1872,9 +2033,13 @@ static	void	resend_proc ()
 		(char *)b->message,
 		b->length);
 
+	add_signature (w);
+
 	xv_set(w->deliver_body_window,
 		TEXTSW_INSERTION_POINT,0,
 		TEXTSW_FIRST_LINE,0,NULL);
+
+	show_deliver_frame(w);
 }
 
 /* Reply_to sender and include message */
@@ -1962,6 +2127,8 @@ COMPOSE_WINDOW *reply_to_sender()
 		TEXTSW_INSERTION_POINT,0,
 		TEXTSW_FIRST_LINE,0,NULL);
 
+	show_deliver_frame(w);
+
 	return (w) ;
 }
 
@@ -2011,6 +2178,8 @@ static reply_to_all ()
 			PANEL_VALUE, cc,
 			NULL);
 			}
+	add_signature (w);
+	show_deliver_frame (w);
 }
 
 void	beep_display_window ()
@@ -3131,7 +3300,10 @@ Notify_arg	arg;
 	switch (event_action(event)) {
 
 		case ACTION_CLOSE:
-		show_normal_icon();
+		if (messages.number == 0)
+			show_nomail_icon();
+		else
+			show_normal_icon();
 		break;
 		
 	}
@@ -3168,7 +3340,7 @@ int	level;
 	xv_init(XV_INIT_ARGS, argc, argv, NULL);
 	find_xresources();
 
-	main_frame = (Frame) xv_create(NULL, FRAME,
+	main_frame = (Frame) xv_create(XV_NULL, FRAME,
 		XV_HEIGHT, 320,
 		XV_WIDTH, 800,
 		FRAME_LABEL, app_name,
@@ -3444,7 +3616,7 @@ int	level;
 		PANEL_ITEM_MENU, button_menu,
 		NULL);
 
-	button_menu = (Menu) xv_create(NULL, MENU,
+	button_menu = (Menu) xv_create(XV_NULL, MENU,
 		MENU_ITEM,
 			MENU_STRING, "To Sender",
 			MENU_NOTIFY_PROC, reply_sender_no_include,
@@ -3636,46 +3808,158 @@ int	level;
 		NULL);
 
 #ifndef USE_XBM
-	newmail_icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
-		XV_WIDTH, 64,
-		XV_HEIGHT, 64,
-		SERVER_IMAGE_BITS, newmail_icon_bits,
-		NULL);
-
 	icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
 		XV_WIDTH, 64,
 		XV_HEIGHT, 64,
 		SERVER_IMAGE_BITS, icon_bits,
 		NULL);
 
+	newmail_icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+		XV_WIDTH, 64,
+		XV_HEIGHT, 64,
+		SERVER_IMAGE_BITS, newmail_icon_bits,
+		NULL);
+
+	nomail_icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+		XV_WIDTH, 64,
+		XV_HEIGHT, 64,
+		SERVER_IMAGE_BITS, nomail_icon_bits,
+		NULL);
+
+
 #ifdef NSA_ICON
-	icon_image_mask = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+	icon_image_mask = (Server_image) xv_create(XV_NULL,
+		SERVER_IMAGE,
 		XV_WIDTH, 64,
 		XV_HEIGHT, 64,
 		SERVER_IMAGE_BITS, icon_bits_mask,
 		NULL);
+
+	newmail_icon_image_mask = (Server_image) xv_create(XV_NULL,
+		SERVER_IMAGE,
+		XV_WIDTH, 64,
+		XV_HEIGHT, 64,
+		SERVER_IMAGE_BITS, icon_bits_mask,
+		NULL);
+
+	nomail_icon_image_mask = (Server_image) xv_create(XV_NULL,
+		SERVER_IMAGE,
+		XV_WIDTH, 64,
+		XV_HEIGHT, 64,
+		SERVER_IMAGE_BITS, icon_bits_mask,
+		NULL);
+
 #endif
 #else /* USE_XBM */
-	icon_pm = XCreatePixmapFromBitmapData(dpy,
-			root_win, icon_bits, icon_width, icon_height,
+#ifdef USE_NEW_XBM
+	privtool_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			privtool_done_bits, 
+			privtool_done_width,
+			privtool_done_height,
 			1, 0, 1);
 
-	newmail_icon_pm = XCreatePixmapFromBitmapData(dpy,
-			root_win, newmail_icon_bits, newmail_icon_width,
-			newmail_icon_height, 1, 0, 1);
+	privtool_mask_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			privtool_done_mask_bits, 
+			privtool_done_mask_width,
+			privtool_done_mask_height,
+			1, 0, 1);
 
-	mask_icon_pm = XCreatePixmapFromBitmapData(dpy,
-			root_win, mask_icon_bits, mask_icon_width,
-			mask_icon_height, 1, 0, 1);
+	privtool_new_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			privtool_new_bits,
+			privtool_new_width, 
+			privtool_new_height,
+			1, 0, 1);
 
-        icon_image = (Server_image) xv_create(NULL,SERVER_IMAGE,
-				SERVER_IMAGE_PIXMAP, icon_pm, NULL);
- 
-	newmail_icon_image = (Server_image) xv_create(NULL,SERVER_IMAGE,
-				SERVER_IMAGE_PIXMAP, newmail_icon_pm, NULL);
+	privtool_new_mask_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			privtool_new_mask_bits,
+			privtool_new_mask_width, 
+			privtool_new_mask_height,
+			1, 0, 1);
 
-	icon_image_mask = (Server_image) xv_create(NULL,SERVER_IMAGE,
-				SERVER_IMAGE_PIXMAP, mask_icon_pm,
+	privtool_empty_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			privtool_empty_bits,
+			privtool_empty_width,
+			privtool_empty_height,
+			1, 0, 1);
+
+	privtool_empty_mask_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			privtool_empty_mask_bits,
+			privtool_empty_mask_width,
+			privtool_empty_mask_height,
+			1, 0, 1);
+#else /* USE_NEW_XBM */
+	privtool_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			icon_bits, 
+			icon_width,
+			icon_height,
+			1, 0, 1);
+
+	privtool_mask_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			mask_icon_bits, 
+			mask_icon_width,
+			mask_icon_height,
+			1, 0, 1);
+
+	privtool_new_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			newmail_icon_bits,
+			newmail_icon_width, 
+			newmail_icon_height,
+			1, 0, 1);
+
+	privtool_new_mask_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			mask_icon_bits, 
+			mask_icon_width,
+			mask_icon_height,
+			1, 0, 1);
+
+	privtool_empty_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			icon_bits,
+			icon_width,
+			icon_height,
+			1, 0, 1);
+
+	privtool_empty_mask_pm = XCreatePixmapFromBitmapData(dpy,
+			root_win,
+			mask_icon_bits, 
+			mask_icon_width,
+			mask_icon_height,
+			1, 0, 1);
+
+#endif /* USE_NEW_XBM */
+
+	icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+				SERVER_IMAGE_PIXMAP, privtool_pm,
+				NULL);
+
+	icon_image_mask = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+				SERVER_IMAGE_PIXMAP, privtool_mask_pm,
+				NULL);
+
+	newmail_icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+				SERVER_IMAGE_PIXMAP, privtool_new_pm,
+				NULL);
+
+	newmail_icon_image_mask = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+				SERVER_IMAGE_PIXMAP, privtool_new_mask_pm,
+				NULL);
+
+	nomail_icon_image = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+				SERVER_IMAGE_PIXMAP, privtool_empty_pm, 
+				NULL);
+
+	nomail_icon_image_mask = (Server_image) xv_create(XV_NULL,SERVER_IMAGE,
+				SERVER_IMAGE_PIXMAP, privtool_empty_mask_pm,
 				NULL);
 
 #endif /* USE_XBM */
@@ -3684,13 +3968,33 @@ int	level;
 		ICON_IMAGE, icon_image,
 #ifdef NSA_ICON
 		ICON_MASK_IMAGE, icon_image_mask,
-#endif
 		ICON_TRANSPARENT, TRUE,
+#elif USE_XBM
+		ICON_MASK_IMAGE, icon_image_mask,
+		ICON_TRANSPARENT, TRUE,
+#endif
 		NULL);
 
 	newmail_icon = (Icon) xv_create(main_frame, ICON,
 		ICON_IMAGE, newmail_icon_image,
+#ifdef NSA_ICON
+		ICON_MASK_IMAGE, newmail_icon_image_mask,
 		ICON_TRANSPARENT, TRUE,
+#elif USE_XBM
+		ICON_MASK_IMAGE, newmail_icon_image_mask,
+		ICON_TRANSPARENT, TRUE,
+#endif 
+		NULL);
+
+	nomail_icon = (Icon) xv_create(main_frame, ICON,
+		ICON_IMAGE, nomail_icon_image,
+#ifdef NSA_ICON
+		ICON_MASK_IMAGE, nomail_icon_image_mask,
+		ICON_TRANSPARENT, TRUE,
+#elif USE_XBM
+		ICON_MASK_IMAGE, nomail_icon_image_mask,
+		ICON_TRANSPARENT, TRUE,
+#endif                  
 		NULL);
 
 	xv_set(main_frame,
@@ -3985,12 +4289,12 @@ static void set_xresources()
 	if (compose_first)
 		f = compose_first->deliver_frame;
 	else
-		f = NULL;
+		f = (Frame) XV_NULL;
 
 	if (display_first)
 		df = display_first->display_frame;
 	else
-		df = NULL;
+		df = (Frame) XV_NULL;
 
 	defaults_save_rect("ListWindow", main_frame);
 	defaults_save_rect("MessageWindow", df);

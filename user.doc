@@ -213,6 +213,17 @@ You may also specify the reply-address to use in the Reply-To: line of
 outgoing messages. Most mail programs will detect this line and use it
 as the destination for replies.
 
+set sigfile='sig-file'
+
+This specifies the name of the signature file to use. If specified then the
+file will be appended to every message that you send. The filename is assumed
+to be relative to the user's home directory unless it begins with a '/'.
+
+set organization='organization'
+
+This specifies the organization name to include in the header of outgoing
+messages, if any.
+
 5. Keyring access
 -----------------
 

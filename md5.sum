@@ -10,61 +10,65 @@ the md5sum program supplied with PGP.
 	Mark (mark@unicorn,com)
 
 8ca43cbc842c2336e835926c2166c28b  COPYING
-2124f134a0b87396b2b615d22834ed06  Credits
+59bf0254286e3b1f318892ad24e76102  Credits
 85868aa330a2a64b17a5960869c75dbe  Mailrc.test
-9bb4f3141d080fad2fd7352e5f5b0251  Makefile
-c1dd624fe2bf1d164fd5139d31045692  Makefile.FreeBSD
-c237578e1f685ee9b87d31a78dc837ff  Makefile.linux
+923c0fa50a8f1037b16040d491cca00c  Makefile
+97cd278ff6af662909ab3e7f22fe2211  Makefile.FreeBSD
+c20566bc7f2f854b7dde53d33c83d538  Makefile.linux
 b40270e464f1157bc7661c353f4c1fea  README
-d0bda9a1d3fe168027eec1674704641c  README.1ST
-9313e3d8d0001b27f240bbbeecd753b3  README.FREEBSD
+2c5437256a7b94dd5f9f3b10b823263a  README.1ST
+d32ca305c33d9d08308084cce8f1c904  README.FREEBSD
 3a11dbc2af191cd9499d64ea46dd1e4e  buffers.c
 342f302015b03480ae3696bf5d88b03e  buffers.h
-f0f1b741c13ffbb9fcb2270924da1d2c  def.h
+ec53a416f3879b67d207a812dfc5ef10  def.h
 fbcbdc8f66e7d3a6e668d20293f40194  floppy.c
 5c6b53b9820db69a3ee7dcb8eaa304f2  floppy.h
-db4001b6912953026ee0fd63001a2dc2  gui.c
+5c88ce61269781eec5d162541268a119  gui.c
 63b5d2fe7c3005c85b9ab98b5ab29685  gui.h
 a3fc173c5c30a492a03c82a4e08b16d1  keys.asc
-3ac1ea0a3d8449d7028151f605f3120b  mail_reader.c
+39e9029cd895821cb66bad15b5c0afa4  mail_reader.c
 f422b789df8cda50c799b88bad9b701e  mailrc.h
-4f57acd6c07108321905cede8b953cdf  main.c
+4a151251d90cf1497d5cbb16d23f0683  main.c
 3dced70bf471e9a6bb3a61fe0b4276ee  message.h
 17d8b4159e30d403379877101e2ed026  messages.c
 c2acaea27dcd68d6a65cc1cba003421e  my_malloc.c
 7be6dd40ca57e0dadac437b8ffb65b27  pgp-exit.h
-08c865f2119e879ee60607762cce7629  pgplib.c
-ccc801ee61f65025ffa80e0e5d9258eb  privtool-mask.icon
-8d54db7dda6c5c6766f48a3fa5fb3d26  privtool-mask.xbm
-b64da18d9e2ea88c086656543f0b1ce0  privtool-new.icon
-bb31aa4b8804cb159c7e26bc82c596ce  privtool-new.xbm
-6d27d2cc6ab6d0a22142b5709e4fc713  privtool.icon
-6a12e86bec91f62cb1b71e6e3aa09750  privtool.xbm
-529dbe96c81e5df3dd1f407af1e17b50  user.doc
+69826405d52a222893f9d7dd93851803  pgplib.c
+f76cdac95de1fd0a8ce2e4efd6a164e4  user.doc
 944aa3b08bf0328880c846b9d8e86228  windows.h
-415e8134d63f7408b15eee815cc46821  x.c
-8dc8c2566429f164390b82d7e0a2771a  xprops.c
+c51c8b42512d7dc366f139efce92cb48  x.c
+ed87346dac4d8474aa782e6c4fceb4fb  xprops.c
 9980cb3597c76ffba1b23dcdf6c4dbed  FreeBSD/mailname.c
 6d9d3378a390c4470b5abf302d1b51eb  FreeBSD/parsedate.c
+ccc801ee61f65025ffa80e0e5d9258eb  images/privtool-mask.icon
+8d54db7dda6c5c6766f48a3fa5fb3d26  images/privtool-mask.xbm
+b64da18d9e2ea88c086656543f0b1ce0  images/privtool-new.icon
+bb31aa4b8804cb159c7e26bc82c596ce  images/privtool-new.xbm
+6d27d2cc6ab6d0a22142b5709e4fc713  images/privtool.icon
+6a12e86bec91f62cb1b71e6e3aa09750  images/privtool.xbm
+049ed547fd04d4d941014b74aea4e653  images/privtool_done.xbm
+523077cc02b0db9d2ea29816fa7102b7  images/privtool_done_mask.xbm
+9f6b210d0f198a41078c518b72cb280a  images/privtool_empty.xbm
+860579b2f726e6ae8d9e562b72390a1e  images/privtool_empty_mask.xbm
+c1d16768c25b472558ac822ab426d21f  images/privtool_new.xbm
+3ddeb306facee76c22c09b69fe4f95bf  images/privtool_new_mask.xbm
 457e198140bd9f58a5a1659e2ad92bea  linux/COPYRIGHT
 73f975341a88a1b02d81af7ffaa2c26c  linux/clibrary.h
 9b52f0a74b0660995a13593c53089162  linux/configdata.h
 0204aff9ed49df341823b369bb273cc6  linux/gettime.c
-7fc0324006081f1b2c940b6aff4ea0eb  linux/gettime.o
 5d87349d8495ea6800696c622e78080c  linux/libinn.h
 acd44c77ce55e77d21a63f55f3dee91d  linux/macros.h
 bed893d6b3791ad09ddcfa8440799b58  linux/parsedate.c
-63b19b0da1a3721015885a26c71a7911  linux/parsedate.o
 
 -----BEGIN PGP SIGNATURE-----
 Version: 2.6.3i
 Charset: noconv
 
-iQEVAwUBMqd9M1VvaTo9kEQVAQHLWAf9Gh6/aEOnTW9mNj4zmbVzQoZSkkNxdRnZ
-7J+8aB7RAtKZ6txqp8V8Ktxr8tFAqVkyyNmQwrR/uLdQ10C110aONtWAa9ftz3iw
-BhENXEY3INssj0n3oJRJEedkY+hPCLb+r8YjxbiLM+1nElnMiawoTA7dzPCyo0hJ
-FlXvdbM3q9LXe6IG/K18PiDv3FWMOYqiGC2N4KmfJ15isp+GjH/D68xmN9OCVwjP
-ZDLNKjSVQTlQUUtQzonIx0jzj32q/hyYBtuTRplw70WGU61c/otabcT9v6IB1Vfw
-iMc3khtAfElC+/tf+4ulHEgR4LnmWvuNadJkK/NQDqcLMaWK+Xo50A==
-=G8Wm
+iQEVAwUBMr05wlVvaTo9kEQVAQGKMwf+KMw353RLBS5eczqpBQHjdr3D46uZ2n37
+S7/gvSA/AyN3cmqYZ3wzpA91/3C1t/my9omUyU4EFjE1XTbe6pq/1SwxiOwaqhbt
+hQwR7NofmerRS6lTblHFS8B192zygavBlfGWJ2AOOJNdDYtlnexoHUH/pEcNmmZA
+YCvYGYAEWy2f4Sjk7t5LMgS5EduRalkMCIEtmMOzTzZfetDrgagDSkH0UjZUsi52
+60ipqzVW8xUQv92gCsmg8uTmZEAZIig2YG19dxNuY76mBuXEz0H2PzKaGTcjkbKk
+8m6cw1WD9V0J+3OT8ccMfrAegxJO53LU9/Ns2iIBDRrkaPEFCEWArw==
+=aDwz
 -----END PGP SIGNATURE-----

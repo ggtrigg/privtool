@@ -1,13 +1,14 @@
 
 /*
- *	@(#)gui.c	1.72 6/11/96
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	Gui.c : It is intended that this file will contain as much
+ *	Gui.c : This file is intended to contain as much
  *	as possible of the user-interface code, allowing privtool to
  *	be compiled for different operating systems and UI toolkits
  *	by 'simply' replacing the lowest level of functionality.
  *
- *	(c) Copyright 1993-1995 by Mark Grant, and by other
+ *	(c) Copyright 1993-1996 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -138,7 +139,7 @@ char	prog_name[] = "XSafeMail";
 char	prog_name[] = "Privtool";
 #endif
 
-char	prog_ver [] = "V0.86 BETA";
+char	prog_ver [] = "V0.87 BETA";
 
 /* Set the description of the message for the message list */
 
@@ -843,12 +844,15 @@ MESSAGE	*om;
 	messages.number --;
 }
 
+/* Return the security level */
+
 int	security_level()
 
 {
 	return security;
 }
 
+/* Setup the display */
 
 void	setup_display(level,phrase,argc,argv)
 
@@ -932,6 +936,7 @@ COMPOSE_WINDOW	*setup_send_window()
 
 	return x_setup_send_window ();
 }
+
 /* Set up reply variables from the message we're replying to */
 
 void	set_reply (m)
@@ -1191,6 +1196,8 @@ char	*temp;
 	return TRUE;
 }
 #endif
+
+/* Deliver the message */
 
 void	deliver_proc(w)
 
@@ -1469,7 +1476,7 @@ try_again:
 		mail_message = new_buffer();
 
 		if (!(deliver_flags & DELIVER_REMAIL)) {
-			char	*domain, *replyto;
+			char	*domain, *replyto, *organization;
 #ifdef MAILER_LINE
 			sprintf(buff,"Mailer: %s",prog_name);
 #ifdef linux
@@ -1498,6 +1505,16 @@ try_again:
 			if ((domain = find_mailrc("domain")) && *domain) {
 				sprintf (buff, "From: %s@%s\n", our_userid, 
 					domain);
+				add_to_buffer (mail_message, buff,
+					strlen (buff));
+			}
+
+			/* Allow the user to specify an organization */
+
+			if ((organization = find_mailrc("organization")) &&
+				*organization) {
+				sprintf (buff, "Organization: %s\n",
+					organization);
 				add_to_buffer (mail_message, buff,
 					strlen (buff));
 			}

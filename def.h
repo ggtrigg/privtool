@@ -76,3 +76,10 @@ extern char	*my_malloc(), *my_realloc();
 #define free(x)		my_free((x))
 #define realloc(p,s)	my_realloc((p),(s),__FILE__,__LINE__)
 #endif
+
+#define BUFSIZE	1024
+
+#ifdef CRAP_STRSTR
+#define strstr	mystrstr
+#endif
+
