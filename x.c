@@ -9,8 +9,8 @@
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
  *
- *	This software is being distributed under the GNU Public Licence,
- *	see the file COPYING for more details.
+ *	This software is distributed under the GNU Public Licence, see
+ *	the file COPYING for more details.
  *
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *	
@@ -136,8 +136,12 @@ static	Server_image	newmail_icon_image, newmail_icon_image_mask;
 static	Server_image	nomail_icon_image, nomail_icon_image_mask;
 static	Xv_window	list_window;
 
+/* Compose windows */
+
 static	COMPOSE_WINDOW	*compose_first = NULL;
 static	COMPOSE_WINDOW	*compose_last = NULL;
+
+/* Display windows */
 
 static	DISPLAY_WINDOW	*display_first = NULL;
 static	DISPLAY_WINDOW	*display_last = NULL;
@@ -781,6 +785,20 @@ COMPOSE_WINDOW	*w;
 			NULL);
 }
 
+void invalid_attachment_notice_proc ()
+
+{
+	notice_prompt(top_panel, NULL,
+		NOTICE_MESSAGE_STRINGS, 
+			"The attachment format is invalid, or Privtool",
+			"is unable to decode it!",
+			NULL,
+		NOTICE_BUTTON_YES, "Abort",
+		NULL);
+
+	update_random ();
+}
+
 #ifndef NO_MIXMASTER
 void	remail_failed_notice_proc()
 
@@ -998,8 +1016,11 @@ void	bad_key_notice_proc()
 
 {
 	(void) notice_prompt(top_panel, NULL,
-		NOTICE_MESSAGE_STRINGS, "Error: No key found in message, or",
-			"bad key format !", NULL,
+		NOTICE_MESSAGE_STRINGS, "Error: No key found in message,",
+#ifndef PGPTOOLS
+			"could not open temporary file,",
+#endif
+			"or bad key format!", NULL,
 		NOTICE_BUTTON_YES, "Abort",
 		NULL);
 
@@ -2240,6 +2261,48 @@ void	hide_header_frame()
 	}
 }
 
+static	void	x_save_attachment_proc (item, event)
+
+Panel_item	item;
+Event		*event;
+
+{
+	DISPLAY_WINDOW	*w;
+	MESSAGE	*m;
+
+	/* find window from panel item */
+	w = display_from_panel((Panel)xv_get(item, PANEL_PARENT_PANEL));
+
+	/* find message from window */
+	m = message_from_number(w->number);
+
+	/* Prevent an unpinned display window from being popped down */
+	xv_set(item, PANEL_NOTIFY_STATUS, XV_ERROR, NULL);
+
+	save_attachment_proc (m);
+}
+
+static	void	x_add_key_proc (item, event)
+
+Panel_item	item;
+Event		*event;
+
+{
+	DISPLAY_WINDOW	*w;
+	MESSAGE	*m;
+
+	/* find window from panel item */
+	w = display_from_panel((Panel)xv_get(item, PANEL_PARENT_PANEL));
+
+	/* find message from window */
+	m = message_from_number(w->number);
+
+	/* Prevent an unpinned display window from being popped down */
+	xv_set(item, PANEL_NOTIFY_STATUS, XV_ERROR, NULL);
+
+	add_key_proc (w, m);
+}
+
 /* Display the header */
 
 static	void	display_header_proc(item, event)
@@ -2360,6 +2423,16 @@ DISPLAY_WINDOW	*w;
 		NULL);
 }
 
+void	show_attach (w)
+
+DISPLAY_WINDOW	*w;
+
+{
+	xv_set (w->decode_item,
+		PANEL_INACTIVE, FALSE,
+		NULL);
+}
+
 void	destroy_display_window(w)
 
 DISPLAY_WINDOW	*w;
@@ -2453,15 +2526,22 @@ MESSAGE	*m;
 			PANEL_BUTTON,
 			PANEL_LABEL_STRING, "Add Key",
 			PANEL_INACTIVE, TRUE,
-			PANEL_NOTIFY_PROC, add_key_proc,
+			PANEL_NOTIFY_PROC, x_add_key_proc,
 			NULL);
 
 		w->date_item = (Panel_item) xv_create(w->display_panel,
 			PANEL_TEXT,
-			PANEL_LABEL_STRING,"Date    :",
-			PANEL_VALUE_DISPLAY_LENGTH, 60,
+			PANEL_LABEL_STRING,"Date     :",
+			PANEL_VALUE_DISPLAY_LENGTH, 40,
 			XV_Y, 30,
 			XV_X, 0,
+			NULL);
+
+		w->decode_item = xv_create (w->display_panel, 
+			PANEL_BUTTON,
+			PANEL_LABEL_STRING, "Save Attachment",
+			PANEL_INACTIVE, TRUE,
+			PANEL_NOTIFY_PROC, x_save_attachment_proc,
 			NULL);
 
 		w->body_window = (Textsw) xv_create(w->display_frame, TEXTSW,
@@ -2501,6 +2581,10 @@ MESSAGE	*m;
 		/* Clear add key item */
 
 		xv_set (w->addkey_item,
+			PANEL_INACTIVE, TRUE,
+			NULL);
+
+		xv_set (w->decode_item,
 			PANEL_INACTIVE, TRUE,
 			NULL);
 	}
@@ -3185,10 +3269,16 @@ char *path;
     int                 j;
     static int          recursion;
 
+/* This doesn't work. Comment it out for now. Since I didn't write it
+   and don't have a clue as to what it's supposed to do, I can't fix
+   it. */
+
+return XV_NULL;
+
     /* don't add a folder to the list if user can't read it */
     if (stat(path, &s_buf) == -1 || !(s_buf.st_mode & S_IREAD))
         return XV_NULL;
-    if (s_buf.st_mode & S_IFDIR) {
+    if ((s_buf.st_mode & S_IFMT) == S_IFDIR) {
         int cnt = 0;
         if (!(dirp = opendir(path)))
             /* don't bother adding to list if we can't scan it */
@@ -3556,6 +3646,7 @@ int	level;
 	    strcpy(folder_dir, ".");
 	  }
 	  
+#if 0
 	mi = add_path_to_menu(folder_dir);
 	if (mi)
 	  {
@@ -3568,9 +3659,10 @@ int	level;
 		    PANEL_ITEM_MENU, file_menu,
 		    NULL);
 	  }
-	  
+#endif
 
 	file_name_item = (Panel_item) xv_create (top_panel, PANEL_TEXT,
+PANEL_LABEL_STRING, "Mail File:",
 		PANEL_VALUE_DISPLAY_LENGTH, 20,
 		NULL);
 

@@ -32,5 +32,9 @@ typedef struct {
 
 #define QUANTA	128
 
-extern	BUFFER	*new_buffer();
+extern	BUFFER	*new_buffer (void);
+extern	void	add_to_buffer (BUFFER *buffer, byte *mess, int len);
+extern	void	clear_buffer (BUFFER *b);
+extern	void	free_buffer (BUFFER *b);
+extern	void	reset_buffer (BUFFER *b);
 

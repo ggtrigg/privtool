@@ -157,23 +157,21 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 # Note: Keep -DSAFE until you are sure of correct operation on
 # your machine !
 #
-# The SunOS strstr() code seems to take an age, so we define CRAP_STRSTR
+# The SunOS strstr() code seems to take an age, so we define SLOW_STRSTR
 # to use the simple C implementation in pgplib.c. Add -DACCEPT_PATH if
 # you want to support Usenet archives that use Path: instead of From,
 # but be aware that this may cause problems with mail....
 #
 
-#CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
-CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
+#CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) -DSLOW_STRSTR $(FLOPPY_FLAGS)
+CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DSLOW_STRSTR $(FLOPPY_FLAGS)
 
 #
-# Code is written for cc, but should work with gcc. However, I'm wary
-# of trying to get the Xview code to with with gcc as I've had problems
-# with that in the past.
+# Code is written for gcc, but should work with cc and unproto.
 #
 
-#CC=gcc
-CC=cc -DNON_ANSI
+CC=gcc
+#CC=cc -DNON_ANSI
 
 # Or, use acc for Solaris 2.x
 #CC=acc -DSYSV

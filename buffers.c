@@ -22,11 +22,7 @@
 #include "def.h"
 #include "buffers.h"
 
-void	add_to_buffer(buffer,mess,len)
-
-BUFFER	*buffer;
-byte	*mess;
-int	len;
+void	add_to_buffer(BUFFER *buffer, byte *mess, int len)
 
 {
 	if (!buffer->size) {
@@ -47,7 +43,7 @@ int	len;
 	buffer->message[buffer->length] = 0;
 }
 
-BUFFER	*new_buffer()
+BUFFER	*new_buffer(void)
 
 {
 	BUFFER	*b;
@@ -61,9 +57,7 @@ BUFFER	*new_buffer()
 	return b;
 }
 
-free_buffer(b)
-
-BUFFER	*b;
+void	free_buffer(BUFFER *b)
 
 {
 	if (b->message && b->size) {
@@ -74,9 +68,7 @@ BUFFER	*b;
 	free(b);
 }
 
-clear_buffer(b)
-
-BUFFER	*b;
+void	clear_buffer(BUFFER *b)
 
 {
 	if (b->message && b->size)
@@ -84,9 +76,7 @@ BUFFER	*b;
 	b->length = 0;
 }
 
-reset_buffer(b)
-
-BUFFER	*b;
+void	reset_buffer(BUFFER *b)
 
 {
 	if (b->message && b->size) {

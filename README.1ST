@@ -1,13 +1,13 @@
 
-	Privtool Beta Release @(#)README.1ST	1.41 6/11/96
-	-----------------------------------------------------
+	Privtool Beta Release
+	---------------------
 
 Privtool ("Privacy Tool") is intended to be a PGP-aware replacement 
 for the standard Sun Workstation mailtool program, with a similar user 
 interface and automagick support for PGP-signing and PGP-encryption. Just 
 to make things clear, I have written this program from scratch, it is
-*not* a modified mailtool (and I'd hope that the Sun program code
-is much cleaner than mine 8-) !). 
+*not* a modified mailtool (and I hope that the Sun program code is much 
+cleaner than mine 8-) !). 
 
 When the program starts up, it displays a list of messages in your 
 mailbox, along with flags to indicate whether messages are signed 
@@ -38,19 +38,19 @@ features.
 
 Known Bugs:
 
-	None reported.
+	Mail file menu doesn't work!
 
-Unimplmented features:
+Unimplemented features:
 
 	When you save changes to the mail file, it throws away the
 	signature verification and decrypted messages, so that the
-	next time you view a message it has to be verified or decrypted
+	next time you view a message it must be verified or decrypted
 	again.
 
 	Currently if you send encrypted mail to multiple recipients, all must
-	have valid encrpytion keys otherwise you will have to send the
-	message decrypted. Also, the message will be sent encrypted to all
-	users, not just the one who is receiving each copy.
+	have valid encrpytion keys or you will have to send the message 
+	decrypted. Also, the message will be sent encrypted to all users, not 
+	just the one who is receiving each copy.
 
 	Code should be more modular to assist with ports to Xt, Motif
 	(under way), Mac, Windows, etc. I may port it to C++ in the near 
@@ -63,9 +63,41 @@ Unimplmented features:
 
 	No support for anonymous return addresses.
 
-	Not very well tested on Solaris 2.x, or SunOS.
+	Not very well tested on Solaris 2.x, FreeBSD or SunOS.
 
-	No support for attachments (either Sun, uuencode or MIME).
+	Limited support for attachments (either Sun, uuencode or MIME).
+
+Changes for 0.88:
+
+	'Add Key' button now *really* works. Honest!
+
+	We can now automatically decode uuencoded attachments, to a
+	limited extent.
+
+	Fixed bug with stripping quotes when reading from .privrc, and
+	now deal with spaces properly when reading pgpkey mappings.
+
+	Glenn Trigg fixed yet another couple of Solaris bugs.
+
+	Tidied up and commented the code in pgplib.c. We also now test
+	for weak IDEA keys, even though we're unlikely to ever generate
+	one (PGP Tools only).
+
+	David Summers (david@summersoft.fay.ar.us) added Redhat Linux
+	Makefile patch and package definition file.
+
+	Converting code to ANSI-C. This means that we now require gcc
+	to build on SunOS. Conversion is not yet complete. Fixed a
+	couple of bugs which this conversion showed up.
+
+	Joerg Mainzer (mainzer@mainzer.langen.bull.de) fixed a 
+	segmentation fault on Linux with messages that don't include
+	a Date: field.
+
+	Fixed 'Sort By Time And Date' on Linux.
+
+	Removed Mail File menu button because it just doesn't work on
+	Linux.
 
 Changes for 0.87:
 
@@ -238,7 +270,7 @@ Major fixes for 0.83:
 	Message bodies are no longer stored in RAM, but are read from the
 	mail file as neccesary. This further reduces memory usage.
 
-Version 0.82 was a limited availability version for testing.
+Version 0.82 was a limited availability release for testing.
 
 Changes for 0.81:
 

@@ -1,14 +1,15 @@
 
 /*
- * @(#)def.h	1.21 9/21/95
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	(c) Copyright 1993-1994 by Mark Grant. All right reserved.
+ *	(c) Copyright 1993-1996 by Mark Grant. All right reserved.
  *	The author assumes no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
  *
- *	This software is being distributed under the GNU Public Licence,
- *	see the file COPYING for more details.
+ *	This software is distributed under the GNU Public Licence, see
+ *	the file COPYING for more details.
  *
  *			- Mark Grant (mark@unicorn.com) 29/6/94
  *
@@ -37,6 +38,7 @@ typedef int		int32;
 #define DEC_BAD_PHRASE	(-3)
 #define DEC_NO_KEY	(-4)
 #define DEC_BAD_FILE	(-5)
+#define DEC_NO_PGP	(-6)
 
 #define ADD_OLD_KEY	1
 #define ADD_OK		0
@@ -44,12 +46,14 @@ typedef int		int32;
 #define ADD_NO_FILE	(-2)
 #define ADD_NO_TEMP	(-3)
 #define ADD_BAD_KEY	(-4)
+#define ADD_NO_PGP	(-5)
 
 #define ERR_NONE	0
 #define ERR_NO_KEY	(-1)
 #define ERR_NO_SECRET_KEY	(-2)
 /* Following will be (-3) */
 #define ERR_BAD_PHRASE	DEC_BAD_PHRASE
+#define ERR_NO_MEM	(-4)
 
 #define MORE_SECURE
 
@@ -79,7 +83,12 @@ extern char	*my_malloc(), *my_realloc();
 
 #define BUFSIZE	1024
 
-#ifdef CRAP_STRSTR
+#ifdef SLOW_STRSTR
 #define strstr	mystrstr
+extern	char	*mystrstr (char *, char *);
 #endif
+
+#define ATTACH_UUENCODE	1
+#define ATTACH_SUN	2
+#define ATTACH_MIME	3
 

@@ -7,37 +7,39 @@ for the files in the release. You can verify the validity
 of this message with PGP, and then verify each file with
 the md5sum program supplied with PGP.
 
-	Mark (mark@unicorn,com)
+	Mark (mark@unicorn.com)
 
 8ca43cbc842c2336e835926c2166c28b  COPYING
-59bf0254286e3b1f318892ad24e76102  Credits
-85868aa330a2a64b17a5960869c75dbe  Mailrc.test
-923c0fa50a8f1037b16040d491cca00c  Makefile
-97cd278ff6af662909ab3e7f22fe2211  Makefile.FreeBSD
-c20566bc7f2f854b7dde53d33c83d538  Makefile.linux
+75c61bd34ba2ef181312f5d44a4121dd  Credits
+b2214cedb766cb26588eea4b7099587c  Makefile
+fd1590ef3fd327022ca3b847c29d6f8f  Makefile.FreeBSD
+067676c94ff707cfb3979e3ad8fdeffb  Makefile.linux
+93e7341f75a4d96760d0d152ad3389b3  Privrc.test
 b40270e464f1157bc7661c353f4c1fea  README
-2c5437256a7b94dd5f9f3b10b823263a  README.1ST
+6b5c37fecbd44b13ec223f92a3f66f34  README.1ST
 d32ca305c33d9d08308084cce8f1c904  README.FREEBSD
-3a11dbc2af191cd9499d64ea46dd1e4e  buffers.c
-342f302015b03480ae3696bf5d88b03e  buffers.h
-ec53a416f3879b67d207a812dfc5ef10  def.h
-fbcbdc8f66e7d3a6e668d20293f40194  floppy.c
-5c6b53b9820db69a3ee7dcb8eaa304f2  floppy.h
-5c88ce61269781eec5d162541268a119  gui.c
-63b5d2fe7c3005c85b9ab98b5ab29685  gui.h
+5c16867d2a2680231ca31a9439673614  buffers.c
+023e161badd91683984dcc5976c732f3  buffers.h
+1b99b0253c45ab412a6df9cf1bebeb4d  def.h
+76fa42415e7eae613b0b1b4438256653  floppy.c
+0f011f84eec81f58f44fdd0aee794a18  floppy.h
+a3f756f49289f008cd5b954015f1066a  gui.c
+71924b17dccf3d0d81fc2a75b0191c4e  gui.h
 a3fc173c5c30a492a03c82a4e08b16d1  keys.asc
-39e9029cd895821cb66bad15b5c0afa4  mail_reader.c
+6b9a20e6d7fc25e45b80f9714a0e3691  mail_reader.c
 f422b789df8cda50c799b88bad9b701e  mailrc.h
-4a151251d90cf1497d5cbb16d23f0683  main.c
-3dced70bf471e9a6bb3a61fe0b4276ee  message.h
-17d8b4159e30d403379877101e2ed026  messages.c
+baec5afec68b7ca58368fe6dbeb3debe  main.c
+fc81685a379f37f1ab4ab975c9157311  message.h
+6f71315fdd6186888271095e15fc0630  messages.c
 c2acaea27dcd68d6a65cc1cba003421e  my_malloc.c
 7be6dd40ca57e0dadac437b8ffb65b27  pgp-exit.h
-69826405d52a222893f9d7dd93851803  pgplib.c
-f76cdac95de1fd0a8ce2e4efd6a164e4  user.doc
-944aa3b08bf0328880c846b9d8e86228  windows.h
-c51c8b42512d7dc366f139efce92cb48  x.c
-ed87346dac4d8474aa782e6c4fceb4fb  xprops.c
+b977fb2a48c357ad283fbb2ba8589c99  pgplib.c
+f79d3ada3ebb31d7a564d4a1ca226561  privtool-0.88-1.spec
+132d676ea53566df50003ed317c4411d  redhat.privtool.patch
+457426ad0cd74c3981f6b217f8ceee9c  user.doc
+9ac85eb921e49ddb9377fc366aeb96e4  windows.h
+a58a7a2ef7cebdef0d07e705c800832f  x.c
+05734f174d11c31866cf8c60533d0886  xprops.c
 9980cb3597c76ffba1b23dcdf6c4dbed  FreeBSD/mailname.c
 6d9d3378a390c4470b5abf302d1b51eb  FreeBSD/parsedate.c
 ccc801ee61f65025ffa80e0e5d9258eb  images/privtool-mask.icon
@@ -64,11 +66,11 @@ bed893d6b3791ad09ddcfa8440799b58  linux/parsedate.c
 Version: 2.6.3i
 Charset: noconv
 
-iQEVAwUBMr05wlVvaTo9kEQVAQGKMwf+KMw353RLBS5eczqpBQHjdr3D46uZ2n37
-S7/gvSA/AyN3cmqYZ3wzpA91/3C1t/my9omUyU4EFjE1XTbe6pq/1SwxiOwaqhbt
-hQwR7NofmerRS6lTblHFS8B192zygavBlfGWJ2AOOJNdDYtlnexoHUH/pEcNmmZA
-YCvYGYAEWy2f4Sjk7t5LMgS5EduRalkMCIEtmMOzTzZfetDrgagDSkH0UjZUsi52
-60ipqzVW8xUQv92gCsmg8uTmZEAZIig2YG19dxNuY76mBuXEz0H2PzKaGTcjkbKk
-8m6cw1WD9V0J+3OT8ccMfrAegxJO53LU9/Ns2iIBDRrkaPEFCEWArw==
-=aDwz
+iQEVAwUBMyLoK1VvaTo9kEQVAQE0kQf8DNp3HlOpk6n8jWvp/nqHQqwlFqQh4pcL
+xr55S5cYTm+JF4UzTV+oKhQS4gpXq9mhHIay7sW3pPD6tOvh+Weg/GP/OzUIJu7d
+MHLLKseFB6J7219SgZgk0pehWTWcUWay/2ah+a8Q8cVIm3F2TE0y73MK76eWJAeu
+NJwMwVbg1K8PCfAsL3akAuda0x7XNCpuwDxaox2aGroZIranHZfXyQDuwAtXCSiI
+cIelKv/DWj60HddBqraTziOXGfibRYDFxPt4+23Yq3CHfnFebpdx2eFrvEVUPfE/
+iCLqUuTo5Cy/W8Jhpli1ufCMFU3ryosGCgdr5AhMd0gMsGtHuRwU0A==
+=cRHs
 -----END PGP SIGNATURE-----

@@ -4,7 +4,7 @@
 Most operations in Privtool are identical to the Sun mailtool, with the
 exception that attachments are not supported, some buttons don't work
 and some menu items are grayed out, and there is currently no graphical
-properties window (all .mailrc changes currently have to be made by
+properties window (all .privrc changes currently have to be made by
 hand with a text editor). This file will simply describe the new
 features.
 
@@ -42,6 +42,16 @@ you receive a message that contains a PGP key, however at the moment it
 does not do anything. In the final release it will automatically scan the
 message for new keys and add them to your pubring file.
 
+We provide limited support for uuencoded attachments. If the message is
+a uuencoded file, then a 'Save Attachment' button will appear on the
+display window. Pressing this button will save the file in the current
+directory. This will normally be your home directory, but using some of
+the Xview window menus can cause the program to change directory in a 
+manner over which we have no control. If the message contains multiple
+attachments then only the first will be saved. I hope to one day provide
+real attachment support, but Linux does not currently support Xview
+drag-and-drop correctly.
+
 2. Sending messages
 -------------------
 
@@ -51,7 +61,7 @@ outgoing message, 'Log' - to log the outgoing message (in encrypted
 form if encrypted), 'Remail' - to send messages through the cypherpunks
 anonymous remailers, and 'Raw' - to log outgoing encrypted or signed
 messages in raw ASCII form. You can set the defaults for these in the
-.mailrc file.
+.privrc file.
 
 When signing, Privtool may have to ask you for your passphrase, depending
 on the security level chosen.
@@ -80,15 +90,15 @@ Privtool supports four security levels :
 		will delete the decrypted text of each message when you
 		close the display window.
 
-4. Mailrc options
+4. Privrc options
 -----------------
 
-A whole bunch of new options have been added to the .mailrc file. A sample
-is given in the file 'Mailrc.test', which may explain the system better
+A whole bunch of new options have been added to the .privrc file. A sample
+is given in the file 'Privrc.test', which may explain the system better
 than I have here.
 
 In order to retain compatibility with mail and mailtool, all Privtool-specific
-options are given as comments in the .mailrc file, prior to the 'PLEASE MAKE
+options are given as comments in the .privrc file, prior to the 'PLEASE MAKE
 ALL CHANGES ABOVE THESE 2 LINES' line inserted by mailtool. Privtool
 understands most of the mailtool options (specifically alias, etc), and
 its options are given by lines starting with '#@'.
@@ -153,7 +163,7 @@ This allows you to specify the default pseudonym to use, otherwise
 Privtool will default to your real identity.
 
 There are also a number of options that can be specified using the
-'set' command in the .mailrc file.
+'set' command in the .privrc file.
 
 set defaultusefrom
 
@@ -308,7 +318,9 @@ result an attacker would need to know the internal state of the
 random number routine, the contents of the privseed array, *and*
 the MD5 of the message in order to crack the key. Clearly, if the
 attacker knows the MD5 of the message, they probably know the message
-itself and don't need the key.
+itself and don't need the key. IDEA has some weak keys, and although
+they are very rare we check for them and create a new key if we find
+one.
 
 Finally, on exit the privseed array is again IDEA-encrypted to prevent
 state information leaking, and XOR-ed with the old contents of the
@@ -352,4 +364,3 @@ them to mark@unicorn.com.
 
 		Mark
 
-File: @(#)user.doc	1.14 9/28/95
