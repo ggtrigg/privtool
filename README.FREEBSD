@@ -1,0 +1,28 @@
+@(#)README.FREEBSD	1.1 3/5/96
+
+I have tried to make Privtool compile and run under FreeBSD.  Although
+the basic program seems to work, it does not use Mixmaster or PGPTools.
+I have no idea what it does if you change the makefile to try to use 
+those.  Also I have not tried any serious debugging or development.
+
+Really, a function to convert dates as character strings to seconds
+since epoch is needed.  I haven't had time to write one, but a 
+program is included in the FreeBSD directory which could be hacked
+into one if I or anyone else gets time.
+
+The defaults used for various variables in the program don't always 
+produce desirable results.  To avoid confusion,  I suggest setting the
+following environment variables at least:
+EXTRASMENU
+OPENWINHOME
+MAIL
+MAILRC
+PGPPATH
+
+At present, it also seems to be necessary to run as su.
+
+To install, use make followed by make install.  You should make sure that
+your compiles defines __FreeBSD__
+
+Stuart Arnold
+sja@epo.e-mail.com
