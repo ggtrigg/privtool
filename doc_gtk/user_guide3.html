@@ -38,8 +38,18 @@ last row another row will automatically be created. Also enpty rows are ignored.
 <H3>Mailer</H3>
 The first page presents general mailer configuration options. These are:
 <P>
-<TABLE WIDTH="85%" ALIGN=center><TR>
-<TD>Mail File Directory</TD><TD>The directory where the mail folders reside.</TD>
+<TABLE WIDTH="85%" ALIGN=center>
+<TR>
+<TD VALIGN=top>Mail Spool File</TD>
+<TD VALIGN=top>The file where incoming mail is delivered. If this field is
+left empty then the spool file defaults to either <TT>/var/spool/mail/&lt;username&gt;</TT> or
+to a compiled in default.</TD>
+</TR><TR>
+<TD VALIGN=top>Check Interval</TD>
+<TD VALIGN=top>How often (in seconds) privtool will check for new mail.</TD>
+</TR><TR>
+<TD VALIGN=top>Mail File Directory</TD>
+<TD VALIGN=top>The directory where the mail folders reside.</TD>
 </TR><TR>
 <TD VALIGN=top>Print Command</TD>
 <TD VALIGN=top>The command which will have the mail item piped to it for printing.</TD>
@@ -68,6 +78,13 @@ This only needs to be set if the system doesn't get it right automatically</TD><
 <TR><TD VALIGN=top>Log Folder Name</TD>
 <TD VALIGN=top>The name of a folder where outgoing mail will be saved. (Outgoing mail is saved
 when the <STRONG>Log</STRONG> checkbox is checked in the compose window.)</TD></TR>
+<TR><TD VALIGN=top>Signature File</TD>
+<TD VALIGN=top>This specifies the name of the signature file to use. If specified then the
+file will be appended to every message that you send. The filename is assumed
+to be relative to the user's home directory unless it begins with a '<TT>/</TT>'.<BR>
+Alternatively, if the filename begins with a '<TT>|</TT>' then the rest of the filename is interpreted
+as a program to run which will produce the "signature" on its standard output.
+</TD></TR>
 <TR><TD COLSPAN=2><STRONG>Options</STRONG></TD></TR>
 <TR><TD VALIGN=top>Sign Outgoing Mail</TD>
 <TD VALIGN=top>The default setting to specify whether sent mail should be digitally signed.</TD></TR>
