@@ -101,29 +101,44 @@
 *toolbar.XmPushButton.traversalOn: 	false
 *toolbar.XmToggleButton.traversalOn: 	false
 *toolbar.XmPushButton.highlightThickness: 0
+*toolbar.XmToggleButton.highlightThickness: 0
+*toolbar.XmPushButton.topOffset: 	3
+*toolbar.XmToggleButton.topOffset: 	3
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
+*toolbar.prev.topAttachment:		attach_form
+*toolbar.prev.leftAttachment:		attach_form
+*toolbar.prev.leftOffset:		3
 *toolbar.next.labelType:		pixmap
 *toolbar.next.labelPixmap:		next.xpm
+*toolbar.next.topAttachment:		attach_form
 *toolbar.next.leftAttachment:		attach_widget
 *toolbar.next.leftWidget:		prev
 *toolbar.delete.labelType:		pixmap
 *toolbar.delete.labelPixmap:		delete.xpm
+*toolbar.delete.topAttachment:		attach_form
 *toolbar.delete.leftAttachment:		attach_widget
 *toolbar.delete.leftWidget:		next
 *toolbar.undelete.labelType:		pixmap
 *toolbar.undelete.labelPixmap:		undelete.xpm
+*toolbar.undelete.topAttachment:	attach_form
 *toolbar.undelete.leftAttachment:	attach_widget
 *toolbar.undelete.leftWidget:		delete
 *toolbar.folders.indicatorOn:		False
 *toolbar.folders.labelType:		pixmap
 *toolbar.folders.labelPixmap:		folderwin.xpm
+*toolbar.folders.topAttachment:		attach_form
 *toolbar.folders.leftAttachment:	attach_widget
 *toolbar.folders.leftWidget:		undelete
+*toolbar.folders.shadowThickness:	2
 *toolbar.combo.leftAttachment:		attach_none
+*toolbar.combo.topAttachment:		attach_form
 *toolbar.combo.rightAttachment:		attach_form
 *toolbar.combo.comboBoxType:		drop_down_combo_box
+*toolbar.combo.arrowSize:		18
 *toolbar.combo*List.visibleItemCount:	5
+*toolbar.combo*ListSW.scrolledWindowMarginHeight: 2
+*toolbar.combo*ListSW.scrolledWindowMarginWidth:  2
 
 ! Resources to make the sash sensible (combined with the ConfigureNotify
 ! handling in the source).
@@ -132,6 +147,12 @@
 *frame.panedwin.sashIndent:			0
 *frame.panedwin.sashShadowThickness:		1
 *frame.panedwin.separatorOn:			false
+
+!
+! Mail item list resources
+!
+*XmList.selectionPolicy:			extended_select
+*XmList.primaryOwnership:			own_always
 
 !
 ! Message area attachments etc.
@@ -175,6 +196,8 @@
 
 *.XmList.background:				white smoke
 
+*.hdrtext.rows:					4
+
 *.msgtext.translations: #override\n\
 <Key> space:		next-page()\n\
 <Key> b:		previous-page()\n\
@@ -202,15 +225,20 @@
 *.SYSTEM.fontType:		font_is_font
 *.HDR.fontType:			font_is_font
 *.HDR.fontName:			-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+*.HDR.tabList:			10fu
 *.HDR_B.fontType:		font_is_font
 *.HDR_B.fontName:		-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-1
+*.HDR_B.tabList:		10fu
 *.HDR_U.fontType:		font_is_font
 *.HDR_U.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_U.underlineType:		single_line
 *.HDR_U.renditionForeground:	DarkGreen
+*.HDR_U.tabList:		10fu
 *.LIST.fontType:		font_is_font
 *.LIST.fontName:		6x13
-*.LIST.tabList:			10fu
+*.LIST.tabList:			8fu, 16fu, 24fu, 32fu, 40fu, 48fu, 56fu, 64fu
+*.BLUE.fontType:		font_is_font
+*.BLUE.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.BLUE.renditionForeground:	blue
 *.STRUCK.fontType:		font_is_font
 *.STRUCK.fontName:		6x13
@@ -252,9 +280,9 @@
 
 *.dontquit_alert.messageString:	\
 You have open compose windows. Quitting will\n\
-lose the messages in those windows. Press Abort\n\
-to cancel the quit operation, or Continue to\n\
-exit Privtool.
+lose the messages in those windows.\n\n\
+Press Abort to cancel the quit operation, \n\
+or Continue to exit Privtool.
 *.dontquit_alert.symbolPixmap:		xm_warning
 *.dontquit_alert_popup.title:		Alert
 *.dontquit_alert.okLabelString:		Abort
@@ -293,18 +321,40 @@ Cannot be saved.
 *.remailfail_alert.symbolPixmap:	xm_warning
 *.remailfail_alert_popup.title:		Alert
 
+*.usereplyto_alert.messageString: \
+Use "Reply-to:" address rather than "From:" address?
+*.usereplyto_alert.symbolPixmap:	xm_question
+*.usereplyto_alert_popup.title:		Alert
+*.usereplyto_alert.okLabelString:	Yes
+*.usereplyto_alert.cancelLabelString:	No
+
+*.fileerror_alert.messageString:	\
+Error opening file.
+*.fileerror_alert.symbolPixmap:		xm_warning
+*.fileerror_alert_popup.title:		Alert
+
+*.mmapfailed_alert.messageString:	\
+Error mmapping file.
+*.mmapfailed_alert.symbolPixmap:	xm_warning
+*.mmapfailed_alert_popup.title:		Alert
+
+*.notregfile_alert.messageString:	\
+Not a regular file.
+*.notregfile_alert.symbolPixmap:	xm_warning
+*.notregfile_alert_popup.title:		Alert
+
 !
 ! Folder manager resources
 !
-*ClipWindow*background:			white
+*ClipWindow*background:			white smoke
 ?.folder.title:				Privtool - Folders
 ?.folder.width:				230
 ?.folder.height:			350
-*.folderMain.scrollingPolicy:		automatic
-*.folderC.fontList:			fixed
-*.folderC.background:			white
+!*.folderMain.scrollingPolicy:		automatic
+*.folderC.background:			white smoke
+*.folderC.selectionPolicy:		browse_select
 *.folderC.spatialStyle:			cells
-*.folderC.spatialResizeModel:		grow_balanced
+*.folderC.spatialResizeModel:		grow_minor
 *.folderC.spatialSnapModel:		center
 *.folderC.largeCellWidth:		70
 *.folderC.directory.largeIconPixmap:	dir.xpm
@@ -332,46 +382,55 @@ Cannot be saved.
 *compose*ctrl.topOffset:			4
 *compose*ctrl.leftOffset:			4
 *compose*ctrl.rightOffset:			4
+*compose*ctrl.orientation:			vertical
 *compose*tbox.orientation:			horizontal
 *compose*tbox.topAttachment:			attach_widget
 *compose*tbox.topWidget:			ctrl
 *compose*tbox.leftAttachment:			attach_form
-*compose*tbox.rightAttachment:			attach_form
+!*compose*tbox.rightAttachment:			attach_form
 *compose*tbox.sign.labelString:			Sign
 *compose*tbox.encrypt.labelString:		Encrypt
 *compose*tbox.log.labelString:			Log
 *compose*tbox.raw.labelString:			Raw
 *compose*tbox.remail.labelString:		Remail
+*compose*insert.leftAttachment:			attach_none
+*compose*insert.topAttachment:			attach_widget
+*compose*insert.topWidget:			ctrl
+*compose*insert.rightAttachment:		attach_form
+*compose*insert.rightOffset:			7
+*compose*insert.labelString:			Insert...
 *compose*stextSW.topAttachment:			attach_widget
 *compose*stextSW.topWidget:			tbox
 *compose*stextSW.leftAttachment:		attach_form
 *compose*stextSW.rightAttachment:		attach_form
 *compose*stextSW.bottomAttachment:		attach_form
 
-*compose.*.tolbl.leftAttachment:		attach_form
-*compose.*.tolbl.topAttachment:			attach_form
-*compose.*.tolbl.bottomAttachment:		attach_form
-*compose.*.to.leftAttachment:			attach_widget
-*compose.*.to.leftWidget:			tolbl
-*compose.*.to.rightAttachment:			attach_form
-*compose.*.to.topAttachment:			attach_form
-*compose.*.to.bottomAttachment:			attach_form
-*compose.*.subjlbl.leftAttachment:		attach_form
-*compose.*.subjlbl.topAttachment:		attach_form
-*compose.*.subjlbl.bottomAttachment:		attach_form
-*compose.*.subj.leftAttachment:			attach_widget
-*compose.*.subj.leftWidget:			subjlbl
-*compose.*.subj.rightAttachment:		attach_form
-*compose.*.subj.topAttachment:			attach_form
-*compose.*.subj.bottomAttachment:		attach_form
-*compose.*.cclbl.leftAttachment:		attach_form
-*compose.*.cclbl.topAttachment:			attach_form
-*compose.*.cclbl.bottomAttachment:		attach_form
-*compose.*.cc.leftAttachment:			attach_widget
-*compose.*.cc.leftWidget:			cclbl
-*compose.*.cc.rightAttachment:			attach_form
-*compose.*.cc.topAttachment:			attach_form
-*compose.*.cc.botomAttachment:			attach_form
+*compose.*.to.comboBoxType:			drop_down_combo_box
+
+!*compose.*.tolbl.leftAttachment:		attach_form
+!*compose.*.tolbl.topAttachment:			attach_form
+!*compose.*.tolbl.bottomAttachment:		attach_form
+!*compose.*.to.leftAttachment:			attach_widget
+!*compose.*.to.leftWidget:			tolbl
+!*compose.*.to.rightAttachment:			attach_form
+!*compose.*.to.topAttachment:			attach_form
+!*compose.*.to.bottomAttachment:			attach_form
+!*compose.*.subjlbl.leftAttachment:		attach_form
+!*compose.*.subjlbl.topAttachment:		attach_form
+!*compose.*.subjlbl.bottomAttachment:		attach_form
+!*compose.*.subj.leftAttachment:			attach_widget
+!*compose.*.subj.leftWidget:			subjlbl
+!*compose.*.subj.rightAttachment:		attach_form
+!*compose.*.subj.topAttachment:			attach_form
+!*compose.*.subj.bottomAttachment:		attach_form
+!*compose.*.cclbl.leftAttachment:		attach_form
+!*compose.*.cclbl.topAttachment:			attach_form
+!*compose.*.cclbl.bottomAttachment:		attach_form
+!*compose.*.cc.leftAttachment:			attach_widget
+!*compose.*.cc.leftWidget:			cclbl
+!*compose.*.cc.rightAttachment:			attach_form
+!*compose.*.cc.topAttachment:			attach_form
+!*compose.*.cc.botomAttachment:			attach_form
 
 *compose*XmTextField.background:		white smoke
 

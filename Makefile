@@ -83,6 +83,7 @@ PGPVERSION=2.6
 OPENWINLDFLAGS=-L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I/usr/X11R6/include
 OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
+#OPENWINLIBS=-lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic -lXpm -lXext -lXmu -lXt -lX11
 
 #OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 #OPENWINCPPFLAGS=-I$(OPENWINHOME)/include

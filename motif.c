@@ -34,35 +34,42 @@
 #include	"windows.h"
 #include	"gui.h"
 #include	"motif_protos.h"
-#include	<Xm/DialogS.h>
-#include	<Xm/MainW.h>
-#include	<Xm/RowColumn.h>
-#include	<Xm/Frame.h>
-#include	<Xm/Form.h>
+#include	<Xm/AtomMgr.h>
+#include	<Xm/CSText.h>
 #include	<Xm/CascadeB.h>
+#include	<Xm/ComboBox.h>
+#include	<Xm/ContainerT.h>
+#include	<Xm/DialogS.h>
+#include	<Xm/Form.h>
+#include	<Xm/FileSB.h>
+#include	<Xm/Frame.h>
+#include	<Xm/LabelG.h>
+#include	<Xm/List.h>
+#include	<Xm/MainW.h>
+#include	<Xm/MessageB.h>
 #include	<Xm/PanedW.h>
 #include	<Xm/PushB.h>
 #include	<Xm/PushBG.h>
-#include	<Xm/LabelG.h>
-#include	<Xm/List.h>
+#include	<Xm/RowColumn.h>
 #include	<Xm/ScrolledW.h>
-#include	<Xm/Separator.h>
-#include	<Xm/TextF.h>
-#include	<Xm/Text.h>
-#include	<Xm/ToggleBG.h>
-#include	<Xm/ToggleB.h>
 #include	<Xm/SeparatoG.h>
-#include	<Xm/CSText.h>
-#include	<Xm/MessageB.h>
-#include	<Xm/ContainerT.h>
-#include	<Xm/ComboBox.h>
+#include	<Xm/Separator.h>
+#include	<Xm/Text.h>
+#include	<Xm/TextF.h>
+#include	<Xm/ToggleB.h>
+#include	<Xm/ToggleBG.h>
 #include	<Xm/TraitP.h>
+#include	<Xm/TransferP.h>
 #include	<X11/Xmu/Editres.h>
 #include	<Xbae/Caption.h>
 #include	"mfolder.h"
 #include	"LiteClue.h"
 #include	"pixmapcache.h"
 #include	"m_util.h"
+#include	"debug.h"
+#include	<sys/stat.h>
+#include	<fcntl.h>
+#include	<sys/mman.h>
 
 #include	"prev.xpm"
 #include	"next.xpm"
@@ -71,20 +78,27 @@
 #include	"folderwin.xpm"
 
 void			update_message_list(void);
+void			set_foldwin_toggles(Boolean);
+void			update_combo(char *);
 int			show_deleted = 1;
+int			debug_;
 
 static Widget		toplevel_, msgarea_, msgarea2_, mailslist_;
-static Widget		text_ = NULL, hdrtext_, liteClue_, folder_toggle_;
-static Widget		pp_window_ = NULL, abt_window_ = NULL;
+static Widget		text_ = NULL, hdrtext_ = NULL, folder_toggle_;
+static Widget		liteClue_, pp_window_ = NULL, abt_window_ = NULL;
 static Widget		foldwin_[2], fold_combo_;
 static XtAppContext	app_context_;
-static XmRenderTable	render_header, render_list;
+/*static XmRenderTable	render_header, render_list;*/
 static char		local_pp[2048];
 static COMPOSE_WINDOW	*compose_first = NULL;
 static COMPOSE_WINDOW	*compose_last = NULL;
 static char		attribution_string[] = " said :\n\n";
 static char		begin_forward[] = "-- Begin forwarded message ---\n";
 static char		end_forward[] = "\n-- End forwarded message ---\n";
+
+static XrmOptionDescRec	options[] = {
+    { "-debug", "debug", XrmoptionSepArg, NULL }
+};
 
 typedef enum {
     COMPOSE_NEW,
@@ -113,6 +127,10 @@ static COMPOSE_WINDOW	*setup_composeCB(Widget w, XtPointer clientdata, XtPointer
 static COMPOSE_WINDOW	*compose_find_free();
 static void		update_mail_list(void);
 static void		show_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
+static void		listConvertCb(Widget w, XtPointer, XtPointer);
+static void		textConvertCb(Widget w, XtPointer, XtPointer);
+static void		destnCb(Widget w, XtPointer, XtPointer);
+static void		transferProc(Widget w, XtPointer, XtPointer);
 static void		select_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
 static void		next_messageCB(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		prev_messageCB(Widget w, XtPointer clientdata, XtPointer calldata);
@@ -140,6 +158,10 @@ static void		resizePwinCb(Widget w, XtPointer clientdata, XEvent *event, Boolean
 void			populate_combo(Widget combo);
 static void		folderCb(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		saveCb(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		display_new_message();
+static void		insert_message(Widget w, char *m);
+static void		filerCb(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		insert_file(Widget w, XtPointer clientdata, XtPointer calldata);
 
 static XtActionsRec actions[] = {
     {"view", (XtActionProc)viewAC}
@@ -260,7 +282,6 @@ clear_display_footer(DISPLAY_WINDOW *w)
 void
 clear_display_window()
 {
-#if 0
     XmString	empty;
 
     if(text_ != NULL && XtIsRealized(text_)){
@@ -269,7 +290,6 @@ clear_display_window()
 	XmCSTextSetString(text_, empty);
 	XmStringFree(empty);
     }
-#endif
 }
 
 /*----------------------------------------------------------------------*/
@@ -348,33 +368,6 @@ compose_windows_open()
 DISPLAY_WINDOW *
 create_display_window()
 {
-#if 0
-    Widget	swin, pwin, tempw;
-
-    if(message_window_ == NULL){
-	message_window_ = XtVaCreatePopupShell("message",
-					       topLevelShellWidgetClass,
-					       toplevel_,
-					       NULL);
-	XtManageChild(message_window_);
-
-	pwin = XmCreatePanedWindow(message_window_, "panedwin", NULL, 0);
-	XtManageChild(pwin);
-
-#if 0
-	text_ = XmCreateScrolledText(pwin, "msgtext", NULL, 0);
-	XtManageChild(text_);
-#endif
-	hdrtext_ = XmCreateScrolledCSText(pwin, "hdrtext", NULL, 0);
-	XtManageChild(hdrtext_);
-	tempw = XmCreateScrolledText(pwin, "sigtext", NULL, 0);
-	XtManageChild(tempw);
-
-	/*XtVaSetValues(hdrtext_, XmNrenderTable, render_header, 0);*/
-    }
-
-    XtPopup(message_window_, XtGrabNonexclusive);
-#endif
 }
 
 /*----------------------------------------------------------------------*/
@@ -412,28 +405,23 @@ delete_message_proc()
     int			sel_pos_count;
     unsigned int	*sel_posns;
 
-    XtVaGetValues(mailslist_, XmNselectedPositionCount, &sel_pos_count, NULL);
-    sel_posns = calloc(sel_pos_count, sizeof(int));
-    XtVaGetValues(mailslist_, XmNselectedPositions, &sel_posns, NULL);
-
     while (m) {
-	if (m->list_pos == *sel_posns) {
+	if(XmListPosSelected(mailslist_, m->list_pos)){
 	    message_number = m->list_pos;
 	    XmListDeleteItemsPos(mailslist_, 1, message_number);
 	    if(show_deleted){
-		XmListAddItem(mailslist_,
-			      tempstring = XmStringGenerate(m->description, NULL,
-							    XmCHARSET_TEXT,
-							    (XmStringTag)"STRUCK"),
-			      message_number);
+		tempstring = XmStringGenerate(m->description, NULL,
+					      XmCHARSET_TEXT,
+					      (XmStringTag)"STRUCK");
+		XmListAddItem(mailslist_, tempstring, message_number);
 		XmStringFree(tempstring);
 	    }
 	    delete_message(m);
 	}
 	m = m->next;
     }
-    /* Move current selected message pointer if neccesary */
 
+    /* Move current selected message pointer if neccesary */
     if (last_message_read) {
 	last_message_read->flags |= MESS_SELECTED;
 	display_message_description (last_message_read);
@@ -459,8 +447,9 @@ display_message_body(BUFFER *b)
     XmString	body = XmStringGenerate(b->message, NULL, XmCHARSET_TEXT,
 					(XmStringTag)"LIST");
 
-    XmCSTextInsert(text_, XmCSTextGetLastPosition(text_), body);
+    XmCSTextReplace(text_, 0, XmCSTextGetLastPosition(text_), body);
     XmStringFree(body);
+    XmCSTextSetTopCharacter(text_, 0);
 }
 
 /*----------------------------------------------------------------------*/
@@ -504,35 +493,93 @@ display_sender_info(MESSAGE *m)
 {
     XmString	info;
 
+#ifndef LONG_HDR
     info = XmStringGenerate("From:\t", NULL, XmCHARSET_TEXT,
 			    (XmStringTag)"HDR_B");
-    info = XmStringConcatAndFree(info,
-				 XmStringGenerate(m->sender, NULL,
-						  XmCHARSET_TEXT,
-						  (XmStringTag)"HDR"));
+    if(m->sender != NULL)
+	info = XmStringConcatAndFree(info,
+				     XmStringGenerate(m->sender, NULL,
+						      XmCHARSET_TEXT,
+						      (XmStringTag)"HDR"));
     info = XmStringConcatAndFree(info,
 				 XmStringGenerate("\nSubject:\t", NULL,
 						  XmCHARSET_TEXT,
 						  (XmStringTag)"HDR_B"));
-    info = XmStringConcatAndFree(info,
-				 XmStringGenerate(m->subject, NULL,
-						  XmCHARSET_TEXT,
-						  (XmStringTag)"HDR_U"));
+    if(m->subject != NULL)
+	info = XmStringConcatAndFree(info,
+				     XmStringGenerate(m->subject, NULL,
+						      XmCHARSET_TEXT,
+						      (XmStringTag)"HDR_U"));
     info = XmStringConcatAndFree(info,
 				 XmStringGenerate("\nDate:\t", NULL,
 						  XmCHARSET_TEXT,
 						  (XmStringTag)"HDR_B"));
-    info = XmStringConcatAndFree(info,
-				 XmStringGenerate(m->date, NULL,
-						  XmCHARSET_TEXT,
-						  (XmStringTag)"HDR"));
+    if(m->date != NULL)
+	info = XmStringConcatAndFree(info,
+				     XmStringGenerate(m->date, NULL,
+						      XmCHARSET_TEXT,
+						      (XmStringTag)"HDR"));
+#if 0
     info = XmStringConcatAndFree(info,
 				 XmStringGenerate("\n\n", NULL,
 						  XmCHARSET_TEXT,
 						  (XmStringTag)"HDR"));
-    XmCSTextReplace(text_, 0, XmCSTextGetLastPosition(text_), info);
+#endif
+    XmCSTextReplace(hdrtext_, 0, XmCSTextGetLastPosition(hdrtext_), info);
 
     XmStringFree(info);
+#else
+    char	*allhdr = strdup(m->header->message), *ptr, *split;
+    char	keyword[256];	/* Should be long enough? :-) */
+    int		length;
+
+    ptr = strtok(allhdr, "\n");
+
+    if(ptr == NULL){
+	free(allhdr);
+	return;
+    }
+
+    info = XmStringGenerate("", NULL, XmCHARSET_TEXT,
+			    (XmStringTag)"HDR");
+    XmCSTextReplace(hdrtext_, 0, XmCSTextGetLastPosition(hdrtext_), info);
+    XmStringFree(info);
+
+    do{
+	if((split = strchr(ptr, ':')) != NULL){
+	    split++;
+	    length = split - ptr;
+	    strncpy(keyword, ptr, length);
+	    keyword[length] = '\0';
+	    info = XmStringGenerate(keyword, NULL, XmCHARSET_TEXT,
+				    (XmStringTag)"HDR_B");
+	    info = XmStringConcatAndFree(info,
+					 XmStringGenerate(split, NULL,
+							  XmCHARSET_TEXT,
+							  (XmStringTag)"HDR"));
+	    info = XmStringConcatAndFree(info,
+					 XmStringGenerate("\n", NULL,
+							  XmCHARSET_TEXT,
+							  (XmStringTag)"HDR"));
+	    XmCSTextInsert(hdrtext_, XmCSTextGetInsertionPosition(hdrtext_),
+			   info);
+	    XmStringFree(info);
+	}
+	else{
+	    info = XmStringGenerate(ptr, NULL, XmCHARSET_TEXT,
+				    (XmStringTag)"HDR");
+	    info = XmStringConcatAndFree(info,
+					 XmStringGenerate("\n", NULL,
+							  XmCHARSET_TEXT,
+							  (XmStringTag)"HDR"));
+	    XmCSTextInsert(hdrtext_, XmCSTextGetInsertionPosition(hdrtext_),
+			   info);
+	    XmStringFree(info);
+	}
+    }while(ptr = strtok(NULL, "\n"));
+
+    free(allhdr);
+#endif
 }
 
 /*----------------------------------------------------------------------*/
@@ -739,12 +786,19 @@ void
 setup_ui(int level, int argc, char **argv)
 {
     Widget	control_;
-    char	*title;
+    char	*title, *dbglvl;
     XImage	*img, *shp_img;
 
-    toplevel_ = XtVaOpenApplication(&app_context_, "Privtool", NULL, 0,
+    toplevel_ = XtVaOpenApplication(&app_context_, "Privtool", options,
+				    XtNumber(options),
 				    &argc, argv, NULL,
 				    applicationShellWidgetClass, 0);
+
+    if((dbglvl = GetResourceString(toplevel_, "debug", "Debug")) != NULL){
+	debug_ = atoi(dbglvl);
+	/*fprintf(stderr, "%s: Got debug level: %d\n", argv[0], debug_);*/
+	DEBUG1(("Got debug level: %d\n", debug_));
+    }
 
     title = (char *)malloc(strlen(prog_name) + strlen(prog_ver) + 5);
     strcpy(title, prog_name);
@@ -778,7 +832,7 @@ setup_ui(int level, int argc, char **argv)
 
     last_message_read = messages.start;
     if(last_message_read)
-	display_message(last_message_read = messages.start);
+	display_new_message();
     sync_list();
     update_message_list();
     
@@ -904,13 +958,13 @@ compose_find_free()
 static COMPOSE_WINDOW *
 setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 {
-    int			i, width, ww, pos;
-    XmTextPosition	newpos;
+    int			i, width, ww;
     COMPOSE_WINDOW	*win = NULL;
     COMPOSE_TYPE	comp_type;
     BUFFER		*b;
-    char		*indent, *send_to;
+    char		*send_to;
     Widget		msgbox, topform, form, ctrl, tbox, txt, swin, cap;
+    Widget		button;
 
     comp_type = (COMPOSE_TYPE)clientdata;
     if (comp_type == COMPOSE_REPLY && !last_message_read)
@@ -1011,6 +1065,9 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 	tbox = XmCreateRowColumn(topform, "tbox", NULL, 0);
 	XtManageChild(tbox);
 
+	button = XmCreatePushButton(topform, "insert", NULL, 0);
+	XtManageChild(button);
+
 	win->sign = XmCreateToggleButtonGadget(tbox, "sign", NULL, 0);
 	XtManageChild(win->sign);
 	win->encrypt = XmCreateToggleButtonGadget(tbox, "encrypt", NULL, 0);
@@ -1025,6 +1082,10 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 #endif
 
 	win->text = XmCreateScrolledText(topform, "stext", NULL, 0);
+	XtAddCallback(win->text, XmNdestinationCallback,
+		      (XtCallbackProc)destnCb, NULL);
+	XtAddCallback(button, XmNactivateCallback,
+		      (XtCallbackProc)filerCb, win->text);
 	XtManageChild(win->text);
     }
 
@@ -1065,25 +1126,19 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 			  XmTextFieldGetLastPosition(win->send_subject),
 			  last_message_read->subject);
 
-	if (!(indent = find_mailrc("indentprefix")))
-		indent = "> ";
-
 	if (last_message_read->decrypted)
 		b = last_message_read->decrypted;
 	else
 		b = message_contents(last_message_read);
 
 	XtVaSetValues(win->text, XmNvalue, last_message_read->sender, NULL);
-	XmTextInsert(win->text, XmTextGetLastPosition(win->text),
+	XmTextSetInsertionPosition(win->text,
+				   XmTextGetLastPosition(win->text));
+	XmTextInsert(win->text, XmTextGetInsertionPosition(win->text),
 		     attribution_string);
-	XmTextInsert(win->text, (pos = XmTextGetLastPosition(win->text)),
-		     b->message);
-	XmTextInsert(win->text, pos, indent);
-	while(XmTextFindString(win->text, pos, "\n", XmTEXT_FORWARD,
-			       &newpos)){
-	    XmTextInsert(win->text, newpos+1, indent);
-	    pos = newpos+1;
-	}
+	XmTextSetInsertionPosition(win->text,
+				   XmTextGetLastPosition(win->text));
+	insert_message(win->text, b->message);
 	XmTextSetInsertionPosition(win->text, 0);
 	if(XmIsTraversable(win->text))
 	    XmProcessTraversal(win->text, XmTRAVERSE_CURRENT);
@@ -1117,6 +1172,26 @@ setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
 
     return win;
 }
+
+/*----------------------------------------------------------------------*/
+
+static void
+insert_message(Widget w, char *m)
+{
+    XmTextPosition	pos, newpos;
+    char		*indent;
+
+    if (!(indent = find_mailrc("indentprefix")))
+	indent = "> ";
+
+    XmTextInsert(w, (pos = XmTextGetInsertionPosition(w)), m);
+    XmTextInsert(w, pos, indent);
+    while(XmTextFindString(w, pos, "\n", XmTEXT_FORWARD,
+			   &newpos)){
+	XmTextInsert(w, newpos+1, indent);
+	pos = newpos+1;
+    }
+} /* insert_message */
 
 /*----------------------------------------------------------------------*/
 
@@ -1350,7 +1425,7 @@ create_view_menu(Widget parent)
     button_ = XmCreateSeparatorGadget(menu_, "separator", NULL, 0);
     XtManageChild (button_);
 
-    foldwin_[0] = XmCreateToggleButtonGadget (menu_, "folders", NULL, 0);
+    foldwin_[0] = XmCreateToggleButton(menu_, "folders", NULL, 0);
     XtManageChild (foldwin_[0]);
     XtAddCallback (foldwin_[0], XmNvalueChangedCallback,
 		   view_foldersCB, NULL);
@@ -1464,12 +1539,22 @@ create_workarea(Widget parent)
 
     mailslist_ = XmCreateScrolledList(pwin, "slist", NULL, 0);
 
-    XtVaSetValues(mailslist_, XmNrenderTable, render_list, 0);
     XtAddCallback(mailslist_, XmNdefaultActionCallback,
 		  (XtCallbackProc)show_message, NULL);
+    XtAddCallback(mailslist_, XmNconvertCallback,
+		  (XtCallbackProc)listConvertCb, NULL);
+    XtAddCallback(mailslist_, XmNdestinationCallback,
+		  (XtCallbackProc)destnCb, NULL);
     XtManageChild (mailslist_);
 
+    hdrtext_ = XmCreateScrolledCSText(pwin, "hdrtext", NULL, 0);
+    XtAddCallback(hdrtext_, XmNconvertCallback,
+		  (XtCallbackProc)textConvertCb, NULL);
+    XtManageChild(hdrtext_);
+
     text_ = XmCreateScrolledCSText(pwin, "msgtext", NULL, 0);
+    XtAddCallback(text_, XmNconvertCallback,
+		  (XtCallbackProc)textConvertCb, NULL);
     XtManageChild(text_);
 
     m = messages.start;
@@ -1506,8 +1591,9 @@ update_mail_list()
 
     while (m) {
 	XmListAddItem(mailslist_,
-		      tempstring = XmStringGenerate(m->description, NULL, XmCHARSET_TEXT,
-				    (XmStringTag)"LIST"),
+		      tempstring = XmStringGenerate(m->description, NULL,
+						    XmCHARSET_TEXT,
+						    (XmStringTag)"LIST"),
 		      0);
 	XmStringFree(tempstring);
 	m = m->next;
@@ -1751,13 +1837,9 @@ undeleteCB(Widget w, XtPointer clientdata, XtPointer calldata)
 static void
 view_foldersCB(Widget w, XtPointer clientdata, XtPointer calldata)
 {
-    if(XmToggleButtonGadgetGetState(w)){
-	XmToggleButtonSetState(foldwin_[0], True, False);
-	XmToggleButtonSetState(foldwin_[1], True, False);
+    if(XmToggleButtonGetState(w)){
 	show_mail_folders(toplevel_);
     }else{
-	XmToggleButtonSetState(foldwin_[0], False, False);
-	XmToggleButtonSetState(foldwin_[1], False, False);
 	hide_mail_folders();
     }
 } /* view_foldersCB */
@@ -1796,7 +1878,7 @@ loadNewCB(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     deleteAllMessages();
     inbox_proc();
-    display_message(last_message_read = messages.start);
+    display_new_message();
     sync_list();
     update_message_list();
 } /* loadNewCB */
@@ -1868,6 +1950,7 @@ resizePwinCb(Widget w, XtPointer clientdata, XEvent *event, Boolean *cont)
 	XtVaGetValues(w, XmNwidth, &width, NULL);
 	XtVaSetValues(w, XmNsashWidth, width, NULL);
     }
+    *cont = True;
 } /* resizePwinCb */
 
 /*----------------------------------------------------------------------*/
@@ -1919,8 +2002,9 @@ folderCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	return;
 
     if(action == FOLDER_LOAD){
+	deleteAllMessages();
 	load_file_proc(folder);
-	display_message(last_message_read = messages.start);
+	display_new_message();
 	sync_list();
 	update_message_list();
 	return;
@@ -1962,7 +2046,310 @@ static void
 saveCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     save_changes_proc();
-    display_message(last_message_read = messages.start);
+    display_new_message();
     sync_list();
     update_message_list();
 } /* saveCb */
+
+/*----------------------------------------------------------------------*/
+
+void
+set_foldwin_toggles(Boolean set)
+{
+    XmToggleButtonSetState(foldwin_[0], set, False);
+    XmToggleButtonSetState(foldwin_[1], set, False);
+} /* set_foldwin_toggles */
+
+/*----------------------------------------------------------------------*/
+
+void
+update_combo(char *path)
+{
+    Widget	text = XtNameToWidget(fold_combo_, "*Text");
+
+    XtVaSetValues(text, XmNvalue, path, NULL);
+} /* update_combo */
+
+/*----------------------------------------------------------------------*/
+
+static void
+display_new_message()
+{
+    MESSAGE	*m;
+    int		numVisible;
+
+    /* Find first unread message. */
+    for(m = messages.start; m != NULL; m = m->next){
+	if(m->status == MSTAT_UNREAD)
+	    break;
+    }
+
+    if(m == NULL){		/* No unread messages, display last. */
+	display_message(last_message_read = messages.end);
+    }
+    else{			/* Got one so display it and position
+				   list nicely. */
+	display_message(last_message_read = m);
+	XtVaGetValues(mailslist_, XmNvisibleItemCount, &numVisible, NULL);
+	if(m->list_pos < (messages.number - numVisible)){
+	    XtVaSetValues(mailslist_, XmNtopItemPosition, m->list_pos, NULL);
+	}
+	else{
+	    XtVaSetValues(mailslist_, XmNtopItemPosition,
+			  (messages.number - numVisible) + 1, NULL);
+	}
+    }
+} /* display_new_message */
+
+/*----------------------------------------------------------------------*/
+
+static void
+textConvertCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmConvertCallbackStruct *cbs = (XmConvertCallbackStruct *)calldata;
+
+    DEBUG1(("textConvertCb target = %s\n", XmGetAtomName(XtDisplay(w),
+							 cbs->target)));
+
+    cbs->status = XmCONVERT_DEFAULT;
+} /* textConvertCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+listConvertCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    String	name, seln;
+    Display	*display = XtDisplay(w);
+    XmConvertCallbackStruct *cbs = (XmConvertCallbackStruct *)calldata;
+
+    Atom	PRIVTOOL_SENDER =
+	XmInternAtom(display, "PRIVTOOL_SENDER", False);
+    Atom	PRIVTOOL_MESSAGE =
+	XmInternAtom(display, "PRIVTOOL_MESSAGE", False);
+    Atom	TARGETS = XmInternAtom(display, XmSTARGETS, False);
+    Atom	ME_TARGETS = 
+	XmInternAtom(display, XmS_MOTIF_EXPORT_TARGETS, False);
+    MESSAGE	*m;
+    BUFFER	*b;
+    WidgetList	items;
+    int		numitems;
+
+    DEBUG1(("listConvertCb target = %s\n", XmGetAtomName(XtDisplay(w),
+							 cbs->target)));
+    if(cbs->target == TARGETS ||
+       cbs->target == ME_TARGETS){
+
+        Atom *targs;
+        int target_count = 0;
+
+	if (cbs->target == ME_TARGETS) 
+	    targs = (Atom *)XtMalloc((unsigned) (2 * sizeof(Atom)));
+	else
+	    targs = XmeStandardTargets(w, 2, &target_count);
+
+        targs[target_count++] = PRIVTOOL_SENDER;
+        targs[target_count++] = PRIVTOOL_MESSAGE;
+
+        cbs->value = (XtPointer) targs;
+	cbs->length = target_count;
+	cbs->format = 32;
+	cbs->type = XA_ATOM;
+	cbs->status = XmCONVERT_MERGE;
+    }
+    else if(cbs->target == PRIVTOOL_MESSAGE){
+	if(cbs->location_data != 0){ /* This is the list item to transfer */
+	    for(m = messages.start; m != NULL; m = m->next){
+		if(m->list_pos == (int)cbs->location_data + 1)
+		    break;
+	    }
+	}
+	else{			/* Do all selected items (somehow). */
+	    for(m = messages.start; m != NULL; m = m->next){
+		if(XmListPosSelected(mailslist_, m->list_pos)){
+		    break;
+		}
+	    }
+	}
+	if(m != NULL){
+	    if(m->decrypted){
+		b = m->decrypted;
+	    }
+	    else{
+		b = message_contents(m);
+	    }
+	    cbs->value = b->message;
+	    cbs->length = strlen(b->message);
+	    cbs->type = XA_STRING;
+	    cbs->format = 8;
+	    cbs->status = XmCONVERT_DONE;
+	}
+    }
+    else if(cbs->target == PRIVTOOL_SENDER){
+	if(cbs->location_data != 0){ /* This is the list item to transfer */
+	    for(m = messages.start; m != NULL; m = m->next){
+		if(m->list_pos == (int)cbs->location_data + 1)
+		    break;
+	    }
+	}
+	else{			/* Do all selected items (somehow). */
+	    for(m = messages.start; m != NULL; m = m->next){
+		if(XmListPosSelected(mailslist_, m->list_pos)){
+		    break;
+		}
+	    }
+	}
+	if(m != NULL){
+	    cbs->value = m->sender;
+	    cbs->length = strlen(m->sender);
+	    cbs->type = XA_STRING;
+	    cbs->format = 8;
+	    cbs->status = XmCONVERT_DONE;
+	}
+    }
+    else{
+	cbs->status = XmCONVERT_DEFAULT;
+    }
+} /* listConvertCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+destnCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmDestinationCallbackStruct *cbs = (XmDestinationCallbackStruct *)calldata;
+
+    Atom	TARGETS = XmInternAtom(XtDisplay(w), XmSTARGETS, False);
+    DEBUG1(("destnCb  selection = %s\n", XmGetAtomName(XtDisplay(w),
+						    cbs->selection)));
+    if(w == mailslist_){
+	DEBUG2(("   got mailslist_ destnCb\n"));
+    }
+    else{
+	XmTransferValue(cbs->transfer_id, TARGETS,
+			(XtCallbackProc) transferProc,
+			NULL, XtLastTimestampProcessed(XtDisplay(w)));
+    }
+} /* destnCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+transferProc(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmSelectionCallbackStruct *cbs = (XmSelectionCallbackStruct *)calldata;
+    Boolean	domsg = False, dosndr = False;
+    Display	*display = XtDisplay(w);
+    int		i;
+    Atom	*targets = (Atom *)cbs->value;
+
+    Atom	TARGETS = XmInternAtom(display, XmSTARGETS, False);
+    Atom	PRIVTOOL_SENDER = XmInternAtom(display,
+						"PRIVTOOL_SENDER", False);
+    Atom	PRIVTOOL_MESSAGE = XmInternAtom(display,
+						"PRIVTOOL_MESSAGE", False);
+    char	*buf;
+
+    DEBUG1(("transferProc  target = %s\n", XmGetAtomName(XtDisplay(w),
+							 cbs->target)));
+    if((cbs->target == TARGETS) && (cbs->type == XA_ATOM)){
+	for(i = 0; i < cbs->length; i++){
+	    if(targets[i] == PRIVTOOL_MESSAGE){
+		domsg = True;
+	    }
+	    if(targets[i] == PRIVTOOL_SENDER){
+		dosndr = True;
+	    }
+	}
+
+	if(domsg && dosndr){
+	    XmTransferValue(cbs->transfer_id, PRIVTOOL_SENDER,
+			    (XtCallbackProc)transferProc, NULL,
+			    XtLastTimestampProcessed(display));
+	}
+	else{
+	    DEBUG2(("  in default section.\n"));
+	    /*XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_DEFAULT);*/
+	}
+    }
+    else if((cbs->target == PRIVTOOL_SENDER) && (cbs->type == XA_STRING)){
+	buf = XtMalloc(cbs->length + 1);
+	strncpy(buf, cbs->value, cbs->length);
+	buf[cbs->length] = '\0';
+	XmTextInsert(w, XmTextGetInsertionPosition(w), buf);
+	XmTextInsert(w, XmTextGetInsertionPosition(w), attribution_string);
+	XtFree(buf);
+
+	/* Have got the sender info, now get the actual message. */
+	XmTransferValue(cbs->transfer_id, PRIVTOOL_MESSAGE,
+			(XtCallbackProc)transferProc, NULL,
+			XtLastTimestampProcessed(display));
+    }
+    else if((cbs->target == PRIVTOOL_MESSAGE) && (cbs->type == XA_STRING)){
+	buf = XtMalloc(cbs->length + 1);
+	strncpy(buf, cbs->value, cbs->length);
+	buf[cbs->length] = '\0';
+	insert_message(w, buf);
+	XtFree(buf);
+	XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_SUCCEED);
+    }
+} /* transferProc */
+
+/*----------------------------------------------------------------------*/
+
+static void
+filerCb(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    Widget	filer;
+
+    filer = XmCreateFileSelectionDialog(toplevel_, "filer", NULL, 0);
+    XtUnmanageChild(XtNameToWidget(filer, "*Help"));
+    XtAddCallback(filer, XmNokCallback,
+		  (XtCallbackProc)insert_file, clientdata);
+    XtAddCallback(filer, XmNcancelCallback,
+		  (XtCallbackProc)insert_file, NULL);
+    XtManageChild(filer);
+} /* filerCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+insert_file(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmFileSelectionBoxCallbackStruct *cbs =
+	(XmFileSelectionBoxCallbackStruct *)calldata;
+
+    Widget	text = XtNameToWidget(w, "*Text"), textbox = clientdata;
+    int		fd;
+    char	*name, *buf;
+    struct stat	stbuf;
+
+    XtUnmanageChild(w);
+    if(cbs->reason == XmCR_OK && text != NULL){
+	XtVaGetValues(text, XmNvalue, &name, NULL);
+	DEBUG2(("  inserting file %s ...\n", name));
+	stat(name, &stbuf);
+	if(S_ISREG(stbuf.st_mode)){
+	    if((fd = open(name, O_RDONLY)) == -1){
+		alert(toplevel_, "fileerror", 1);
+	    }
+	    else{
+		buf = mmap(NULL, stbuf.st_size, PROT_READ, MAP_SHARED, fd, 0L);
+		if(buf == (char *)-1){
+		    alert(toplevel_, "mmapfailed", 1);
+		}
+		else{
+		    XmTextInsert(textbox, XmTextGetInsertionPosition(textbox),
+				 buf);
+		    munmap(buf, stbuf.st_size);
+		}
+		close(fd);
+	    }
+	}
+	else{
+	    alert(toplevel_, "notregfile", 1);
+	    DEBUG2(("not a regular file.\n"));
+	}
+    }
+    XtDestroyWidget(w);
+} /* insert_file */
