@@ -58,6 +58,9 @@
 #ifdef HAVE_MOTIF
 #include <X11/Intrinsic.h>
 #endif
+#ifdef HAVE_GTK
+#include <glib.h>
+#endif
 #include "windows.h"
 #include "gui.h"
 

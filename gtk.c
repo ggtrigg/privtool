@@ -63,20 +63,13 @@ typedef enum {
     R_ALL_INCLUDE = 0x80
 } COMPOSE_TYPE;
 
-typedef enum {
-    ALERT_NONE,
-    ALERT_MESSAGE,
-    ALERT_QUESTION,
-    ALERT_ERROR
-} ALERT_TYPE;
-
 extern int		errno;
 extern char		*our_userid;
 extern char		*current_nym(void);
 
 /* Static functions */
-static unsigned int alert(GtkWidget *, char *, ALERT_TYPE, unsigned int, ...);
 static void	alert_cb(GtkWidget *, gpointer);
+static gint	alert_delete_cb(GtkWidget *, GdkEvent *, gpointer);
 static gint	delete_event(GtkWidget *, GdkEvent *, gpointer);
 static void	destroy (GtkWidget *, gpointer);
 static void	update_mail_list(void);
@@ -111,6 +104,7 @@ static void	deliver_cb(GtkWidget *, gpointer);
 static void	show_undelete(gboolean);
 static void	filer_cb(GtkWidget *, gpointer);
 static void	insert_file_cb(GtkWidget *, gpointer);
+static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
 
 /* Static data */
 static GtkWidget	*toplevel;
@@ -119,8 +113,11 @@ static COMPOSE_WINDOW	*compose_last = NULL;
 static char		attribution_string[] = " said :\n\n";
 static char		begin_forward[] = "-- Begin forwarded message ---\n";
 static char		end_forward[] = "\n-- End forwarded message ---\n";
+static GtkTargetEntry	targets[] = {
+    {"mailitem", GTK_TARGET_SAME_APP, 100}};
 
 static GtkItemFactoryEntry ife[] = {
+    {"/File/--", NULL, NULL, 0, "<Tearoff>"},
     {"/File/Load Inbox", "<control>L", load_new_cb, 0, NULL},
     {"/File/Save", "<control>S", save_cb, 0, NULL},
     {"/File/Print", "<control>P", print_cb, 0, NULL},
@@ -128,6 +125,7 @@ static GtkItemFactoryEntry ife[] = {
     {"/File/-", NULL, NULL, 0, "<Separator>"},
     {"/File/Save & Quit", "<control>Q", save_and_quit_proc, 0, NULL},
     {"/File/Quit", "<control>C", quit_proc, 0, NULL},
+    {"/Edit/--", NULL, NULL, 0, "<Tearoff>"},
     {"/Edit/Cut", NULL, NULL, 0, NULL},
     {"/Edit/Copy", NULL, NULL, 0, NULL},
     {"/Edit/Delete", "<control>D", delete_message_proc, 0, NULL},
@@ -137,7 +135,8 @@ static GtkItemFactoryEntry ife[] = {
     {"/Edit/Add Key", NULL, NULL, 0, NULL},
     {"/Edit/Show Attachment", NULL, NULL, 0, NULL},
     {"/Edit/Clear Passphrase", NULL, NULL, 0, NULL},
-    {"/Edit/Properties", "<control>E", NULL, 0, NULL},
+    {"/Edit/Properties", "<control>E", show_props, 0, NULL},
+    {"/View/--", NULL, NULL, 0, "<Tearoff>"},
     {"/View/Next", "<alt>N", next_msg_cb, 0, NULL},
     {"/View/Previous", "<alt>P", prev_msg_cb, 0, NULL},
     {"/View/Sort By/Time & Date", NULL, NULL, 0, NULL},
@@ -151,10 +150,12 @@ static GtkItemFactoryEntry ife[] = {
     {"/View/Full Header", "<control>H", NULL, 0, "<CheckItem>"},
     {"/View/Show Toolbar", "<control>T", toggle_toolbar_cb, 0, "<CheckItem>"},
     {"/View/Folders", "<control>F", show_folder_win_cb, 0, "<ToggleItem>"},
+    {"/Folder/--", NULL, NULL, 0, "<Tearoff>"},
     {"/Folder/Copy to Folder", "<alt>C", move_to_folder_cb, 0, NULL},
     {"/Folder/Move to Folder", "<alt>M", move_to_folder_cb, 1, NULL},
     {"/Folder/Load Folder", "<alt>L", load_folder_cb, 0, NULL},
     {"/Folder/Load Inbox", NULL, load_new_cb, 0, NULL},
+    {"/Compose/--", NULL, NULL, 0, "<Tearoff>"},
     {"/Compose/New", NULL, compose_cb, COMPOSE_NEW, NULL},
     {"/Compose/Reply/Sender", NULL, compose_cb,
 				COMPOSE_REPLY|R_SENDER, NULL},
@@ -166,6 +167,7 @@ static GtkItemFactoryEntry ife[] = {
 				COMPOSE_REPLY|R_ALL_INCLUDE, NULL},
     {"/Compose/Forward", "<alt>F", compose_cb, COMPOSE_FORWARD, NULL},
     {"/Compose/Resend", "<alt>R", compose_cb, COMPOSE_RESEND, NULL},
+    {"/Help/--", NULL, NULL, 0, "<Tearoff>"},
     {"/Help/About", "<control>A", NULL, 0, NULL}
 };
 
@@ -177,6 +179,7 @@ setup_ui(int level, int argc, char **argv)
     gchar	*title, **rcfiles, **file, *gtkrc_path;
     GdkColor	delcol;
     GtkWidget	*vbox, *mbar, *tbar, *vpane, *msglist, *swin, *txt, *statbar;
+    GtkWidget	*hb;
     GtkStyle	*cl_style;
 
     show_deleted = 1;		/* Default value. */
@@ -192,6 +195,7 @@ setup_ui(int level, int argc, char **argv)
     toplevel = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_widget_set_name(toplevel, "Privtool");
     gtk_window_set_title(GTK_WINDOW(toplevel), title);
+    gtk_window_set_policy(GTK_WINDOW(toplevel), 1, 1, 1);
     g_free(title);
 
     gtk_signal_connect(GTK_OBJECT(toplevel), "delete_event",
@@ -219,8 +223,13 @@ setup_ui(int level, int argc, char **argv)
     msglist = create_msglist();
     gtk_paned_add1(GTK_PANED(vpane), msglist);
 
-    /* Create message text area. */
+    /* Create message text area. (In a handlebox so it can be detached.)
+     */
+    hb = gtk_handle_box_new();
+    gtk_handle_box_set_handle_position(GTK_HANDLE_BOX(hb), GTK_POS_TOP);
+    gtk_handle_box_set_snap_edge(GTK_HANDLE_BOX(hb), GTK_POS_TOP);
     swin = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(hb), swin);
     txt = gtk_text_new(NULL, NULL);
     gtk_widget_set_usize(GTK_WIDGET(txt), 550, 450);
     gtk_text_set_editable(GTK_TEXT(txt), FALSE);
@@ -228,7 +237,8 @@ setup_ui(int level, int argc, char **argv)
     gtk_container_add(GTK_CONTAINER(swin), txt);
     gtk_widget_show(swin);
     gtk_widget_show(txt);
-    gtk_paned_add2(GTK_PANED(vpane), swin);
+    gtk_widget_show(hb);
+    gtk_paned_add2(GTK_PANED(vpane), hb);
 
     gtk_widget_show(vpane);
     gtk_box_pack_start(GTK_BOX(vbox), vpane, TRUE, TRUE, 0);
@@ -263,7 +273,7 @@ setup_ui(int level, int argc, char **argv)
     gtk_main();
 }
 
-static unsigned int
+unsigned int
 alert(GtkWidget *parent, char *message, ALERT_TYPE atype,
       unsigned int nbuttons, ...)
 {
@@ -333,6 +343,8 @@ alert(GtkWidget *parent, char *message, ALERT_TYPE atype,
 				     GTK_WINDOW(toplevel));
     }
 
+    gtk_signal_connect(GTK_OBJECT(dialog), "delete_event",
+		       GTK_SIGNAL_FUNC (alert_delete_cb), dialog);
     show_busy();
     gtk_widget_show(dialog);
     gtk_grab_add(dialog);
@@ -357,6 +369,17 @@ alert_cb(GtkWidget *w, gpointer data)
     gtk_grab_remove(GTK_WIDGET(data));
     gtk_main_quit();
 } /* alert_cb */
+
+static gint
+alert_delete_cb(GtkWidget *w, GdkEvent *event, gpointer data)
+{
+    GtkWidget	*dialog = (GtkWidget *)data;
+
+    gtk_object_set_user_data(GTK_OBJECT(dialog), (gpointer)1);
+    gtk_grab_remove(GTK_WIDGET(data));
+    gtk_main_quit();
+    return(TRUE);
+} /* alert_delete_cb */
 
 void
 bad_file_notice(int w)
@@ -426,9 +449,11 @@ clear_display_window()
 							 "msgtext");
 
     /* Clear text from point onwards. */
+    gtk_text_freeze(GTK_TEXT(text));
     gtk_text_forward_delete(GTK_TEXT(text),
 			    gtk_text_get_length(GTK_TEXT(text)) -
 			    gtk_text_get_point(GTK_TEXT(text)));
+    gtk_text_thaw(GTK_TEXT(text));
 }
 
 void
@@ -618,6 +643,7 @@ display_message_body(BUFFER *b)
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
 
+    gtk_text_freeze(GTK_TEXT(text));
     gtk_text_set_point(GTK_TEXT(text), gtk_text_get_length(GTK_TEXT(text)));
 
     /* Now insert this message. */
@@ -626,6 +652,7 @@ display_message_body(BUFFER *b)
 
     /* Set the point back to the top of the screen. */
     gtk_text_set_point(GTK_TEXT(text), 0);
+    gtk_text_thaw(GTK_TEXT(text));
 }
 
 void
@@ -711,6 +738,7 @@ display_sender_info(MESSAGE *m)
 	return;
     }
 
+    gtk_text_freeze(GTK_TEXT(text));
     gtk_text_set_point(GTK_TEXT(text), 0);
 
     /* Now insert this message. */
@@ -751,6 +779,7 @@ display_sender_info(MESSAGE *m)
     }while((ptr = strtok(NULL, "\n")));
 
     gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL, "\n", 1);
+    gtk_text_thaw(GTK_TEXT(text));
 }
 
 int
@@ -1292,6 +1321,8 @@ create_msglist(void)
 				   GTK_POLICY_AUTOMATIC,
 				   GTK_POLICY_AUTOMATIC);
     gtk_clist_set_selection_mode(GTK_CLIST(clist), GTK_SELECTION_EXTENDED);
+    gtk_drag_source_set(clist, GDK_BUTTON2_MASK, targets,
+			1, GDK_ACTION_COPY|GDK_ACTION_MOVE);
     gtk_container_add(GTK_CONTAINER(swin), clist);
     gtk_object_set_data(GTK_OBJECT(toplevel), "msglist", (gpointer)clist);
 
@@ -1820,6 +1851,7 @@ show_folder_win_cb(GtkWidget *w, gpointer data)
 					 GTK_SELECTION_SINGLE);
 	    gtk_clist_set_button_actions(GTK_CLIST(tree), 0,
 					 GTK_BUTTON_SELECTS|GTK_BUTTON_EXPANDS);
+	    gtk_clist_set_sort_column(GTK_CLIST(tree), 1);
 	    gtk_container_add(GTK_CONTAINER(swin), tree);
 
 	    gtk_signal_connect(GTK_OBJECT(tree), "tree_select_row",
@@ -1903,13 +1935,13 @@ process_dir(GtkWidget *tree, char *dirname, GtkCTreeNode *parent)
 						 mini_ofolder_xpm);
     }
 
+    name[0] = name[2] = NULL;
+
     /* Clean out the tree.
        (but only if we're at the top i.e parent == NULL) */
     if(parent == NULL) {
 	gtk_clist_clear(GTK_CLIST(tree));
     }
-
-    name[0] = name[2] = NULL;
 
     /* Now fill with new ones. */
     while((de = readdir(dirp)) != NULL){
@@ -2168,6 +2200,10 @@ compose_find_free()
     gtk_text_set_editable(GTK_TEXT(win->text), TRUE);
     gtk_container_add(GTK_CONTAINER(swin), win->text);
     gtk_box_pack_start(GTK_BOX(vbox), swin, TRUE, TRUE, 4);
+    gtk_drag_dest_set(win->text, GTK_DEST_DEFAULT_ALL, targets, 1,
+		      GDK_ACTION_COPY);
+    gtk_signal_connect(GTK_OBJECT(win->text), "drag_drop",
+		       GTK_SIGNAL_FUNC (msgdrop_cb), win);
     gtk_widget_show(win->text);
     gtk_widget_show(swin);
 
@@ -2466,3 +2502,23 @@ insert_file_cb(GtkWidget *w, gpointer data)
 
     gtk_widget_destroy(filer);
 } /* insert_file_cb */
+
+static void
+msgdrop_cb(GtkWidget *w, GdkDragContext *ctxt, gint x, gint y, guint etime,
+	   gpointer data)
+{
+    GtkWidget	*source;
+
+    source = gtk_drag_get_source_widget(ctxt);
+    g_warning("In msgdrop_cb, the penny dropped (%d, %d)!", x, y);
+
+    /* Quit if the drop is from an external source or from a non-clist
+       widget. We only want to receive messages from the message list.
+    */
+    if((source == NULL) || !GTK_IS_CLIST(source)) {
+	gtk_drag_finish(ctxt, FALSE, FALSE, etime);
+	return;
+    }
+
+    gtk_drag_finish(ctxt, FALSE, FALSE, etime);
+} /* msgdrop_cb */

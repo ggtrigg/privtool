@@ -24,7 +24,7 @@ XVIEW_SRC =	x.c xprops.c
 MOTIF_SRC =	motif.c mfolder.c mprops.c pixmapcache.c m_util.c \
 		liteclue/LiteClue.c
 MOTIF_CPP =	-I$(srcdir)/liteclue
-GTK_SRC =	gtk.c
+GTK_SRC =	gtk.c gprops.c
 
 # OS specific source files.
 LINUX_SOURCE =	linux/gettime.c linux/parsedate.c

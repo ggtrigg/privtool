@@ -78,10 +78,15 @@ typedef	int	COMPOSE_WINDOW;
 typedef int	DISPLAY_WINDOW;
 #endif
 
-#ifdef HAVE_MOTIF
+#if defined(HAVE_MOTIF)
 typedef struct _mail_header_field {
     String	name;
     Boolean	editable;
+} MAIL_HEADER_FIELD;
+#elif defined(HAVE_GTK)
+typedef struct _mail_header_field {
+    gchar	*name;
+    gboolean	editable;
 } MAIL_HEADER_FIELD;
 #endif
 
