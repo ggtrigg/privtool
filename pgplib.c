@@ -1,6 +1,6 @@
 
 /*
- *	@(#)pgplib.c	1.44 8/9/95
+ *	@(#)pgplib.c	1.51 3/5/96
  *
  *	pgplib.c, (mostly) by Mark Grant 1993
  *
@@ -22,14 +22,22 @@
 #define PGPLIB
 
 #include <stdio.h>
+#ifdef __FreeBSD__
+#include <signal.h>
+#else
 #ifndef SYSV
 #include <vfork.h>
 #else
 #include <signal.h>
 #endif
+#endif
 
 #include <string.h>
+#ifdef __FreeBSD__
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -49,6 +57,8 @@
 #include <pgptools.h>
 #include <pgpkmgt.h>
 #include <pgpmem.h>
+#else
+#include "pgp-exit.h"
 #endif
 
 #include "buffers.h"
@@ -239,6 +249,32 @@ byte	our_randombyte()
 
 	return pgp_randombyte();
 }
+
+void	update_pgptools_random()
+
+{
+	struct	fifo	*f;
+
+	rand_pointer = 0;
+	f = fifo_mem_create ();
+
+	/* We pass privseed through the first time, then
+	   random_seed (the new data) after that. That
+	   way, privseed[] will match the contents of the
+	   PGPTools random seed which xors all the data
+	   passed into it. */
+
+	if (init_rand) {
+		fifo_aput (random_seed, RAND_SIZE, f);
+		bzero (random_seed, RAND_SIZE);
+	}
+	else {
+		fifo_aput (privseed, RAND_SIZE, f);
+		init_rand = TRUE;
+	}
+			
+	pgp_initrand (f);
+}
 #endif
 
 /* Add arbitrary data to the random number seed */
@@ -262,27 +298,7 @@ int	s;
 		/* Pass it to PGPTools if we reached the end of the buffer */
 
 		if (rand_pointer == RAND_SIZE) {
-			struct	fifo	*f;
-
-			rand_pointer = 0;
-			f = fifo_mem_create ();
-
-			/* We pass privseed through the first time, then
-			   random_seed (the new data) after that. That
-			   way, privseed[] will match the contents of the
-			   PGPTools random seed which xors all the data
-			   passed into it. */
-
-			if (init_rand) {
-				fifo_aput (random_seed, RAND_SIZE, f);
-				bzero (random_seed, RAND_SIZE);
-			}
-			else {
-				fifo_aput (privseed, RAND_SIZE, f);
-				init_rand = TRUE;
-			}
-			
-			pgp_initrand (f);
+			update_pgptools_random();
 		}
 	}
 #endif
@@ -389,6 +405,160 @@ int	decryp;
 	bzero (iv, 8);
 }
 
+/* For Linux we'll munge in the MD5 of some files under /proc */
+
+#ifdef linux
+static	void	add_proc_file (s)
+
+char	*s;
+
+{
+	int	fd;
+	int	sz;
+	char	path[1024];
+	char	buf[1024];
+	MD5_CTX	context;
+	byte	md5[16];
+	
+	sprintf(path, "/proc/%s", s);
+	fd = open (path, O_RDONLY);
+	if (fd < 0)
+		return;
+
+	MD5Init (&context);
+	do {
+		sz = read (fd, buf, 1024);
+		if (sz > 0)
+			MD5Update (&context, buf, sz);
+	} while (sz > 0);
+	MD5Final (md5, &context);
+
+	close (fd);
+
+	add_to_random (md5, 16);
+
+	bzero (md5, 16);
+	bzero (&context, sizeof (context));
+	bzero (buf, 1024);
+	bzero (path, 1024);
+}
+
+static	char	*proc_files[] = {
+	"apm",
+	"interrupts",
+	"loadavg",
+	"uptime",
+	"meminfo",
+	"modules",
+	"stat",
+	"net/sockstat",
+	"net/dev",
+	"net/snmp",
+	NULL,
+};
+
+static	void	add_proc_data ()
+
+{
+	int	i;
+
+	for (i = 0; proc_files [i]; i++)
+		add_proc_file (proc_files[i]);
+}
+#endif
+
+#ifdef USE_AUDIO
+static	void	munge_in_audio (p)
+
+byte	*p;
+
+{
+#define AUDIO_BUFF	512
+	byte	audio[AUDIO_BUFF];
+	int	audio_fd;
+	int	audio_out;
+	int	audio_in;
+	int	audio_p;
+	MD5_CTX	context;
+	byte	md5[16];
+
+	/* Open the device */
+
+	audio_fd = open ("/dev/audio", O_RDONLY);
+
+	/* Did we get it ? */
+	
+	if (audio_fd >= 0) {
+		byte	last_audio = 0x00;
+		int	audio_count = 0, i;
+
+		audio_p = 0;
+
+		/* We loop over the entire privseed array */
+
+		while (audio_p < RAND_SIZE) {
+
+			/* Read some bytes, and make sure we get 512 !! */
+
+			audio_in = 0;
+			while (audio_in < AUDIO_BUFF) {
+				audio_in += read (audio_fd, audio + audio_in, 
+					AUDIO_BUFF - audio_in);
+			}			
+
+			/* Now MD5 the block */
+
+			MD5Init (&context);
+			MD5Update (&context, audio, AUDIO_BUFF);
+			MD5Final (md5, &context);
+
+			/* And XOR with the privseed data */
+
+			for (i = 0; i < 16;)
+				p[audio_p++] ^= md5[i++];
+		}
+
+		/* Tidy up */
+
+		bzero (md5, 16);
+		bzero (audio, AUDIO_BUFF);
+		bzero (&context, sizeof (context));
+
+		/* And close it */
+
+		close (audio_fd);
+	}
+	else {
+		printf("Privtool: Cannot open audio device !\n");
+	}
+}
+#endif
+
+/* Do what we can to reseed the random number generator */
+
+void	reseed_random()
+
+{
+	int	i;
+
+#ifdef USE_AUDIO
+	bzero (random_seed, RAND_SIZE);
+	munge_in_audio (random_seed);
+
+	for (i = 0; i < RAND_SIZE; i++)
+		privseed[i] ^= random_seed[i];
+#else
+	idea_privseed (FALSE);
+	for (i = 0; i < RAND_SIZE; i++)
+		random_seed[i] ^= privseed[i];
+#endif
+
+	update_pgptools_random();
+#ifdef linux
+	add_proc_data ();
+#endif
+}
+
 static	int	get_public_key (id, userid, key, trust)
 
 byte	*id;
@@ -423,6 +593,8 @@ byte	*trust;
 
 		if (temp) 
 			found = TRUE;
+		else
+			fclose (pkr);
 	}
 
 	/* Now go for the pubring file if we didn't find it */
@@ -512,6 +684,13 @@ void	init_pgplib()
 		fclose (fp);
 	}
 
+	/* We can get a few more bits of randomness by using the
+	   audio device here */
+
+#ifdef USE_AUDIO
+	munge_in_audio (privseed);
+#endif
+
 	/* If we didn't find the file, running it through the
 	   IDEA cipher will provide us some slightly random output */
 
@@ -528,6 +707,9 @@ void	init_pgplib()
 		bzero (randseed, 24);
 		fclose (fp);
 	}
+#ifdef linux
+	add_proc_data ();
+#endif
 #endif
 }
 
@@ -548,6 +730,14 @@ void	close_pgplib()
 	/* IDEA privseed array before dumping */
 
 	idea_privseed(FALSE);
+
+	/* Possibly mix in some audio data */
+
+#ifdef MOST_SECURE
+#ifdef USE_AUDIO
+	munge_in_audio (privseed);
+#endif
+#endif
 
 	/* XOR in the old file, in case any other program has been
 	   using it while we're running. Even if we start up and
@@ -581,7 +771,7 @@ void	close_pgplib()
 
 	/* Eject floppy disk on exit */
 
-#ifdef USE_FLOPPY
+#if defined(USE_FLOPPY) && defined(AUTO_EJECT)
 	eject_floppy();
 #endif
 }
@@ -641,7 +831,7 @@ char	*args[];
 char	*pass;
 
 {
-	run_program(pgp_path(),message,msg_len,args,pass);
+	return run_program(pgp_path(),message,msg_len,args,pass);
 }
 #endif
 
@@ -1463,6 +1653,9 @@ byte	*md5_pass;
 				fifo_destroy (mess);
 
 				return ret_val;
+
+				default:
+				return DEC_BAD_FILE;
 			}
 		}
 	}
@@ -1470,11 +1663,35 @@ byte	*md5_pass;
 	char	*s,*e;
 	char	line[LINE_LENGTH+1];
 	int	j,c;
+	int	pgp_ret;
 	int	sig_lines = 0;
 
-	run_pgp(message->message,message->length,filter_argv,pass);
+	pgp_ret = run_pgp(message->message,message->length,filter_argv,pass);
 
 	ret_val = SIG_GOOD;
+
+	switch (pgp_ret) {
+		case EXIT_OK:
+		break;
+
+		case INVALID_FILE_ERROR:
+		case FILE_NOT_FOUND_ERROR:
+		case UNKNOWN_FILE_ERROR:
+		case NO_BATCH:
+		case BAD_ARG_ERROR:
+		case INTERRUPT:
+		case OUT_OF_MEM:
+		case KEYGEN_ERROR:
+		case KEYRING_ADD_ERROR:
+		ret_val = DEC_BAD_FILE;
+
+		case NONEXIST_KEY_ERROR:
+		ret_val = SIG_NO_KEY;
+
+	}
+
+	/* We check the error messages just in case we didn't pick
+	   up the return code. */
 
 	if (error_messages.message && strstr((char *)error_messages.message,"WARNING")) {
 
@@ -1768,7 +1985,6 @@ byte	*md5_pass;
 
 		pgp_create_literal (mess, outmess, text, "dev.null",
 			timestamp);
-		fifo_destroy (mess);
 
 		/* Compress it, destroying outmess in the process */
 
@@ -2263,8 +2479,11 @@ BUFFER	*m;
 
 	opr = fopen (in_file, "rb");
 	npr = fopen (out_file, "wb");
-	if (!npr)
+	if (!npr) {
+		if (opr)
+			fclose (opr);
 		goto addkey_no_file;
+	}
 
 	if (opr) {
 		char	userid[STRING_SIZE];

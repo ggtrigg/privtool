@@ -1,5 +1,5 @@
 /*
- *	@(#)x.c	1.67 9/5/95
+ *	@(#)x.c	1.78 6/11/96
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -21,10 +21,21 @@
  *
  *	Various changes 
  *		- Anders Baekgaard (baekgrd@ibm.net) 10th August 1995
+ *
  *      Linux icon changes by
  *              - Alan Teeder (ajteeder@dra.hmg.gb) 1 Sept 1995
  *                      changed to use .xbm files - some linux systems
  *                      corrupt normal icons.
+ *
+ *	Pushpins added to display windows
+ *		- Gregory Margo (gmargo@newton.vip.best.com) 5th Oct 1995
+ *
+ *	Numerous compose window changes
+ *		- Tony Gialluca (tony@hgc.edu)	27th Oct 1995
+ *
+ *      Generate run-time Mail files menu & sort file menus
+ *              - Scott Cannon Jr. (scottjr@silver.cal.sdl.usu.edu)
+ *                     30 May 1996
  */
 
 /* We define UI_MAIN so that header files can tell how to define the
@@ -33,7 +44,10 @@
 #define UI_MAIN
 
 #include <stdlib.h>
+#ifndef __FreeBSD__
+/* malloc .h superceded by stdlib.h included above */
 #include <malloc.h>
+#endif
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/param.h>
@@ -79,6 +93,10 @@
 
 #define	GC_KEY	10
 
+#ifndef MAX_FILES
+#define MAX_FILES    150
+#endif
+
 #ifndef FIXED_WIDTH_FONT
 #define FIXED_WIDTH_FONT FONT_FAMILY_DEFAULT_FIXEDWIDTH
 #endif
@@ -87,17 +105,22 @@
 #define XRESOURCES ".Xdefaults"
 #endif
 
-static	Frame	main_frame;
-static	Panel	top_panel;
-static	Panel	display_panel;
-static	Panel_item	file_name_item;
+        Frame	main_frame;
+int	font_size;
+        Panel_item	mail_file_button;
 
+static  Menu	glob_mainMenu;
+static  char	glob_isMainMenu = 0;
+static	Panel	top_panel,alias_panel,panel2,panel3,panel4;
+static	Panel	display_panel;
+static	Canvas	list_canvas;
+static	Icon	icon,newmail_icon;
+
+static	Panel_item	file_name_item;
 static	Panel_item	nym_item;
 static	Panel_item	addkey_item;
-static	Canvas		list_canvas;
 static	Scrollbar	v_scroll;
-static	Xv_font		list_font;
-static	Icon		icon,newmail_icon;
+static	Xv_font		list_font, default_font;
 #ifdef USE_XBM
 static	Pixmap		icon_pm, newmail_icon_pm, mask_icon_pm;
 #endif
@@ -106,6 +129,9 @@ static	Xv_window	list_window;
 
 static	COMPOSE_WINDOW	*compose_first = NULL;
 static	COMPOSE_WINDOW	*compose_last = NULL;
+
+static	DISPLAY_WINDOW	*display_first = NULL;
+static	DISPLAY_WINDOW	*display_last = NULL;
 
 #define LIST_DISPLACEMENT	16
 
@@ -142,6 +168,7 @@ static unsigned short	icon_bits_mask[] = {
 
 extern	char	default_mail_file[];
 extern	char	*our_userid;
+extern  void	properties_proc();
 
 static	Frame	pass_frame;
 static	Panel_item	pass_item;
@@ -209,7 +236,7 @@ Panel_item	item;
 	return NULL;
 }
 
-/* Take a log_item and find a compose window */
+/* Take a deliver_item and find a compose window */
 
 static	COMPOSE_WINDOW	*compose_from_deliver_item (item)
 
@@ -230,6 +257,27 @@ Panel_item	item;
 	return NULL;
 }
 
+/* Take a clear_item and find a compose window */
+
+static	COMPOSE_WINDOW	*compose_from_clear_item (item)
+
+Panel_item	item;
+
+{
+	COMPOSE_WINDOW	*w;
+
+	w = compose_first;
+
+	while (w) {
+		if (w->clear_item == item) 
+			return w;
+
+		w = w->next;
+	}
+
+	return NULL;
+}
+
 /* Look for a free window */
 
 static	COMPOSE_WINDOW	*compose_find_free ()
@@ -241,6 +289,76 @@ static	COMPOSE_WINDOW	*compose_find_free ()
 
 	while (w) {
 		if (!w->in_use)
+			return w;
+
+		w = w->next;
+	}
+
+	return NULL;
+}
+
+/* Find a free display window */
+
+static	DISPLAY_WINDOW	*display_find_free (n)
+
+int	n;
+
+{
+	DISPLAY_WINDOW	*w;
+
+	w = display_first;
+	while (w) {
+		if (w->number == n)
+			return w;
+
+		w = w->next;
+	}
+
+	w = display_first;
+	while (w) {
+		if (!xv_get (w->display_frame, FRAME_CMD_PUSHPIN_IN))
+			return w;
+
+		w = w->next;
+	}
+
+	return NULL;
+}
+
+/* Find a display window from its frame */
+
+static	DISPLAY_WINDOW	*display_from_frame (frame)
+
+Frame	frame;
+
+{
+	DISPLAY_WINDOW	*w;
+
+	w = display_first;
+
+	while (w) {
+		if (w->display_frame == frame) 
+			return w;
+
+		w = w->next;
+	}
+
+	return NULL;
+}
+
+/* Find a display window from its panel */
+
+static	DISPLAY_WINDOW	*display_from_panel (panel)
+
+Panel	panel;
+
+{
+	DISPLAY_WINDOW	*w;
+
+	w = display_first;
+
+	while (w) {
+		if (w->display_panel == panel) 
 			return w;
 
 		w = w->next;
@@ -531,7 +649,7 @@ void	create_passphrase_window()
 
 		pass_item = xv_create (pass_panel, PANEL_TEXT,
 			PANEL_LABEL_STRING, "Passphrase :",
-			PANEL_VALUE_DISPLAY_LENGTH,20,
+			PANEL_VALUE_DISPLAY_LENGTH,50,
 			PANEL_MASK_CHAR,'*',
 			PANEL_NOTIFY_PROC, got_passphrase,
 			NULL);
@@ -670,12 +788,10 @@ int	w;
 	switch (w) {
 
 		case ERROR_DELIVERY:
+		case ERROR_READING:
 		p = top_panel;
 		break;
 
-		case ERROR_READING:
-		p = display_panel;
-		break;
 	}
 
 	choice = notice_prompt(p, NULL,
@@ -727,13 +843,11 @@ int	w;
 
 	switch (w) {
 
+		case ERROR_READING:
 		case ERROR_DELIVERY:
 		p = top_panel;
 		break;
 
-		case ERROR_READING:
-		p = display_panel;
-		break;
 	}
 
 	choice = notice_prompt(p, NULL,
@@ -759,13 +873,11 @@ int	w;
 
 	switch (w) {
 
+		case ERROR_READING:
 		case ERROR_DELIVERY:
 		p = top_panel;
 		break;
 
-		case ERROR_READING:
-		p = display_panel;
-		break;
 	}
 
 	(void) notice_prompt(p, NULL,
@@ -781,7 +893,7 @@ int	w;
 void	bad_key_notice_proc()
 
 {
-	(void) notice_prompt(display_panel, NULL,
+	(void) notice_prompt(top_panel, NULL,
 		NOTICE_MESSAGE_STRINGS, "Error: No key found in message, or",
 			"bad key format !", NULL,
 		NOTICE_BUTTON_YES, "Abort",
@@ -802,13 +914,11 @@ int	w;
 
 	switch (w) {
 
+		case ERROR_READING:
 		case ERROR_DELIVERY:
 		p = top_panel;
 		break;
 
-		case ERROR_READING:
-		p = display_panel;
-		break;
 	}
 
 	choice = notice_prompt(p, NULL,
@@ -901,20 +1011,6 @@ void	update_message_list()
 	xv_set (main_frame,
 		FRAME_RIGHT_FOOTER, s,
 		NULL);
-
-	/* Following doesn't seem to work, but all the message list code 
-	   needs to be rewritten anyway... */
-
-#if 0
-	if (list_window) {
-		v_pos = xv_get (v_scroll, SCROLLBAR_VIEW_START);
-		h = xv_get (list_window, XV_HEIGHT);
-
-		if (v_pos >= (newh - h)) {
-			xv_set (v_scroll, SCROLLBAR_VIEW_START, newh - h, NULL);
-		}
-	}
-#endif
 }
 
 
@@ -1048,12 +1144,25 @@ COMPOSE_WINDOW	*w;
 	w->in_use = FALSE;
 }
 
-
-void	set_focus_to_body_proc(w)
+void	iconise_deliver_window(w)
 
 COMPOSE_WINDOW	*w;
 
 {
+	if (w->deliver_frame)
+		xv_set (w->deliver_frame,
+			FRAME_CLOSED, TRUE,
+			NULL);
+}
+
+void	set_focus_to_body_proc(item)
+
+Panel_item	item;
+
+{
+	COMPOSE_WINDOW	*w;
+
+	w = (COMPOSE_WINDOW *)xv_get (item, PANEL_CLIENT_DATA);
 	xv_set(w->deliver_body_window, WIN_SET_FOCUS, NULL);
 }
 
@@ -1087,16 +1196,161 @@ Event		*event;
 		deliver_proc (w);
 }
 
+static char	attribution_string[] = " said :\n\n";
+
+static	void	set_send_to(w)
+
+COMPOSE_WINDOW	*w;
+
+{
+	char	*send_to = last_message_read->email;
+
+	if (last_message_read->reply_to &&
+		!find_mailrc("defaultusefrom")) {
+		if (find_mailrc("defaultusereplyto") ||
+			use_reply_to_notice_proc()) {
+			send_to = last_message_read->reply_to;
+		}
+	}
+
+	xv_set(w->send_to_item,
+		PANEL_VALUE, send_to,
+		NULL);
+}
+
+/* Reply_to sender and include message in local window*/
+
+static        void    reply_to_sender_local(menu, item)
+
+Menu		menu;
+Menu_item       item;
+
+{
+	int     i;
+	byte    *mess;
+	byte    *m;
+	BUFFER  *b;
+	char    subject[256];
+	char    *indent;
+	COMPOSE_WINDOW *w;
+	int     indent_l = 2;
+
+	update_random();
+
+	if (!last_message_read)
+		return;
+
+	set_reply (last_message_read);
+
+	if (!(indent = find_mailrc("indentprefix")))
+		indent = "> ";
+	else
+		indent_l = strlen (indent);
+
+	w = (COMPOSE_WINDOW *) xv_get (item, MENU_CLIENT_DATA);
+
+	if (last_message_read->decrypted)
+		b = last_message_read->decrypted;
+	else
+		b = message_contents(last_message_read);
+
+	mess = b->message;
+	i = b->length;
+
+	textsw_insert(w->deliver_body_window,
+		last_message_read->sender,
+		strlen(last_message_read->sender));
+
+	textsw_insert(w->deliver_body_window,
+		attribution_string,
+		strlen(attribution_string));
+
+	while (i > 0) {
+		if (indent_l)
+			textsw_insert(w->deliver_body_window,
+				indent, indent_l);
+		m = mess;
+		while (i-- && *m && *m!= '\n')
+			m++;
+
+		textsw_insert(w->deliver_body_window,(char *)mess,
+			m - mess + 1);
+
+		mess = m+1;
+	}
+
+	xv_set(w->deliver_body_window,
+		TEXTSW_INSERTION_POINT,0,
+		TEXTSW_FIRST_LINE,0,NULL);
+}
+
+/* Clear local window */
+
+static	void	clear_local (item, event)
+
+Panel_item	item;
+Event		*event;
+
+{
+	byte    *m;
+	char    subject[256];
+	char    *indent;
+	COMPOSE_WINDOW *w;
+
+	update_random();
+
+	if (!last_message_read)
+		return;
+
+	set_reply (last_message_read);
+
+	w = compose_from_clear_item (item);
+
+	textsw_delete(w->deliver_body_window,
+		0, TEXTSW_INFINITY);
+
+	clear_main_footer ();
+}
+
+/* Insert File in Editor */
+
+static void insert_file_proc(menu,menuitem) 
+
+Menu       menu ;
+Menu_item  menuitem ; 
+
+{       char    *s;
+	COMPOSE_WINDOW *w;
+	char    path[MAXPATHLEN];
+
+	w = (COMPOSE_WINDOW *) xv_get (menuitem, MENU_CLIENT_DATA);
+
+	/* Lets get the filename */
+
+	if(s = (char *)xv_get (menuitem, MENU_STRING)){
+		strcpy(path,search_templatename(s));
+
+		/* Insert the file pointed to by path */
+if (w) {
+		xv_set(w->deliver_body_window,
+			TEXTSW_INSERT_FROM_FILE,path,
+			NULL); 
+}	}
+}
+
 /* Setup the deliver window */
 
 COMPOSE_WINDOW	*x_setup_send_window()
 
 {
-	char	*log,*dontlog;
-	char	*nym;
-	int	i;
-	char	mailrcline[10];
-	char	*headerline;
+	char		*log,*dontlog;
+	char		*nym;
+	int		i,index,I,xv_y=10;
+	char		mailrcline[10];
+	char		*headerline;
+	Menu		button_menu,templates_menu;
+	Menu_item       mi_temp ;
+	Panel_item      pa_temp ;
 	COMPOSE_WINDOW	*w;
 
 	/* See if we have a window we can use */
@@ -1116,6 +1370,36 @@ COMPOSE_WINDOW	*x_setup_send_window()
 				WIN_UNMAP_NOTIFY,
 				NULL,
 			FRAME_LABEL, "Compose Window",
+			FRAME_NO_CONFIRM, FALSE,
+			NULL);
+
+		templates_menu = (Menu) xv_create(XV_NULL, MENU, NULL) ;
+
+		I=template_count() ;
+		for (index=0; index<I; index++) {
+                        mi_temp = (Menu_item) xv_create(XV_NULL, MENUITEM,
+		                     MENU_STRING, template_name(index),
+		                     MENU_NOTIFY_PROC, insert_file_proc,
+				MENU_CLIENT_DATA, w,
+		                     NULL);
+		        xv_set (templates_menu, MENU_APPEND_ITEM, mi_temp, NULL);
+		}
+	
+		button_menu = (Menu) xv_create(NULL, MENU,
+			MENU_ITEM,
+				MENU_STRING, "Orig Mail..",
+				MENU_NOTIFY_PROC, reply_to_sender_local,
+				MENU_CLIENT_DATA, w,
+				NULL,
+			MENU_ITEM,
+				MENU_STRING, "Templates",
+				MENU_PULLRIGHT, templates_menu,
+				NULL,
+			MENU_ITEM,
+				MENU_STRING, "File ...",
+				MENU_INACTIVE, TRUE,
+				MENU_CLIENT_DATA, w,
+				NULL,
 			NULL);
 
 		w->deliver_panel = (Panel) xv_create(w->deliver_frame, PANEL,
@@ -1125,6 +1409,7 @@ COMPOSE_WINDOW	*x_setup_send_window()
 
 		w->include_item = xv_create (w->deliver_panel, PANEL_BUTTON,
 			PANEL_LABEL_STRING, "Include",
+			PANEL_ITEM_MENU, button_menu,
 			NULL);
 
 		w->deliver_item = xv_create (w->deliver_panel, PANEL_BUTTON,
@@ -1138,13 +1423,14 @@ COMPOSE_WINDOW	*x_setup_send_window()
 
 		w->clear_item = xv_create (w->deliver_panel, PANEL_BUTTON,
 			PANEL_LABEL_STRING, "Clear",
+			PANEL_NOTIFY_PROC, clear_local,
 			NULL);
 
 		w->send_to_item = (Panel_item) xv_create(w->deliver_panel,
 			PANEL_TEXT,
 			PANEL_LABEL_STRING,"To :",
 			PANEL_VALUE_DISPLAY_LENGTH, 45,
-			XV_Y, 30,
+			XV_Y, xv_y+=20,
 			XV_X, 0,
 			NULL);
 
@@ -1152,30 +1438,36 @@ COMPOSE_WINDOW	*x_setup_send_window()
 			PANEL_TEXT,
 			PANEL_LABEL_STRING,"Subject :",
 			PANEL_VALUE_DISPLAY_LENGTH, 40,
-			XV_Y, 50,
+			XV_Y, xv_y+=20,
 			XV_X, 0,
 			NULL);
 
 		w->send_cc_item = (Panel_item) xv_create(w->deliver_panel,
 			PANEL_TEXT,
 			PANEL_LABEL_STRING,"Cc :",
+			PANEL_CLIENT_DATA, w,
 			PANEL_VALUE_DISPLAY_LENGTH, 45,
-			PANEL_NOTIFY_PROC, set_focus_to_body_proc,
-			XV_Y, 70,
+			PANEL_VALUE_STORED_LENGTH, 512,
+			XV_Y, xv_y+=20,
 			XV_X, 0,
 			NULL);
+		pa_temp=w->send_cc_item ; 	
 
 		if (find_mailrc("askbcc")) {
 			w->send_bcc_item = (Panel_item) xv_create(
 				w->deliver_panel,
 				PANEL_TEXT,
 				PANEL_LABEL_STRING,"Bcc :",
+				PANEL_CLIENT_DATA, w,
 				PANEL_VALUE_DISPLAY_LENGTH, 45,
-				PANEL_NOTIFY_PROC, set_focus_to_body_proc,
+				XV_Y, xv_y+=20,
+				XV_X, 0,
 				NULL);
+			pa_temp=w->send_bcc_item ;	
 		}
-		else
+		else {
 			w->send_bcc_item = (Panel_item)0;
+		}
 
 		for (i = 1; i < MAX_EXTRA_HEADERLINES; i++) {
 			sprintf(mailrcline, "header%d", i);
@@ -1196,9 +1488,11 @@ COMPOSE_WINDOW	*x_setup_send_window()
 					PANEL_TEXT,
 					PANEL_LABEL_STRING, label,
 					PANEL_VALUE_DISPLAY_LENGTH, 45,
-					PANEL_NOTIFY_PROC, 
-						set_focus_to_body_proc,
+					PANEL_CLIENT_DATA, w,
+					XV_Y, xv_y+=20,
+					XV_X, 0,
 					NULL);
+				pa_temp=w->compose_extra_headerlines[i] ;	
 
 #ifndef ALLOCA
 				free (label);
@@ -1208,12 +1502,6 @@ COMPOSE_WINDOW	*x_setup_send_window()
 				w->compose_extra_headerlines[i] =
 					(Panel_item) 0;
 		}
-
-		w->deliver_body_window = (Textsw) xv_create(w->deliver_frame, TEXTSW,
-			XV_HEIGHT, 288,
-			XV_Y, 120,
-			TEXTSW_MEMORY_MAXIMUM,1000000,
-			NULL);
 
 		w->log_item = xv_create (w->deliver_panel, PANEL_CHECK_BOX,
 			PANEL_LABEL_STRING, "Options",
@@ -1226,9 +1514,18 @@ COMPOSE_WINDOW	*x_setup_send_window()
 				NULL,
 			PANEL_NOTIFY_PROC, options_proc,
 			XV_X, 0,
-			XV_Y, 90,
+			XV_Y, xv_y+=20,
 			NULL);
 
+		w->deliver_body_window = (Textsw) xv_create(w->deliver_frame, TEXTSW,
+			XV_HEIGHT, 288,
+			XV_Y, xv_y+=30,
+			TEXTSW_MEMORY_MAXIMUM,1000000,
+			NULL);
+
+		(Panel_item) xv_set(pa_temp,PANEL_NOTIFY_PROC,
+					 set_focus_to_body_proc,NULL) ;
+					 
 		window_fit_height (w->deliver_panel);
 		window_fit(w->deliver_body_window);
 		window_fit(w->deliver_frame);
@@ -1334,31 +1631,9 @@ static	void	send_message()
 			NULL);
 }
 
-static	void	set_send_to(w)
-
-COMPOSE_WINDOW	*w;
-
-{
-	char	*send_to = last_message_read->email;
-
-	if (last_message_read->reply_to &&
-		!find_mailrc("defaultusefrom")) {
-		if (find_mailrc("defaultusereplyto") ||
-			use_reply_to_notice_proc()) {
-			send_to = last_message_read->reply_to;
-		}
-	}
-
-	xv_set(w->send_to_item,
-		PANEL_VALUE, send_to,
-		NULL);
-}
-
-static char	attribution_string[] = " said :\n\n";
-
 /* Reply to the sender without including the message */
 
-static	reply_sender_no_include ()
+COMPOSE_WINDOW	*reply_sender_no_include ()
 
 {
 	char	subject[256];
@@ -1404,6 +1679,56 @@ static	reply_sender_no_include ()
 	xv_set(w->deliver_body_window,
 		TEXTSW_INSERTION_POINT,0,
 		TEXTSW_FIRST_LINE,0,NULL);
+	
+	return (w) ;
+}
+
+/* Reply to all without including the message */
+
+static	reply_to_all_no_include ()
+
+{	char	*mark,*from,*help,cc[1024] ;
+	COMPOSE_WINDOW	*w;
+
+	if (!last_message_read)
+		return;
+
+	w=reply_sender_no_include() ;
+	
+	if (last_message_read->to)     /* to, cc disjunct, put together */ 
+		strcpy(cc,last_message_read->to);
+
+	help=strstr(cc,"<") ;          /* Handel: x y <z@a.b.c>         */
+	if (help) {
+		strcpy(cc,help+1) ;
+		help=strstr(cc,">") ;
+		strcpy(help,help+1) ;
+	}
+	
+	if (last_message_read->cc) 
+		sprintf (cc,"%s, %s",cc,last_message_read->cc);
+
+	from=(char *) xv_get (w->send_to_item,PANEL_VALUE) ;
+	help=strstr(cc,from) ;	       /* Org. sender in cc or to       */
+	if (help) {
+		strcpy(help,help+strlen(from)) ; }
+	
+	if (help) {	
+		mark=help ;            /* remove trailling chars        */
+		while (*help==' ' || *help==',') help++ ;
+		strcpy (mark,help) ;
+	}
+	
+	if (strlen(cc)) {
+		help=cc+strlen(cc)-1 ; /* remove following chars        */
+		while (*help==' ' || *help==',') help-- ;
+		*(help+1)='\0' ; }
+
+	if (strlen(cc)) {		
+		xv_set(w->send_cc_item,
+			PANEL_VALUE, cc,
+			NULL);
+			}
 }
 
 static	char	begin_forward[] = "-- Begin forwarded message ---\n";
@@ -1463,7 +1788,7 @@ static	void	forward_message ()
 		strlen(begin_forward));
 
 	textsw_insert(w->deliver_body_window,
-		b->message,
+		(char *)b->message,
 		b->length);
 
 	textsw_insert(w->deliver_body_window,
@@ -1544,7 +1869,7 @@ static	void	resend_proc ()
 		b = message_contents(last_message_read);
 
 	textsw_insert(w->deliver_body_window,
-		b->message,
+		(char *)b->message,
 		b->length);
 
 	xv_set(w->deliver_body_window,
@@ -1554,7 +1879,7 @@ static	void	resend_proc ()
 
 /* Reply_to sender and include message */
 
-static	void	reply_to_sender()
+COMPOSE_WINDOW *reply_to_sender()
 
 {
 	int	i;
@@ -1636,9 +1961,57 @@ static	void	reply_to_sender()
 	xv_set(w->deliver_body_window,
 		TEXTSW_INSERTION_POINT,0,
 		TEXTSW_FIRST_LINE,0,NULL);
+
+	return (w) ;
 }
 
-static	Frame	display_frame;
+/* Reply to all including the message */
+
+static reply_to_all ()
+
+{	char	*mark,*from,*help,cc[1024] ;
+	COMPOSE_WINDOW	*w;
+
+	if (!last_message_read)
+		return;
+
+	w=reply_to_sender() ;
+	
+	if (last_message_read->to)     /* to, cc disjunct, put together */ 
+		strcpy(cc,last_message_read->to);
+
+	help=strstr(cc,"<") ;          /* Handel: x y <z@a.b.c>         */
+	if (help) {
+		strcpy(cc,help+1) ;
+		help=strstr(cc,">") ;
+		strcpy(help,help+1) ;
+	}
+	
+	if (last_message_read->cc) 
+		sprintf (cc,"%s, %s",cc,last_message_read->cc);
+
+	from=(char *) xv_get (w->send_to_item,PANEL_VALUE) ;
+	help=strstr(cc,from) ;	       /* Org. sender in cc or to       */
+	if (help) {
+		strcpy(help,help+strlen(from)) ; }
+		
+	if (help) {
+		mark=help ;            /* remove trailling chars        */
+		while (*help==' ' || *help==',') help++ ;
+		strcpy (mark,help) ;
+	}
+
+	if (strlen(cc)) {
+		help=cc+strlen(cc)-1 ; /* remove following chars        */
+		while (*help==' ' || *help==',') help-- ;
+		*(help+1)='\0' ; }
+
+	if (strlen(cc)) {		
+		xv_set(w->send_cc_item,
+			PANEL_VALUE, cc,
+			NULL);
+			}
+}
 
 void	beep_display_window ()
 
@@ -1653,22 +2026,29 @@ void	beep_display_window ()
 int	is_displaying_message()
 
 {
-	if (!display_frame)
-		return FALSE;
+	DISPLAY_WINDOW	*w;
 
-	return xv_get (display_frame,
-		XV_SHOW);
+	w = display_first;
+
+	while (w) {
+		if (xv_get (w->display_frame, XV_SHOW))
+			return TRUE;
+		w=w->next;
+	}
+
+	return FALSE;
 }
 
 /* Set the footer on the display window */
 
-void	set_display_footer(s)
+void	set_display_footer(w,s)
 
+DISPLAY_WINDOW	*w;
 char	*s;
 
 {
-	if (display_frame)
-		xv_set(display_frame,
+	if (w->display_frame)
+		xv_set(w->display_frame,
 			FRAME_LEFT_FOOTER,s,
 			NULL);
 }
@@ -1685,6 +2065,7 @@ void	hide_header_frame()
 
 	if (header_frame) {
 		xv_set(header_frame,
+			FRAME_CMD_PUSHPIN_IN, FALSE,
 			XV_SHOW, FALSE,
 			NULL);
 	}
@@ -1692,22 +2073,42 @@ void	hide_header_frame()
 
 /* Display the header */
 
-static	void	display_header_proc()
+static	void	display_header_proc(item, event)
+
+Panel_item	item;
+Event		*event;
 
 {
 	static	Textsw	header_window;
+	DISPLAY_WINDOW	*w;
+	MESSAGE	*m;
+
+	/* find window from panel item */
+	w = display_from_panel((Panel)xv_get(item, PANEL_PARENT_PANEL));
+
+	/* find message from window */
+	m = message_from_number(w->number);
+
+	/* Prevent an unpinned display window from being popped down */
+	xv_set(item, PANEL_NOTIFY_STATUS, XV_ERROR, NULL);
 
 	update_random();
 
-	if (!displayed_message)
+	if (!m)
 		return;
 
 	if (!header_frame) {
-		header_frame = (Frame) xv_create(display_frame, FRAME,
+		header_frame = (Frame) xv_create(main_frame, FRAME_CMD,
 			XV_WIDTH, 640,
 			XV_HEIGHT, 240,
 			FRAME_SHOW_FOOTER, FALSE,
+			FRAME_SHOW_RESIZE_CORNER, TRUE,
 			FRAME_LABEL, "Message Header",
+			NULL);
+
+		/* Make zero height panel (zero generates warning, use 1) */
+		xv_set((Panel) xv_get(header_frame, FRAME_CMD_PANEL),
+			XV_HEIGHT, 1,
 			NULL);
 
 		header_window = (Textsw) xv_create(header_frame, TEXTSW,
@@ -1726,8 +2127,8 @@ static	void	display_header_proc()
 
 	textsw_reset (header_window, 0, 0);
 
-	textsw_insert(header_window,(char *)displayed_message->header->message,
-		displayed_message->header->length);
+	textsw_insert(header_window,(char *)m->header->message,
+		m->header->length);
 
 	xv_set(header_window,TEXTSW_FIRST_LINE,0,
 		TEXTSW_INSERTION_POINT, 0,
@@ -1741,16 +2142,13 @@ static	void	display_header_proc()
 
 /* Clear the footer on the display window */
 
-void	clear_display_footer()
+void	clear_display_footer(w)
+
+DISPLAY_WINDOW	*w;
 
 {
-	set_display_footer("");
+	set_display_footer(w,"");
 }
-
-static	Panel_item	sender_item;
-static	Panel_item	date_item;
-static	Textsw	sig_window;
-static	Textsw	body_window;
 
 /* Catch resize events on the display frame */
 
@@ -1762,17 +2160,20 @@ Notify_arg	a;
 
 {
 	int	newh;
+	DISPLAY_WINDOW	*dw;
 
 	if (event_id(e) != WIN_RESIZE)
 		return;
 
-	if (!body_window || !display_frame || !sig_window)
+	dw = display_from_frame (w);
+
+	if (!dw)
 		return;
 
-	newh = (int) xv_get (display_frame, XV_HEIGHT);
+	newh = (int) xv_get (dw->display_frame, XV_HEIGHT);
 
-	xv_set (body_window, XV_HEIGHT, newh - 82, NULL);
-	xv_set (sig_window, 
+	xv_set (dw->body_window, XV_HEIGHT, newh - 82, NULL);
+	xv_set (dw->sig_window, 
 		XV_HEIGHT, 32,
 		XV_Y, newh - 32,
 		NULL);
@@ -1780,21 +2181,71 @@ Notify_arg	a;
 
 /* Show the add key button */
 
-void	show_addkey ()
+void	show_addkey (w)
+
+DISPLAY_WINDOW	*w;
 
 {
-	xv_set (addkey_item,
+	xv_set (w->addkey_item,
 		PANEL_INACTIVE, FALSE,
 		NULL);
 }
 
-/* Create the display window */
+void	destroy_display_window(w)
 
-void	create_display_window()
+DISPLAY_WINDOW	*w;
 
 {
-	if (!display_frame) {
-		display_frame = (Frame) xv_create(main_frame, FRAME,
+	if (w) {
+		/* destroy display frame and all children */
+		if (w->display_frame) {
+			xv_destroy_safe(w->display_frame);
+		}
+
+		/* Unlink w from window list */
+
+		if ((w == display_first) && (w == display_last)) {
+			display_first = display_last = NULL;
+		} else if (w == display_first) {
+			display_first = w->next;
+			display_first->prev = NULL;
+		} else if (w == display_last) {
+			display_last = w->prev;
+			display_last->next = NULL;
+		} else {
+			w->prev->next = w->next;
+			w->next->prev = w->prev;
+		}
+		free(w);
+	}
+}
+
+display_frame_done_proc (f)
+
+Frame	f;
+
+{
+	/* get the window pointer for that display_frame, */
+	/* and destroy that window. */
+	destroy_display_window(display_from_frame(f));
+}
+
+/* Create the display window */
+
+DISPLAY_WINDOW	*create_display_window(m)
+
+MESSAGE	*m;
+
+{
+	DISPLAY_WINDOW	*w;
+
+	w = display_find_free (m->number);
+
+	if (!w) {
+
+		w = (DISPLAY_WINDOW *)malloc (sizeof (DISPLAY_WINDOW));
+
+		w->display_frame = (Frame) xv_create(main_frame, FRAME_CMD,
 			XV_WIDTH, 640,
 			XV_X, xv_get(main_frame, XV_X)-5,
 			XV_Y, xv_get(main_frame, XV_Y)+xv_get(main_frame, 
@@ -1802,15 +2253,20 @@ void	create_display_window()
 			XV_HEIGHT, 400,
 			XV_WIDTH, xv_get(main_frame, XV_WIDTH),
 			FRAME_SHOW_FOOTER, TRUE,
+			FRAME_SHOW_RESIZE_CORNER, TRUE,
 			WIN_EVENT_PROC, display_frame_proc,
+			FRAME_DONE_PROC, display_frame_done_proc,
 			NULL);
 
-		display_panel = (Panel) xv_create(display_frame, PANEL,
+		w->display_panel = (Panel) xv_get(w->display_frame, 
+			FRAME_CMD_PANEL);
+
+		xv_set (w->display_panel,
 			XV_HEIGHT, 50,
 			PANEL_LAYOUT, PANEL_HORIZONTAL,
 			NULL);
 
-		sender_item = (Panel_item) xv_create(display_panel,
+		w->sender_item = (Panel_item) xv_create(w->display_panel,
 			PANEL_TEXT,
 			PANEL_LABEL_STRING,"Sender :",
 			PANEL_VALUE_DISPLAY_LENGTH, 40,
@@ -1818,109 +2274,129 @@ void	create_display_window()
 			XV_Y, 5,
 			NULL);
 
-		(void) xv_create(display_panel,
+		(void) xv_create(w->display_panel,
 			PANEL_BUTTON,
 			PANEL_LABEL_STRING,"Header",
 			PANEL_NOTIFY_PROC, display_header_proc,
 			NULL);
 
-		addkey_item = xv_create (display_panel, 
+		w->addkey_item = xv_create (w->display_panel, 
 			PANEL_BUTTON,
 			PANEL_LABEL_STRING, "Add Key",
 			PANEL_INACTIVE, TRUE,
 			PANEL_NOTIFY_PROC, add_key_proc,
 			NULL);
 
-		date_item = (Panel_item) xv_create(display_panel,
+		w->date_item = (Panel_item) xv_create(w->display_panel,
 			PANEL_TEXT,
 			PANEL_LABEL_STRING,"Date    :",
-			PANEL_VALUE_DISPLAY_LENGTH, 40,
+			PANEL_VALUE_DISPLAY_LENGTH, 60,
 			XV_Y, 30,
 			XV_X, 0,
 			NULL);
 
-		body_window = (Textsw) xv_create(display_frame, TEXTSW,
+		w->body_window = (Textsw) xv_create(w->display_frame, TEXTSW,
 			XV_HEIGHT, 288,
 			TEXTSW_IGNORE_LIMIT, TEXTSW_INFINITY,
 			TEXTSW_MEMORY_MAXIMUM,1000000,
 			NULL);
 
-		sig_window = (Textsw) xv_create(display_frame, TEXTSW,
+		w->sig_window = (Textsw) xv_create(w->display_frame, TEXTSW,
 			TEXTSW_IGNORE_LIMIT, TEXTSW_INFINITY,
 			XV_HEIGHT, 32,
 			NULL);
 
-		window_fit(body_window);
-		window_fit(display_frame);
+		window_fit(w->body_window);
+		window_fit(w->display_frame);
 
-		defaults_get_rect("MessageWindow", display_frame);
+		w->next = NULL;
+		if (display_last) {
+			display_last->next = w;
+			w->prev = display_last;
+			display_last = w;
+		}
+		else {
+			w->prev = NULL;
+			display_first = display_last = w;
+		}
+
+		defaults_get_rect("MessageWindow", w->display_frame);
 	}
 	else {
 		/* Open Window just in case */
 
-		xv_set (display_frame,
+		xv_set (w->display_frame,
 			FRAME_CLOSED, FALSE,
 			NULL);
 
 		/* Clear add key item */
 
-		xv_set (addkey_item,
+		xv_set (w->addkey_item,
 			PANEL_INACTIVE, TRUE,
 			NULL);
 	}
+
+	w->number = m->number;
+
+	return	w;
 }
 
 /* Display the information about the sender */
 
-void	display_sender_info(m)
+void	display_sender_info(m,w)
 
 MESSAGE	*m;
+DISPLAY_WINDOW	*w;
 
 {
-	xv_set(sender_item,PANEL_READ_ONLY,FALSE,NULL);
-	xv_set(sender_item,PANEL_VALUE,m->sender,NULL);
-	xv_set(sender_item,PANEL_READ_ONLY,TRUE,NULL);
+	xv_set(w->sender_item,PANEL_READ_ONLY,FALSE,NULL);
+	xv_set(w->sender_item,PANEL_VALUE,m->sender,NULL);
+	xv_set(w->sender_item,PANEL_READ_ONLY,TRUE,NULL);
 
 	if (m->header_date)
-		xv_set(date_item,PANEL_VALUE,m->header_date,NULL);
+		xv_set(w->date_item,PANEL_VALUE,m->header_date,NULL);
 	else
-		xv_set(date_item,PANEL_VALUE,m->date,NULL);
+		xv_set(w->date_item,PANEL_VALUE,m->date,NULL);
 
-	xv_set(date_item,PANEL_READ_ONLY,TRUE,NULL);
+	xv_set(w->date_item,PANEL_READ_ONLY,TRUE,NULL);
 }
 
 /* Clear the display window */
 
-void	clear_display_window()
+void	clear_display_window(w)
+
+DISPLAY_WINDOW	*w;
 
 {
-	xv_set(sig_window, TEXTSW_READ_ONLY, FALSE,
+	xv_set(w->sig_window, TEXTSW_READ_ONLY, FALSE,
 			NULL);
 
-	xv_set(body_window, TEXTSW_READ_ONLY, FALSE,
+	xv_set(w->body_window, TEXTSW_READ_ONLY, FALSE,
 			NULL);
 
-	textsw_delete(sig_window,
+	textsw_delete(w->sig_window,
 		0, TEXTSW_INFINITY);
 
-	textsw_delete(body_window,
+	textsw_delete(w->body_window,
 		0, TEXTSW_INFINITY);
 
-	textsw_reset (sig_window, 0, 0);
-	textsw_reset (body_window, 0, 0);
+	textsw_reset (w->sig_window, 0, 0);
+	textsw_reset (w->body_window, 0, 0);
 }
 
 /* Set the display window to read-only */
 
-void	lock_display_window()
+void	lock_display_window(w)
+
+DISPLAY_WINDOW	*w;
 
 {
-	xv_set(sig_window,TEXTSW_FIRST_LINE,0,
+	xv_set(w->sig_window,TEXTSW_FIRST_LINE,0,
 		TEXTSW_INSERTION_POINT, 0,
 		TEXTSW_READ_ONLY, TRUE,
 		NULL);
 
-	xv_set(body_window,TEXTSW_FIRST_LINE,0,
+	xv_set(w->body_window,TEXTSW_FIRST_LINE,0,
 		TEXTSW_INSERTION_POINT, 0,
 		TEXTSW_READ_ONLY, TRUE,
 		NULL);
@@ -1928,12 +2404,13 @@ void	lock_display_window()
 
 /* Show the display window */
 
-void	show_display_window(m)
+void	show_display_window(m,w)
 
 MESSAGE	*m;
+DISPLAY_WINDOW	*w;
 
 {
-	xv_set(display_frame,
+	xv_set(w->display_frame,
 			FRAME_LABEL, m->subject,
 			XV_SHOW, TRUE,
 			NULL);
@@ -1941,31 +2418,39 @@ MESSAGE	*m;
 
 /* Hide the display window */
 
-void	close_display_window()
+void	close_display_windows()
 
 {
-	if (display_frame)
-		xv_set (display_frame,
-			XV_SHOW, FALSE,
-			NULL);
+	DISPLAY_WINDOW	*w;
+
+	w = display_first;
+	while (w) {
+		if (w->display_frame)
+			xv_set (w->display_frame,
+				XV_SHOW, FALSE,
+				NULL);
+		w = w->next;
+	}
 }
 
 /* Display the message body from the buffer */
 
-void	display_message_body(b)
+void	display_message_body(b,w)
 
 BUFFER	*b;
+DISPLAY_WINDOW	*w;
 
 {
-	textsw_insert(body_window,b->message,b->length);
+	textsw_insert(w->body_window, (char *)b->message,b->length);
 }
 
-void	display_message_sig(b)
+void	display_message_sig(b,w)
 
 BUFFER	*b;
+DISPLAY_WINDOW	*w;
 
 {
-	textsw_insert(sig_window,b->message,b->length);
+	textsw_insert(w->sig_window, (char *)b->message,b->length);
 }
 
 void	delete_message_proc()
@@ -2042,7 +2527,7 @@ void	delete_message_proc()
 			display_message(last_message_read);
 	}
 	else
-		close_display_window();
+		close_display_windows();
 
 	update_message_list();
 }
@@ -2304,12 +2789,12 @@ void	close_all_windows()
 {
 	COMPOSE_WINDOW	*w;
 
-	close_display_window ();
+	close_display_windows ();
 
 	w = compose_first;
 
 	while (w) {
-		close_deliver_window (w);
+		iconise_deliver_window (w);
 		w = w->next;
 	}
 
@@ -2344,14 +2829,14 @@ Menu_item       menu_item;
 		    s += 1;
 	      }
 	      
-	    sprintf(folder_ending, "+/%s/%s", s, menu_string);
+	    sprintf(folder_ending, "%s/%s", s, menu_string);
 	    if (s[0] == '\0')
 	      {
-		sprintf(folder_ending, "+/%s", menu_string);
+		sprintf(folder_ending, "%s", menu_string);
 	      }
 	     else
 	      {
-		sprintf(folder_ending, "+/%s/%s", s, menu_string);
+		sprintf(folder_ending, "%s/%s", s, menu_string);
 	      }
 	  }
 	 else
@@ -2426,6 +2911,90 @@ Menu_generate op;
     return menu;
 }
 
+/* gen_mainmenu() is similar to gen_pullright() above except that it is
+   called only for the main file-list menu, not for the submenus.  The files
+   in the mail directory are re-read each time the menu is displayed and
+   sorted. */
+Menu
+gen_mainmenu(m, op)
+Menu m;
+Menu_generate op;
+{
+  Menu pr_menu;
+  Menu_item new_mi;
+  char buf[MAXPATHLEN];
+
+  if (op == MENU_DISPLAY)
+    {
+      strcpy(buf, (char *)xv_get(m, MENU_CLIENT_DATA));
+      glob_mainMenu = m;
+      glob_isMainMenu = 1;
+      if ((new_mi = add_path_to_menu(buf)))
+	{
+	  pr_menu = (Menu)xv_get(new_mi, MENU_PULLRIGHT);
+	  xv_destroy(new_mi);
+	  if (pr_menu)
+	    {
+	      free((char *)xv_get(pr_menu, MENU_CLIENT_DATA));
+	      xv_destroy(pr_menu);
+	    }
+	}
+      glob_isMainMenu = 0;
+    }
+  return(m);
+}
+
+/* MenuItemSort(): Sorts the menu items into alphabetical order, case
+   sensitive, placing directory names first.  'cnt' is the number of menu
+   items to sort. */
+void MenuItemSort(menuitemList, menuitemIsDirec, count)
+
+Menu_item menuitemList[];
+char menuitemIsDirec[];
+int count;
+
+{
+  int i, j;
+  char names[MAX_FILES][50], nameTmp[50], c;
+  Menu_item menuitemTmp;
+
+  /* Usually < 30 entries in a mail directory.  An inefficient bubble sort
+     won't slow us down a whole lot... */
+  for (i = 0; i < count; i++)
+    {
+      strncpy(names[i], (char *)xv_get(menuitemList[i], MENU_STRING), 50);
+      names[i][49] = 0;
+    }
+  /* Sort so that directories appear first, in alphabetical order, then
+     the normal files, in alphabetical order (case sensitive). */
+  for (i = 0; i < count - 1; i++)
+    for (j = i + 1; j < count; j++)
+      if ((menuitemIsDirec[j] && !menuitemIsDirec[i])
+	  || ((strcmp(names[i], names[j]) > 0)
+	      && (menuitemIsDirec[i] == menuitemIsDirec[j])))
+	{
+	  menuitemTmp = menuitemList[i];
+	  menuitemList[i] = menuitemList[j];
+	  menuitemList[j] = menuitemTmp;
+	  strcpy(nameTmp, names[i]);
+	  strcpy(names[i], names[j]);
+	  strcpy(names[j], nameTmp);
+	  c = menuitemIsDirec[i];
+	  menuitemIsDirec[i] = menuitemIsDirec[j];
+	  menuitemIsDirec[j] = c;
+	}
+  if (glob_isMainMenu)
+    {
+      int nitems = (int)xv_get(glob_mainMenu, MENU_NITEMS);
+      for (i = 0; i < count && i < nitems; i++)
+	xv_set(glob_mainMenu, MENU_REPLACE, i + 1, menuitemList[i], NULL);
+      for ( ; i < count; i++)
+	xv_set(glob_mainMenu, MENU_APPEND_ITEM, menuitemList[i], NULL);
+      for (j = i ; i < nitems; i++)
+	xv_set(glob_mainMenu, MENU_REMOVE, j, NULL);
+    }
+}
+
 /*
  * The path passed in is scanned via readdir().  For each file in the
  * path, a menu item is created and inserted into a new menu.  That
@@ -2441,9 +3010,10 @@ char *path;
     DIR                 *dirp;
     struct dirent       *dp;
     struct stat         s_buf;
-    Menu_item           mi;
+    Menu_item           mi, menuitemList[MAX_FILES];
     Menu                next_menu;
-    char                buf[MAXPATHLEN];
+    char                buf[MAXPATHLEN], menuitemIsDirec[MAX_FILES];
+    int                 j;
     static int          recursion;
 
     /* don't add a folder to the list if user can't read it */
@@ -2462,6 +3032,7 @@ char *path;
             if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..")) {
                 (void) sprintf(buf, "%s/%s", path, dp->d_name);
                 mi = add_path_to_menu(buf);
+		menuitemIsDirec[cnt] = 0;  /* false */
                 if (!mi || mi == (Menu_item)-1) {
                     int do_gen_pullright = (mi == (Menu_item)-1);
                     /* unreadable file or dir - deactivate item */
@@ -2471,14 +3042,22 @@ char *path;
                         MENU_RELEASE_IMAGE,
                         NULL);
                     if (do_gen_pullright)
+		      {
                         xv_set(mi,
-                            MENU_GEN_PULLRIGHT, gen_pullright,
-                            NULL);
+			       MENU_GEN_PULLRIGHT, gen_pullright,
+			       NULL);
+			menuitemIsDirec[cnt] = 1;  /* true */
+		      }
                     else
                         xv_set(mi, MENU_INACTIVE, TRUE, NULL);
                 }
-                xv_set(next_menu, MENU_APPEND_ITEM, mi, NULL);
+		menuitemList[cnt] = mi;
                 cnt++;
+		if (cnt > MAX_FILES)
+		  {
+		    fprintf(stderr, "privtool: ERROR: MAX_FILES (%d) is too small for directory: %s\nRecompile \"%s\" with MAX_FILES updated.\n", MAX_FILES, path, __FILE__);
+		    cnt--;
+		  }
             }
         closedir(dirp);
         mi = (Menu_item)xv_create(XV_NULL, MENUITEM,
@@ -2492,6 +3071,9 @@ char *path;
             /* An empty or unsearchable directory - deactivate item */
             xv_set(mi, MENU_INACTIVE, TRUE, NULL);
         } else {
+	    MenuItemSort(menuitemList, menuitemIsDirec, cnt);
+	    for (j = 0; j < cnt; j++)
+	      xv_set(next_menu, MENU_APPEND_ITEM, menuitemList[j], NULL);
             xv_set(next_menu,
                 MENU_TITLE_ITEM, strcpy(malloc(strlen(path)+1), path),
                 MENU_CLIENT_DATA, strcpy(malloc(strlen(path)+1), path),
@@ -2527,6 +3109,18 @@ Menu_item       menu_item;
 	}
 }
 
+/* properties section */
+
+/* variables */
+
+/* #define BUFLEN	256
+static	Frame		props_frame=NULL;	 
+static	Panel		panel;
+static Panel_item alias_list,alias_text,address_text; 
+*/
+/* functions */
+
+
 static void	main_frame_events (win, event, arg)
 
 Xv_Window	win;
@@ -2559,8 +3153,12 @@ int	level;
 	char    folder_dir[MAXPATHLEN];
 	Menu_item	mi;
 	char	*files,*f,*fs, *folder;
+	char    mailfile[MAXPATHLEN], loadstring[MAXPATHLEN + 6], *p;
 	Menu	filebutton_menu;
-	Menu	button_menu, sort_menu, undelete_menu, file_menu;
+	Menu	button_menu, sort_menu, undelete_menu, file_menu,props_menu;
+	Rect		*button_rect;
+	Panel_item	file_button, view_button, edit_button, compose_button,
+			quit_button, mail_menu;
 	struct itimerval	timer;
 
 	sprintf(app_name,"%s %s [ Security Level %d ]",prog_name,
@@ -2589,9 +3187,19 @@ int	level;
 		PANEL_LAYOUT, PANEL_HORIZONTAL,
 		NULL);
 
+	strcpy(mailfile, default_mail_file);
+	p = strchr(default_mail_file, '/');
+	while (p && (*(p + 1)))
+	  {
+	    strcpy(mailfile, p + 1);
+	    p = strchr(p + 1, '/');
+	  }
+	if (p && !(*p))
+	  p = "In-Box";
+	sprintf(loadstring, "Load %s", mailfile);
 	filebutton_menu = (Menu) xv_create(XV_NULL, MENU,
 		MENU_ITEM,
-			MENU_STRING, "Load In-Box",
+			MENU_STRING, loadstring,
 			MENU_NOTIFY_PROC, inbox_proc,
 			NULL,
 		MENU_ITEM,
@@ -2604,7 +3212,7 @@ int	level;
 			NULL,
 		NULL);
 
-	(void) xv_create (top_panel, PANEL_BUTTON,
+	file_button = xv_create (top_panel, PANEL_BUTTON,
 		PANEL_LABEL_STRING, "File",
 		PANEL_ITEM_MENU, filebutton_menu,
 		NULL);
@@ -2689,12 +3297,22 @@ int	level;
 			MENU_STRING, "Clear Passphrase",
 			MENU_NOTIFY_PROC, clear_passphrase_proc,
 			NULL,
-#ifdef USE_FLOPPY
+#if defined(USE_FLOPPY) && defined(AUTO_EJECT)
 		MENU_ITEM,
 			MENU_STRING, "Eject Floppy",
 			MENU_NOTIFY_PROC, eject_floppy,
 			NULL,
 #endif
+#ifdef PGPTOOLS
+		MENU_ITEM,
+			MENU_STRING, "Reseed Random",
+			MENU_NOTIFY_PROC, reseed_random_generator,
+			NULL,
+#endif
+		MENU_ITEM,
+			MENU_STRING, "Properties...",
+			MENU_NOTIFY_PROC, properties_proc,
+			NULL,
 		NULL);
 
 	(void) xv_create (top_panel, PANEL_BUTTON,
@@ -2770,6 +3388,7 @@ int	level;
 	if (mi)
 	  {
 	    file_menu = (Menu)xv_get(mi, MENU_PULLRIGHT);
+	    xv_set(file_menu, MENU_GEN_PROC, gen_mainmenu, NULL);
 	    /* We no longer need the item since we have the menu from it */
 	    xv_destroy(mi);
 	    (void) xv_create (top_panel, PANEL_ABBREV_MENU_BUTTON,
@@ -2782,6 +3401,11 @@ int	level;
 	file_name_item = (Panel_item) xv_create (top_panel, PANEL_TEXT,
 		PANEL_VALUE_DISPLAY_LENGTH, 20,
 		NULL);
+
+	/*  calculate formatting parameters, adjust panel width */
+
+       	default_font = (Xv_font) xv_get (main_frame,XV_FONT);
+	font_size = xv_get(default_font,FONT_SIZE);
 
 	if (!layout_compact) 
 		xv_set (file_name_item, PANEL_VALUE_DISPLAY_LENGTH, 35,
@@ -2831,11 +3455,11 @@ int	level;
 			NULL,
 		MENU_ITEM,
 			MENU_STRING, "To All",
-			MENU_INACTIVE, TRUE,
+			MENU_NOTIFY_PROC, reply_to_all_no_include,	
 			NULL,
 		MENU_ITEM,
 			MENU_STRING, "To All, Include",
-			MENU_INACTIVE, TRUE,
+			MENU_NOTIFY_PROC, reply_to_all,
 			NULL,
 		NULL);
 
@@ -3137,10 +3761,16 @@ show_busy ()
 
 {
 	COMPOSE_WINDOW	*w;
+	DISPLAY_WINDOW	*dw;
 
 	xv_set (main_frame, FRAME_BUSY, TRUE, NULL);
-	if (display_frame)
-		xv_set (display_frame, FRAME_BUSY, TRUE, NULL);
+
+	dw = display_first;
+	while (dw) {
+		xv_set (dw->display_frame, FRAME_BUSY, TRUE, NULL);
+		dw = dw->next;
+	}
+
 	if (pass_frame)
 		xv_set (pass_frame, FRAME_BUSY, TRUE, NULL);
 
@@ -3155,10 +3785,16 @@ clear_busy()
 
 {
 	COMPOSE_WINDOW	*w;
+	DISPLAY_WINDOW	*dw;
 
 	xv_set (main_frame, FRAME_BUSY, FALSE, NULL);
-	if (display_frame)
-		xv_set (display_frame, FRAME_BUSY, FALSE, NULL);
+
+	dw = display_first;
+	while (dw) {
+		xv_set (dw->display_frame, FRAME_BUSY, FALSE, NULL);
+		dw = dw->next;
+	}
+
 	if (pass_frame)
 		xv_set (pass_frame, FRAME_BUSY, FALSE, NULL);
 
@@ -3344,15 +3980,20 @@ static void find_xresources()
 static void set_xresources()
 
 {
-	Frame	f;
+	Frame	f, df;
 
 	if (compose_first)
 		f = compose_first->deliver_frame;
 	else
 		f = NULL;
 
+	if (display_first)
+		df = display_first->display_frame;
+	else
+		df = NULL;
+
 	defaults_save_rect("ListWindow", main_frame);
-	defaults_save_rect("MessageWindow", display_frame);
+	defaults_save_rect("MessageWindow", df);
 	defaults_save_rect("HeaderWindow", header_frame);
 	defaults_save_rect("ComposeWindow", f);
 }

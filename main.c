@@ -1,6 +1,6 @@
 
 /*
- * @(#)main.c	1.29 9/6/95
+ * %W% %G%
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -17,6 +17,10 @@
  *	Pass args to setup_display and store our userid in a variable
  *	rather than continually call cuserid().
  *		- Anders Baekgaard (baekgrd@ibm.net) 10th August 1995
+ *
+ *      Check for .privrc OR .mailrc on startup.  Add a command-line option
+ *      "-f path/mailfile" to specify a default mail file.
+ *              - Scott Cannon Jr. (scottjr@silver.cal.sdl.usu.edu) 5/30/96
  */
 
 #include <stdio.h>
@@ -26,7 +30,11 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef __FreeBSD__
+/* malloc.h superceded by stdlib.h included above */
 #include <malloc.h>
+#endif
+#include <signal.h>
 
 #include "def.h"
 #include "buffers.h"
@@ -34,17 +42,21 @@
 #include "mailrc.h"
 
 char	default_mail_file[MAXPATHLEN];
+char    globRCfile[MAXPATHLEN];
+char    globRCbak[MAXPATHLEN];
 FILE	*mail_fp;
 char	*our_userid;
 
-static	LIST	mailrc;
-static	LIST	alias;
-static	LIST	pgpkey;
-static	LIST	kills_l;
-static	LIST	killu_l;
-static	LIST	nym_list;
-static	LIST	cfeed;
-static	LIST	ignore;
+LIST	mailrc;
+LIST	alias;
+LIST	pgpkey;
+LIST	kills_l;
+LIST	killu_l;
+LIST	nym_list;
+LIST	cfeed;
+LIST    template_list;
+LIST    template_list_fname;
+LIST	ignore;
 
 static	char	*our_nym;
 
@@ -66,6 +78,8 @@ static	char	*strip_quotes[] = {
 	"filemenusize",
 	"filemenu2",
 	"templates",
+	"domain",
+	"replyto",
 	NULL,
 
 };
@@ -104,14 +118,16 @@ MAILRC	*m;
 	}
 }
 
-/* Clear the Aliases list */
+/* Clear list */
 
-static	clear_aliases()
+void	clear_list(l)
+
+LIST	*l;
 
 {
 	MAILRC	*m,*om;
 
-	m = alias.start;
+	m = l->start;
 
 	while (m) {
 
@@ -121,9 +137,15 @@ static	clear_aliases()
 		free_mailrc(om);
 	}
 
-	alias.number = 0;
-	alias.start = NULL;
-	alias.end = NULL;
+	l->number = 0;
+	l->start = NULL;
+	l->end = NULL;
+}
+
+void clear_aliases()
+
+{
+	clear_list (&alias);
 }
 
 static	add_to_list(l,m)
@@ -161,6 +183,10 @@ MAILRC	*m;
 	if (l->end == m)
 		l->end = m->prev;
 
+	if (m->prev)
+		m->prev->next = m->next;
+	if (m->next)
+		m->next->prev = m->prev;
 	m->prev = NULL;
 	m->next = l->start;
 
@@ -198,6 +224,25 @@ char	*s;
 	m->flags = MAILRC_PREFIXED|MAILRC_OURPREF;
 
 	add_to_list(&pgpkey,m);
+}
+
+char    *search_templatename(s) 
+
+char *s ;
+
+{       MAILRC  *m,*n;
+
+        m = template_list.start;
+        n = template_list_fname.start ;
+                
+        while (m) {
+                if (!strcasecmp (m->name,s))
+                        return n->name;
+                m = m->next;
+                n = n->next ;
+        }
+                                                                        
+        return NULL;
 }
 
 static	char	*search_list(l,s)
@@ -326,6 +371,15 @@ char	*s;
 	add_entry(&nym_list, s);
 }
 
+static  add_template (s,sn)
+
+char    *s,*sn;
+
+{
+        add_entry(&template_list, s);
+        add_entry(&template_list_fname, sn);
+}
+                
 static	default_nym (s)
 
 char	*s;
@@ -350,6 +404,12 @@ int32	nym_count()
 	return nym_list.number;
 }
 
+int32   template_count()
+
+{
+        return template_list.number;
+}
+
 char	*nym_name(n)
 
 int	n;
@@ -368,6 +428,26 @@ int	n;
 	}
 
 	return m->name;
+}
+
+char    *template_name(n)
+
+int     n;
+
+{
+        MAILRC  *m;
+        
+        if (n > template_list.number)
+                return NULL;
+                                
+        m = template_list.start;
+                                        
+        while (m && n) {
+                m = m->next;
+                n--;
+        }
+                                                                                        
+        return m->name;
 }
 
 char	*current_nym()
@@ -461,7 +541,7 @@ static	void	read_contents(fp)
 FILE	*fp;
 
 {
-	char	line[1024],*s,*n,*v;
+	char	line[1024],*s,*sfn,*n,*v;
 	int	c,i;
 	int	prefixed;
 	MAILRC	*m;
@@ -534,6 +614,17 @@ FILE	*fp;
 				continue;
 			}
 
+			/* Include Files */
+			
+			if (!strncasecmp(s, "incfile", 7)) {
+				sfn=s+8 ;
+				while (*sfn!=' ') sfn++ ;
+				*sfn='\0' ;
+				sfn++;
+				add_template (s+8,sfn);
+				continue;
+			}
+			
 			/* Pseudonym */
 
 			if (!strncasecmp(s, "pseudonym", 9)) {
@@ -638,32 +729,35 @@ FILE	*fp;
 	}
 }
 
-static	void	read_mailrc()
+void	read_mailrc()
 
 {
 	char	*loc;
-	char	path[MAXPATHLEN];
+	char	path[MAXPATHLEN], path2[MAXPATHLEN];
 	FILE	*mailrcf;
+	  {
 
-	/* Default to $MAILRC */
+		strcpy(path2, ".privrc");
+	  }
+	/* Default to $PRIVRC */
 
-	loc = getenv("MAILRC");
+	loc = getenv("PRIVRC");
 
 	add_nym(our_userid);
 	our_nym = nym_name (0);
 
 	if (!loc) {
 
-		/* If that fails, try $HOME/.mailrc */
+		/* If that fails, try $HOME/.privrc */
 
 		loc = getenv("HOME");
 
 		if (loc) {
 			strcpy (path, loc);
-			strcat	(path, "/.mailrc");
+			strcat	(path, "/.privrc");
 		}
 		else
-			strcpy (path, ".mailrc");
+			strcpy (path, ".privrc");
 	}
 	else
 		strcpy (path, loc);
@@ -671,9 +765,20 @@ static	void	read_mailrc()
 	/* See if we can open it */
 
 	if ((mailrcf = fopen(path,"rt")) == NULL) {
-		printf ("Can't find .mailrc in $MAILRC, $HOME or current directory !\n");
-		return;
+	  if ((mailrcf = fopen(path2,"rt")) == NULL)
+	    {
+	      printf ("Can't read %s nor %s !\n", path, path2);
+	      globRCfile[0] = 0;
+	      globRCbak[0] = 0;
+	      return;
+	    }
+	  else
+	    strcpy(globRCfile, path2);
 	}
+	else
+		strcpy(globRCfile, path);
+	strcpy(globRCbak, globRCfile);
+	strcat(globRCbak, ".bak");
 
 	/* Read the contents here */
 
@@ -695,6 +800,12 @@ char	*argv[];
 
 {
 	char	*s;
+	int	i;
+#ifdef MALLOC_TEST
+	extern	void	malloc_dump();
+
+	signal (SIGHUP, malloc_dump);
+#endif
 
 	/* Check for PGP */
 
@@ -712,7 +823,17 @@ char	*argv[];
 
 	/* Get our user id */
 
+#ifdef __FreeBSD__
+/* cuserid:
+   a) is obselete and replaced by getpwuid.
+   b) returns the effective user id rather than the real one.
+      I prefer to read my mail than that of whoever privtool decides it
+      belongs to at the moment */
+
+	our_userid = getlogin();
+#else
 	our_userid = cuserid (0);
+#endif
 
 	/* Initialise pgp library */
 
@@ -722,14 +843,37 @@ char	*argv[];
 
 	init_messages();
 
-	s = getenv("MAIL");
+	/* Check for the "-f" option on command line */
+	default_mail_file[0] = 0;
+	for (i = 1; i < argc; i++)
+	  if (strcmp(argv[i], "-f") == 0)
+	    {
+	      /* Load following file as default mailbox */
+	      if (i + 1 >= argc)
+		{
+		  fprintf(stderr, "%s: Mailbox filename missing with -f option\n", argv[0]);
+		  exit(1);
+		}
+	      else
+		strcpy(default_mail_file, argv[i + 1]);
+	    }
 
-	if (s)
-		strcpy (default_mail_file, s);
-	else {
-		sprintf(default_mail_file,"/var/spool/mail/%s",
-			cuserid(NULL));
-	}
+	if (strlen(default_mail_file) < 1)
+	  {
+	    s = getenv("MAIL");
+
+	    if (s)
+	      strcpy (default_mail_file, s);
+	    else {
+#if defined(__FreeBSD__) || defined (SVR4)
+	      sprintf(default_mail_file,"/var/mail/%s",
+		      cuserid(NULL));
+#else
+              sprintf(default_mail_file,"/var/spool/mail/%s",
+                      cuserid(NULL));
+#endif
+	    }
+	  }
 
 	read_mailrc();
 	read_mail_file(default_mail_file,TRUE);
@@ -744,6 +888,9 @@ char	*argv[];
 	close_mail_file ();
 	close_messages ();
 	close_pgplib();
+#ifdef MALLOC_TEST
+	malloc_dump();
+#endif
 	exit (0);
 }
 

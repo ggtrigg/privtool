@@ -1,6 +1,6 @@
 
 /*
- *	@(#)windows.h	1.2 8/10/95
+ *	@(#)windows.h	1.3 9/14/95
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -37,12 +37,31 @@ typedef struct _compose_window {
 	int	in_use;
 	
 } COMPOSE_WINDOW;
+
+typedef struct _display_window {
+
+	struct	_display_window	*next, *prev;
+
+	Frame	display_frame;
+	Panel	display_panel;
+
+	Panel_item	addkey_item;
+	Panel_item	sender_item;
+	Panel_item	date_item;
+	Textsw	sig_window;
+	Textsw	body_window;
+
+	int	number;
+
+} DISPLAY_WINDOW;
 #else
 typedef	int	COMPOSE_WINDOW;
+typedef int	DISPLAY_WINDOW;
 #endif
 
 /* Declare function */
 
 COMPOSE_WINDOW	*x_setup_send_window ();
 COMPOSE_WINDOW	*setup_send_window ();
+DISPLAY_WINDOW	*create_display_window ();
 

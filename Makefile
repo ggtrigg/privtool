@@ -1,5 +1,5 @@
 #
-# @(#)Makefile	1.27 9/5/95
+# @(#)Makefile	1.30 3/28/96
 #
 # Makefile for Privtool, by Mark Grant (mark@unicorn.com). Linux changes
 # from David Summers (david@actsn.fay.ar.us) and Anders Baekgaard.
@@ -11,7 +11,7 @@
 #
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
-DISPLAY_OBJECT = x.o
+DISPLAY_OBJECT = x.o xprops.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!
@@ -19,10 +19,12 @@ DISPLAY_OBJECT = x.o
 #
 
 #FLOPPY_OBJECT = floppy.o
-#FLOPPY_FLAGS = -DUSE_FLOPPY
+#FLOP_FILE = /dev/fd0
+#FLOPPY_FLAGS = -DUSE_FLOPPY -DAUTO_EJECT -DFLOP_FILE=\"$(FLOP_FILE)\"
 
 FLOPPY_OBJECT = 
 FLOPPY_FLAGS = 
+FLOP_FILE =
 
 OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
@@ -30,8 +32,8 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 #
 # Use the following lines if you don't have PGP Tools.
 #
-#PGPLDFLAGS=
-#PGPTOOLDIR=
+PGPLDFLAGS=
+PGPTOOLDIR=
 
 #
 # Use the following lines if you do have PGP Tools, and set PGPTOOLDIR
@@ -39,14 +41,14 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 # may want to simply create a link from this directory to the PGP Tools
 # directory.
 #
-PGPTOOLDIR=./pgptools
-PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+#PGPTOOLDIR=./pgptools
+#PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
 
 #
 # Set the following to the path for your PGP executable - can be blank
 # if using PGP Tools
 #
-PGPEXEC=$(HOME)/bin/pgp
+PGPEXEC=/usr/local/bin/pgp
 
 #
 # Set the following to the path for your Mixmaster executable, and
@@ -73,7 +75,8 @@ PGPVERSION=2.6
 #OPENWINLDFLAGS=
 #OPENWINCPPFLAGS=
 
-OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
+OPENWINHOME=/cdrom/usr/openwin
+OPENWINLDFLAGS=-L$(OPENWINHOME)/lib -L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
 
 #
@@ -81,7 +84,7 @@ OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
 # second definition.
 #
 
-LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
+LDFLAGS= $(OPENWINLDFLAGS) /cdrom/usr/openwin/lib/libxview.a /cdrom/usr/openwin/lib/libolgx.a -lX11 -lm \
 	$(PGPLDFLAGS)
 
 #LDFLAGS=$(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm $(PGPLDFLAGS) \
@@ -100,16 +103,16 @@ LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
 # pubring.pgp.
 #
 
-PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
-	-DNO_ASM -DHIGHFIRST -DIDEA32
-#PGPTOOLS=
+#PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
+	-DNO_ASM -DHIGHFIRST -DIDEA32 -DUSE_AUDIO
+PGPTOOLS=
 
 #
 # Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
 # default fixed width font.
 #
 #DEFAULT_FONT=-DFIXED_WIDTH_FONT=FONT_FAMILY_COUR
-#DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
+DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
 
 #
 # Define XResources below to override the default ".Xdefaults"
@@ -132,13 +135,17 @@ PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
 #
 # Add -DALLOCA if you have alloca().
 #
+# Add -DDONT_REQUIRE_PLUS if you want all mailbox access to occur
+# relative to your folder directory even if you don't put a + sign
+# at the beginning of the file name.
+#
 
 #DEBUG=-g
-DEBUG=-O
+DEBUG=-O6
 
 CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
-	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
-	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON
+	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
+	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT -DSTART_OPEN
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -151,7 +158,7 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 #
 
 #CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
-CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
+CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS) -Ilinux
 
 #
 # Code is written for cc, but should work with gcc. However, I'm wary
@@ -160,7 +167,7 @@ CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
 #
 
 #CC=gcc
-CC=cc -DNON_ANSI
+CC=cc -DNON_ANSI -mpentium -DSYSV
 
 # Or, use acc for Solaris 2.x
 #CC=acc -DSYSV
@@ -170,8 +177,8 @@ CC=cc -DNON_ANSI
 
 # If using Linux, use the first line, otherwise use the second.
 
-#LINUX_OBJ = linux/gettime.o linux/parsedate.o
-LINUX_OBJ = 
+LINUX_OBJ = linux/gettime.o linux/parsedate.o
+#LINUX_OBJ = 
 
 #
 # Following provides automatic dependencies on SunOS

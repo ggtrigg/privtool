@@ -1,7 +1,7 @@
 
 
 /*
- * @(#)mailrc.h	1.7 8/10/95
+ * @(#)mailrc.h	1.8 6/11/96
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -53,4 +53,6 @@ typedef struct {
 
 extern	char	*nym_name();
 extern	char	*current_nym();
-
+extern  char    *template_name();
+extern  char    *search_templatename();
+extern	void	clear_list();

@@ -1,6 +1,6 @@
 
 /*
- *	@(#)messages.c	1.20 8/10/95
+ *	@(#)messages.c	1.21 3/5/96
  *
  *	(c) Copyright 1993-1995 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
@@ -19,7 +19,11 @@
  */
 
 #include <stdio.h>
+#ifdef __FreeBSD__
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
 
 #include "def.h"
 #include "buffers.h"
@@ -52,6 +56,7 @@ MESSAGE	*new_message()
 	m->decrypted = 0;
 	m->sender = 0;
 	m->to = 0;
+	m->cc = 0;
 	m->reply_to = 0;
 	m->email = 0;
 	m->subject = 0;
