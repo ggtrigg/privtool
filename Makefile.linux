@@ -1,0 +1,257 @@
+#
+# @(#)Makefile.linux	1.4 9/9/95
+#
+# Makefile for Privtool, by Mark Grant (mark@unicorn.com). Linux changes
+# from David Summers (david@actsn.fay.ar.us) and Anders Baekgaard.
+#
+
+#
+# In theory, you could have different code to replace mail_reader.c and
+# x.c (e.g. for Motif, Xt, etc). In practice, that's not done yet.
+#
+
+MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
+DISPLAY_OBJECT = x.o xprops.o
+
+#
+# WARNING: Currently the floppy code doesn't work properly !!!
+# Use the first lines for SunOS, the second set of lines for other OSes
+#
+
+#FLOPPY_OBJECT = floppy.o
+#FLOP_FILE = /dev/fd0
+#FLOPPY_FLAGS = -DUSE_FLOPPY -DFLOP_FILE=\"$(FLOP_FILE)\"
+
+FLOPPY_OBJECT = 
+FLOPPY_FLAGS = 
+
+OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
+	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
+
+#
+# For Berkeley DB database.
+#
+
+#DBLDFLAGS = -ldb
+#DB_FLAGS = -DBDB -I./dbinc
+
+#
+# For GNU database
+#
+
+#DBLDFLAGS = -lgdbm
+#DB_FLAGS = -DGDBM
+
+#
+# For no database.
+#
+
+DBLDFLAGS =
+DB_FLAGS =
+
+#
+# Use the following lines if you don't have PGPTools.
+#
+#PGPLDFLAGS=
+#PGPTOOLDIR=
+
+#
+# Use the following lines if you do have PGPTools, and set PGPTOOLDIR
+# to the directory with the header files and libpgptools.a. You
+# may want to simply create a link from this directory to the PGPTools
+# directory.
+#
+PGPTOOLDIR=./pgptools.linux
+PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+
+#
+# Set the following to the path for your PGP executable - can be blank
+# if using PGP Tools (which doesn't seem to work on Linux).
+#
+PGPEXEC=$(HOME)/bin/pgp
+
+#
+# Set the following to the path for your Mixmaster executable, and
+# Mixmaster directory.
+#
+
+MIXEXEC=$(HOME)/bin/mixmaster
+MIXPATH=$(HOME)/.mix
+
+#
+# The following control Mixmaster remailing. The MAXMIX value specifies
+# the maximum number of remailers to use, MINMIX the minimum number of
+# remailers, MINMIXREL the minimum remailer reliability and MINMIXPATHREL
+# the minimum reliability of the remailer path. Reliability is expressed 
+# as a percentage multiplied by 100; i.e. 10000 = 100%, 100 = 1%.
+#
+
+MIXFLAGS=-DMINMIX=3 -DMAXMIX=4 -DMINMIXREL=9500 -DMINMIXPATHREL=9000
+
+#
+# Set the following to the path for your Premail executable.
+#
+
+PREMAILEXEC=$(HOME)/bin/premail.privtool
+
+#
+# Set the version number to claim in encrypted/signed messages if using
+# PGPTools - can be blank if using PGP for everything. You'll probably
+# want to set this to 2.5 now that has been released.
+#
+#PGPVERSION=2.3a
+PGPVERSION=2.6
+
+#
+# Use the first lines if your OpenWindows files are installed in standard
+# lib/include directories, or the second if they're in a tree under 
+# $OPENWINHOME.
+#
+
+#OPENWINLDFLAGS=
+OPENWINCPPFLAGS=
+
+OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
+#OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
+
+#
+# If using SunOS/Solaris, use the first definition, if using Linux use the
+# second definition.
+#
+
+#LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
+#	$(PGPLDFLAGS)
+
+LDFLAGS=$(OPENWINLDFLAGS) -L/usr/X11/lib -lxview -lolgx -lX11 -lm \
+	$(PGPLDFLAGS) $(DBLDFLAGS)
+
+#
+# If you have PGP Tools, use the first line, otherwise use the
+# second. Remove -DUSE_AUDIO if you do not have /dev/audio.
+#
+# You should modify the flags after -I$(PGPTOOLDIR) to match the
+# flags you used when compiling libpgptools.a.
+#
+# Removing USE_HASH will save memory, but decrease performance. Using
+# the public key hash table *significantly* improves the speed of
+# signature verification for small messages when you have a large
+# pubring.pgp.
+#
+# Remove -DDEV_RANDOM if you don't have /dev/random on your machine.
+# The code will still work if you don't remove this.
+#
+
+PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX \
+	-DIDEA32 -DSYSV -DUSE_AUDIO -DDEV_RANDOM 
+#PGPTOOLS=
+
+#
+# Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
+# default fixed width font.
+#
+#DEFAULT_FONT=-DFIXED_WIDTH_FONT=FONT_FAMILY_COUR
+#DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
+
+#
+# Define XResources below to override the default ".Xdefaults"
+#
+#XRESOURCES=-DXRESOURCES=\".Xresources\"
+
+#
+# You may need to use the first line is mail is in /var/mail rather than
+# /var/spool/mail.
+#
+
+#MAIL_SPOOL_DIR=-DMAIL_SPOOL_DIR=\"/var/mail/\"
+MAIL_SPOOL_DIR=
+
+#
+# Use -g for debugging, change to -O for production use. Add -DNO_MIXMASTER
+# if you do not have the Mixmaster software and -DNO_PREMAIL if you do not
+# have the Premail software. For Linux you will probably want to add 
+# -DCOMPACT, to compact the layout somewhat. If you have a large screen 
+# (e.g. 800x600 upwards) then remove it.
+#
+# If you're concerned about the icon that Privtool uses, then remove
+# the -DNSA_ICON, and you may also want to add -DXSAFEMAIL. If you
+# prefer the program to start up open rather than iconised, then
+# add -DSTART_OPEN.
+#
+# If you're using the XBM icons and don't like the default icon, then
+# you can define USE_NEW_XBM instead.
+#
+# If your machine is set up to run without global write permission
+# to the mail spool directory then add -DSETGID and install Privtool
+# with group mail and setgid.
+#
+# If you're having problems with icons on Linux, add -DUSE_XBM. You
+# must define NSA_ICON for this to work, but the other icons should
+# be correct for your OS, as they are taken from the OS include files.
+#
+
+DEBUG=-g
+#DEBUG=-O2
+
+CFLAGS= $(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
+	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
+	-DPREMAILEXEC=\"$(PREMAILEXEC)\" \
+	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT \
+	-DUSE_XBM $(MAIL_SPOOL_DIR) $(DB_FLAGS) -DSETGID
+
+#
+# Note: Keep -DSAFE until you are sure of correct operation on
+# your machine !
+#
+# The SunOS strstr() code seems to take an age, so we define SLOW_STRSTR
+# to use the simple C implementation in pgplib.c. Add -DACCEPT_PATH if
+# you want to support Usenet archives that use Path: instead of From,
+# but be aware that this may cause problems with mail....
+#
+
+#CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) $(FLOPPY_FLAGS)
+CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) $(FLOPPY_FLAGS)
+
+#
+# Code is written for cc, but should work with gcc. However, I'm wary
+# of trying to get the Xview code to with with gcc as I've had problems
+# with that in the past.
+#
+
+#CC=gcc
+#CC=cc -DNON_ANSI
+
+# Or, use acc for Solaris 2.x
+#CC=acc -DSYSV
+
+# For Linux, you should use the following :
+CC=gcc -Ilinux -DSYSV -DDONT_HAVE_TM_GMTOFF
+
+# If using Linux, use the first line, otherwise use the second.
+
+LINUX_OBJ = linux/gettime.o linux/parsedate.o
+#LINUX_OBJ = 
+
+#
+# Following provides automatic dependencies on SunOS
+#
+
+.KEEP_STATE:
+
+#
+# Actually do the compilation...
+#
+
+all:		 privtool
+
+privtool:	$(OFILES)
+		$(CC) $(OFILES) -o privtool $(LDFLAGS)
+
+pgpdat:		pgpdat.o
+		$(CC) pgpdat.o -o pgpdat $(LDFLAGS)
+
+.c.o:	
+		$(CC) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)
+
+clean:
+		$(RM) privtool *.o linux/*.o
+

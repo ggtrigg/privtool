@@ -1,0 +1,30 @@
+
+	Privtool Beta Release
+	---------------------
+
+I've written most of the Privtool code by myself (mark@unicorn.com),
+however an increasing number of people have donated patches, and some
+people's code has been included from other software that is either
+released under the GPL or otherwise freely distributable. Credit is
+given in the appropriate source files, but here's the complete list
+of contributors so far, in alphabetical order. Thanks to everyone for
+helping to improve this software, and apologies to anyone I've missed
+out!
+
+	Stuart Arnold (sja@epo.e-mail.com)
+	Anders Baekgaard (baekgrd@ibm.net)
+	Scott Cannon (rscott@silver.cal.sdl.usu.edu)
+	Vincent Cojot (coyote@step.polymtl.ca)
+	Pr0duct Cypher
+	Tony Gialluca (tony@hgc.edu)
+	Mark Grant (mark@unicorn.com)
+	Richard Huveneers (richard@hekkihek.hacom.nl)
+	Gregory Margo (gmargo@newton.vip.best.com)
+	Joerg Mainzer (mainzer@mainzer.langen.bull.de)
+	Keith Paskett (keith.paskett@sdl.usu.edu)
+	Rich Salz (rsalz@osf.org)
+	David Summers (david@actsn.fay.ar.us)
+	A J Teeder (ajteeder@dra.hmg.gb)
+	Glenn Trigg (ggt@netspace.net.au)
+
+
