@@ -94,6 +94,12 @@
 *.menu_bar*fullhdr.mnemonic:		H
 *.menu_bar*fullhdr.accelerator:		Ctrl<Key>h
 *.menu_bar*fullhdr.acceleratorText:	Ctrl-H
+*.menu_bar*showtbar.labelString:	Show Toolbar
+*.menu_bar*showtbar.mnemonic:		T
+*.menu_bar*showtbar.set:		True
+*.menu_bar*showtbar.accelerator:	Ctrl<Key>t
+*.menu_bar*showtbar.acceleratorText:	Ctrl-T
+
 *.menu_bar*folders.labelString:		Folders...
 *.menu_bar*folders.mnemonic:		F
 *.menu_bar*folders.accelerator:		Ctrl<Key>f
@@ -226,7 +232,7 @@
 *.msgform.XmTextField.bottomAttachment:		attach_form
 *.msgform.msg1.leftAttachment:			attach_form
 *.msgform.msg1.rightAttachment:			attach_position
-*.msgform.msg1.rightPosition:			50
+*.msgform.msg1.rightPosition:			40
 *.msgform.msg2.leftAttachment:			attach_widget
 *.msgform.msg2.leftWidget:			msg1
 *.msgform.msg2.leftOffset:			-2
@@ -307,6 +313,9 @@
 *.BLUE.fontType:		font_is_font
 *.BLUE.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.BLUE.renditionForeground:	blue
+*.RED.fontType:			font_is_font
+*.RED.fontName:			-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+*.RED.renditionForeground:	firebrick
 *.STRUCK.fontType:		font_is_font
 *.STRUCK.fontName:		6x13
 *.STRUCK.strikethruType:	single_line
