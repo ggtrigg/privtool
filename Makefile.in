@@ -34,7 +34,7 @@ GTK_SRC =	gtk.c gprops.c
 
 # OS specific source files.
 LINUX_SOURCE =	linux/gettime.c linux/parsedate.c
-LINUX_CPP =	-I${srcdir}/linux
+LINUX_CPP =	-I${srcdir}/linux -DDATADIR=\"${datadir}\"
 
 # Floppy source file(s).
 FLOPPY_SRC =	floppy.c
@@ -51,10 +51,12 @@ privtool:	${OBJS}
 		${LINK.c} ${LDFLAGS} -o $@ ${OBJS} ${LDLIBS}
 
 install:	privtool
-		${INSTALL} -s -g mail -m 2755 privtool ${bindir}/privtool
+		${INSTALL} -d ${bindir}/
+		${INSTALL} -s -g mail -m 2755 privtool ${bindir}/
 		${INSTALL} -d ${datadir}/gtk/privtool/
 		${INSTALL_DATA} gtkrc ${datadir}/gtk/privtool/gtkrc
-		${INSTALL_DATA} privtool.1 ${mandir}/privtool.1
+		${INSTALL} -d ${mandir}/man1/
+		${INSTALL_DATA} privtool.1 ${mandir}/man1/privtool.1
 
 ${DIRS}:
 		mkdir $@
