@@ -127,6 +127,7 @@ static void	show_folder_win_cb(GtkWidget *, gpointer);
 static void	show_fullhdr_cb(GtkWidget *, gpointer);
 static void	show_undelete(gboolean);
 static void	sort_cb(GtkWidget *, gpointer);
+static void	textins_cb(GtkWidget *, gchar *, gint, gint *);
 static void	toggle_toolbar_cb(GtkWidget *, gpointer);
 static void	undelete_cb(GtkWidget *, gpointer);
 static void	update_mail_list(void);
@@ -2568,6 +2569,8 @@ compose_find_free()
     gtk_signal_connect_object(GTK_OBJECT(win->text), "button_press_event",
 			      GTK_SIGNAL_FUNC(compmenu_post_cb),
 			      GTK_OBJECT(win->text));
+    gtk_signal_connect(GTK_OBJECT(win->text), "insert_text",
+		       GTK_SIGNAL_FUNC(textins_cb), win);
 
     gtk_widget_show(win->text);
     gtk_widget_show(swin);
@@ -2998,3 +3001,57 @@ edit_ops_cb(GtkWidget *w, gpointer data)
 	gtk_editable_copy_clipboard(GTK_EDITABLE(msg));
     }
 } /* edit_ops_cb */
+
+/* Implement "wrapping as you type" functionality. Note that this only wraps
+   the text already inserted into the GtkText widget, the "current" text
+   has no effect.
+ */
+
+static void
+textins_cb(GtkWidget *w, gchar *text, gint length, gint *position)
+{
+    int		nlpos, margin;
+    char	*msg, *last_nl, *last_space, *prev_space, *temp;
+
+    if(((temp = find_mailrc("wrapmargin")) == NULL) || (*temp == '\0')) {
+	margin = 0;
+    }
+    else {
+	margin = atoi(temp);
+    }
+
+    if(margin == 0)
+	return;
+
+    msg = gtk_editable_get_chars(GTK_EDITABLE(w), 0, *position);
+
+    if((last_nl = strrchr(msg, '\n')) == NULL)
+	last_nl = msg;
+
+    nlpos = last_nl - msg;
+    if(*position >= (nlpos + margin)) {
+	gtk_text_freeze(GTK_TEXT(w));
+	for(last_space = strchr(last_nl, ' ');
+	    last_space != NULL;
+	    last_space = strchr(last_space+1, ' ')) {
+	    if((last_space - last_nl) >= margin) {
+		gtk_text_set_point(GTK_TEXT(w), (prev_space - msg));
+		gtk_text_forward_delete(GTK_TEXT(w), 1);
+		gtk_text_insert(GTK_TEXT(w), NULL, NULL, NULL, "\n", 1);
+		last_nl = prev_space;
+	    }
+	    prev_space = last_space;
+	}
+	nlpos = last_nl - msg;
+	if(*position >= (nlpos + margin)) {
+	    last_space = strrchr(last_nl, ' ');
+	    if(last_space) {
+		gtk_text_set_point(GTK_TEXT(w), (last_space - msg));
+		gtk_text_forward_delete(GTK_TEXT(w), 1);
+		gtk_text_insert(GTK_TEXT(w), NULL, NULL, NULL, "\n", 1);
+	    }
+	}
+	gtk_text_thaw(GTK_TEXT(w));
+    }
+    gtk_text_set_point(GTK_TEXT(w), *position);
+} /* textins_cb */
