@@ -1,0 +1,88 @@
+diff -urN privtool-0.86.orig/Makefile.linux privtool-0.86/Makefile.linux
+--- privtool-0.86.orig/Makefile.linux	Thu Dec  5 19:55:44 1996
++++ privtool-0.86/Makefile.linux	Sun Dec 22 22:47:13 1996
+@@ -31,8 +31,8 @@
+ #
+ # Use the following lines if you don't have PGPTools.
+ #
+-#PGPLDFLAGS=
+-#PGPTOOLDIR=
++PGPLDFLAGS=
++PGPTOOLDIR=
+ 
+ #
+ # Use the following lines if you do have PGPTools, and set PGPTOOLDIR
+@@ -40,22 +40,22 @@
+ # may want to simply create a link from this directory to the PGPTools
+ # directory.
+ #
+-PGPTOOLDIR=./pgptools.linux
+-PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
++#PGPTOOLDIR=./pgptools.linux
++#PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+ 
+ #
+ # Set the following to the path for your PGP executable - can be blank
+ # if using PGP Tools (which doesn't seem to work on Linux).
+ #
+-PGPEXEC=$(HOME)/bin/pgp
++PGPEXEC=/usr/bin/pgp
+ 
+ #
+ # Set the following to the path for your Mixmaster executable, and
+ # Mixmaster directory.
+ #
+ 
+-MIXEXEC=$(HOME)/bin/mixmaster
+-MIXPATH=$(HOME)/Mix
++#MIXEXEC=$(HOME)/bin/mixmaster
++#MIXPATH=$(HOME)/Mix
+ 
+ #
+ # Set the version number to claim in encrypted/signed messages if using
+@@ -72,10 +72,10 @@
+ #
+ 
+ #OPENWINLDFLAGS=
+-OPENWINCPPFLAGS=
++#OPENWINCPPFLAGS=
+ 
+ OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
+-#OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
++OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
+ 
+ #
+ # If using SunOS/Solaris, use the first definition, if using Linux use the
+@@ -85,8 +85,8 @@
+ #LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
+ #	$(PGPLDFLAGS)
+ 
+-LDFLAGS=$(OPENWINLDFLAGS) -L/usr/X11/lib -lxview -lolgx -lX11 -lm \
+-	$(PGPLDFLAGS) 
++LDFLAGS=$(OPENWINLDFLAGS) -L/usr/lib/X11/.. $(PFPLDFLAGS)
++LDLIBS=-lxview -lolgx -lX11 -lm
+ 
+ #
+ # If you have PGP Tools, use the first line, otherwise use the
+@@ -101,9 +101,9 @@
+ # pubring.pgp.
+ #
+ 
+-PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX \
+-	-DIDEA32 -DSYSV -DUSE_AUDIO
+-#PGPTOOLS=
++#PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX \
++#	-DIDEA32 -DSYSV -DUSE_AUDIO
++PGPTOOLS=
+ 
+ #
+ # Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
+@@ -186,7 +186,7 @@
+ all:		 privtool
+ 
+ privtool:	$(OFILES)
+-		$(CC) $(OFILES) -o privtool $(LDFLAGS)
++		$(CC) $(LDFLAGS) $(OFILES) $(LDLIBS) -o privtool
+ 
+ .c.o:	
+ 		$(CC) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)

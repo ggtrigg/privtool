@@ -1,6 +1,6 @@
 #
-# @(#)Mailrc.test	1.6 7/6/95
-# Example of .mailrc file for Privtool
+# @(#)Privrc.test	1.6 7/6/95
+# Example of .privrc file for Privtool
 #
 # All Privtool commands go in comments at the top, starting with
 # an #@ to distinguish them from real comments.
