@@ -28,3 +28,7 @@
 - More keyboard shortcuts?
 
 - Get the "hide deleted" mail working.
+
+- Implement the normal and new-mail icons.
+
+- Implement pixmap caching.

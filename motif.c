@@ -21,18 +21,19 @@
 /* We define UI_MAIN so that header files can tell how to define the
    neccesary structures */
 
-#define UI_MAIN1
+#define UI_MAIN
 
+#include	<malloc.h>
+#include	<X11/X.h>
+#include	<X11/Xlib.h>
+#include	<X11/Intrinsic.h>
 #include	"def.h"
 #include	"buffers.h"
 #include	"message.h"
 #include	"windows.h"
 #include	"gui.h"
 #include	"motif_protos.h"
-#include	<malloc.h>
-#include	<X11/X.h>
-#include	<X11/Xlib.h>
-#include	<X11/Intrinsic.h>
+#include	<Xm/DialogS.h>
 #include	<Xm/MainW.h>
 #include	<Xm/RowColumn.h>
 #include	<Xm/Frame.h>
@@ -46,18 +47,31 @@
 #include	<Xm/Separator.h>
 #include	<Xm/TextF.h>
 #include	<Xm/Text.h>
+#include	<Xm/ToggleBG.h>
+#include	<Xm/SeparatoG.h>
 #include	<Xm/CSText.h>
 #include	<Xm/MessageB.h>
 #include	<X11/Xmu/Editres.h>
+#include	"mfolder.h"
+
+#include	"delete.xpm"
 
 void			update_message_list(void);
 int			show_deleted = 1;
 
-static Widget		toplevel_, msgarea_, msgarea2_, mailslist_, text_, hdrtext_;
+static Widget		toplevel_, msgarea_, msgarea2_, mailslist_;
+static Widget		text_ = NULL, hdrtext_;
 static Widget		pp_window_ = NULL, abt_window_ = NULL;
 static XtAppContext	app_context_;
 static XmRenderTable	render_header, render_list;
 static char		local_pp[2048];
+
+typedef enum {
+    COMPOSE_NEW,
+    COMPOSE_REPLY,
+    COMPOSE_FORWARD,
+    COMPOSE_RESEND
+} COMPOSE_TYPE;
 
 static void		create_rendertables(Widget parent);
 static void		create_menubar(Widget parent);
@@ -69,6 +83,7 @@ static void		create_comp_menu(Widget parent);
 static void		create_help_menu(Widget parent);
 static void		create_workarea (Widget parent);
 static void		create_msgareas(Widget parent);
+static COMPOSE_WINDOW	*setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		update_mail_list(void);
 static void		show_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
 static void		select_message(Widget w, XtPointer, XmListCallbackStruct *cbs);
@@ -78,12 +93,21 @@ static int		xioerror_handler(Display *dpy);
 static void		passphrase_cb(Widget w, XtPointer clientdata, XmTextVerifyPtr tb);
 static void		aboutCB(Widget w, XtPointer clientdata, XtPointer calldata);
 static void		undeleteCB(Widget w, XtPointer clientdata, XtPointer calldata);
+static int		alert(Widget w, char *name, int buttons);
+static void		alertCB(Widget w, int *stopval, XtPointer calldata);
+static void		view_foldersCB(Widget w, XtPointer clientdata, XtPointer calldata);
+static void		viewAC(Widget w, XEvent *ev, String *args, Cardinal *numargs);
+
+static XtActionsRec actions[] = {
+    {"view", (XtActionProc)viewAC}
+};
 
 /*----------------------------------------------------------------------*/
 
 void
 bad_file_notice(int w)
 {
+    alert(toplevel_, "badfile", 1);
 }
 
 /*----------------------------------------------------------------------*/
@@ -91,6 +115,7 @@ bad_file_notice(int w)
 void
 bad_key_notice_proc()
 {
+    alert(toplevel_, "badkey", 1);
 }
 
 /*----------------------------------------------------------------------*/
@@ -98,13 +123,78 @@ bad_key_notice_proc()
 int
 bad_pass_phrase_notice(int w)
 {
+    int		res = alert(toplevel_, "badpp", 2);
+
+    return(res == XmCR_OK);
 }
+
+/*----------------------------------------------------------------------*/
+
+static int
+alert(Widget w, char *name, int buttons)
+{
+    int			stop = 0;
+    char		*fullname;
+    XEvent		event;
+    XmString		string;
+    Widget		alert;
+    Arg			args[2];
+
+    XtSetArg(args[0], XmNdialogStyle, XmDIALOG_FULL_APPLICATION_MODAL);
+    XtSetArg(args[1], XmNdialogType, XmDIALOG_ERROR);
+
+    /* This fullname stuff is so we can do specific alert things in the
+       resource file (like the message), but also allow alert general
+       resources to be set (like the window title).
+       (Only it doesn't work! Sigh.) */
+    fullname = XtMalloc(strlen(name) + 7);
+    strcpy(fullname, name);
+    strcat(fullname, "_alert");
+    alert = XmCreateMessageDialog(w, fullname, args, 2);
+
+    XtFree(fullname);
+
+    XtAddCallback(alert, XmNcancelCallback, (XtCallbackProc)alertCB, &stop);
+    XtAddCallback(alert, XmNokCallback, (XtCallbackProc)alertCB, &stop);
+    if(buttons < 3)
+	XtUnmanageChild(XmMessageBoxGetChild(alert, XmDIALOG_HELP_BUTTON));
+    if(buttons < 2)
+	XtUnmanageChild(XmMessageBoxGetChild(alert, XmDIALOG_CANCEL_BUTTON));
+    XtManageChild(alert);
+
+    /* This makes this function block until the dialog is dealt with */
+    while (stop == 0){
+	XtAppNextEvent(app_context_, &event);
+	XtDispatchEvent(&event);
+    }
+    XtDestroyWidget(alert);
+
+    return stop;
+} /* alert */
+
+/*----------------------------------------------------------------------*/
+
+static void
+alertCB(Widget w, int *stopval, XtPointer calldata)
+{
+    int		reason = ((XmAnyCallbackStruct *)calldata)->reason;
+
+    *stopval = reason;
+#if DEBUG
+    if(reason == XmCR_OK){
+	printf("OK pressed\n");
+    }else if(reason == XmCR_CANCEL){
+	printf("Cancel pressed\n");
+    }
+#endif
+} /* alertCB */
 
 /*----------------------------------------------------------------------*/
 
 void
 beep_display_window()
 {
+    XBell(XtDisplay(toplevel_), 100);
 }
 
 /*----------------------------------------------------------------------*/
@@ -117,8 +207,9 @@ clear_busy()
 /*----------------------------------------------------------------------*/
 
 void
-clear_display_footer()
+clear_display_footer(DISPLAY_WINDOW *w)
 {
+    set_display_footer(w, "");
 }
 
 /*----------------------------------------------------------------------*/
@@ -126,6 +217,8 @@ clear_display_footer()
 void
 clear_display_window()
 {
+    if(text_ != NULL && XtIsRealized(text_))
+	XmTextSetString(text_, "");
 }
 
 /*----------------------------------------------------------------------*/
@@ -142,6 +235,12 @@ void
 clear_passphrase_string()
 {
     char	*c;
+    Widget	pptext;
+
+    if(pp_window_ != NULL){
+	XtVaGetValues(pp_window_, XmNuserData, &pptext, NULL);
+	XmTextFieldSetString(pptext, "");
+    }
 
     for(c = local_pp; *c != '\0'; c++){
 	*c = ' ';
@@ -207,7 +306,7 @@ create_display_window()
 	tempw = XmCreateScrolledText(pwin, "sigtext", NULL, 0);
 	XtManageChild(tempw);
 
-	XtVaSetValues(hdrtext_, XmNrenderTable, render_header, 0);
+	/*XtVaSetValues(hdrtext_, XmNrenderTable, render_header, 0);*/
     }
 
     XtPopup(message_window_, XtGrabNonexclusive);
@@ -314,6 +413,7 @@ display_message_description(MESSAGE *m)
 void
 display_message_sig(BUFFER *b)
 {
+    /* TODO */
 }
 
 /*----------------------------------------------------------------------*/
@@ -357,6 +457,8 @@ display_sender_info(MESSAGE *m)
 int
 dont_quit_notice_proc()
 {
+    int res = alert(toplevel_, "dontquit", 2);
+    return(res == XmCR_OK);
 }
 
 /*----------------------------------------------------------------------*/
@@ -364,6 +466,8 @@ dont_quit_notice_proc()
 int
 failed_save_notice_proc()
 {
+    int res = alert(toplevel_, "failsave", 2);
+    return(res == XmCR_OK);
 }
 
 /*----------------------------------------------------------------------*/
@@ -385,6 +489,8 @@ lock_display_window()
 int
 no_key_notice_proc(int w)
 {
+    int res = alert(toplevel_, "nokey", 2);
+    return(res == XmCR_OK);
 }
 
 /*----------------------------------------------------------------------*/
@@ -392,6 +498,8 @@ no_key_notice_proc(int w)
 int
 no_sec_notice_proc(int w)
 {
+    int res = alert(toplevel_, "nosec", 2);
+    return(res == XmCR_OK);
 }
 
 /*----------------------------------------------------------------------*/
@@ -450,6 +558,8 @@ read_message_to_deliver(COMPOSE_WINDOW *w, BUFFER *b)
 int
 read_only_notice_proc()
 {
+    int res = alert(toplevel_, "readonly", 2);
+    return(res == XmCR_OK);
 }
 
 /*----------------------------------------------------------------------*/
@@ -476,16 +586,20 @@ read_subject(COMPOSE_WINDOW *w)
 
 /*----------------------------------------------------------------------*/
 
+#ifndef NO_MIXMASTER
 void
 remail_failed_notice_proc()
 {
+    alert(toplevel_, "remailfail", 1);
 }
+#endif
 
 /*----------------------------------------------------------------------*/
 
 void
-set_display_footer(char *s)
+set_display_footer(DISPLAY_WINDOW *w, char *s)
 {
+    XtVaSetValues(msgarea2_, XmNvalue, s, NULL);
 }
 
 /*----------------------------------------------------------------------*/
@@ -493,6 +607,7 @@ set_display_footer(char *s)
 void
 set_initial_scrollbar_position()
 {
+    /* Not needed for motif, XmText's behave themselves! ggt :-) */
 }
 
 /*----------------------------------------------------------------------*/
@@ -510,10 +625,17 @@ setup_ui(int level, int argc, char **argv)
 {
     Widget	control_;
     char	*title;
+    XImage	*img, *shp_img;
 
     toplevel_ = XtVaOpenApplication(&app_context_, "Privtool", NULL, 0,
 				    &argc, argv, NULL,
 				    applicationShellWidgetClass, 0);
+
+#if 0
+    XpmCreateImageFromData(XtDisplay(toplevel_),
+			    &delete_xpm, &img, &shp_img, NULL);
+    XmInstallImage(img, "delete.xpm");
+#endif
 
     title = (char *)malloc(strlen(prog_name) + strlen(prog_ver) + 5);
     strcpy(title, prog_name);
@@ -523,6 +645,8 @@ setup_ui(int level, int argc, char **argv)
 
     /* Add editres protocol support */
     XtAddEventHandler(toplevel_, 0, True, _XEditResCheckMessages, NULL);
+
+    XtAppAddActions(app_context_, actions, XtNumber(actions));
 
     control_ = XmCreateMainWindow (toplevel_, "main_window", NULL, 0);
     XtManageChild (control_);
@@ -569,6 +693,7 @@ show_display_window(MESSAGE *m)
 void
 show_newmail_icon()
 {
+    XtVaSetValues(toplevel_, XmNiconPixmap, "privtool-new.xpm", NULL);
 }
 
 /*----------------------------------------------------------------------*/
@@ -576,6 +701,7 @@ show_newmail_icon()
 void
 show_normal_icon()
 {
+    XtVaSetValues(toplevel_, XmNiconPixmap, "privtool.xpm", NULL);
 }
 
 /*----------------------------------------------------------------------*/
@@ -631,17 +757,31 @@ update_message_list()
 COMPOSE_WINDOW *
 x_setup_send_window()
 {
-    COMPOSE_WINDOW	*w = NULL;
+}
+
+/*----------------------------------------------------------------------*/
+
+static COMPOSE_WINDOW *
+setup_composeCB(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    COMPOSE_WINDOW	*win = NULL;
 
 #if 0
     /* See if we have a window we can use */
-    w = compose_find_free();
+    win = compose_find_free();
 #endif
 
-    if(w == NULL){
-    }else{
-	/* Make sure window is visible. */
+    if(win == NULL){
+	win = XtNew(COMPOSE_WINDOW);
+	win->deliver_frame = XtVaCreatePopupShell("compose",
+						topLevelShellWidgetClass,
+						toplevel_,
+						NULL);
+	XtManageChild(win->deliver_frame);
     }
+    XtPopup(win->deliver_frame, XtGrabNonexclusive);
+
+    return win;
 }
 
 /*----------------------------------------------------------------------*/
@@ -687,6 +827,10 @@ create_toolbar(Widget parent)
     XtManageChild(btn);
     XtAddCallback (btn, XmNactivateCallback,
 		       delete_message_proc, NULL);
+    btn = XmCreatePushButtonGadget(toolbar_, "undelete", NULL, 0);
+    XtManageChild(btn);
+    XtAddCallback (btn, XmNactivateCallback,
+		       undeleteCB, NULL);
 } /* create_toolbar */
 
 /*----------------------------------------------------------------------*/
@@ -702,25 +846,25 @@ create_file_menu(Widget parent)
     cascade_ = XmCreateCascadeButton (parent, "file", args, 1);
     XtManageChild (cascade_);
 
-    button_ = XmCreatePushButton (menu_, "load", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "load", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   load_new_mail, NULL);
 
-    button_ = XmCreatePushButton (menu_, "save", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "save", NULL, 0);
     XtManageChild (button_);
 
-    button_ = XmCreatePushButton (menu_, "done", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "done", NULL, 0);
     XtManageChild (button_);
 
-    XtManageChild(XmCreateSeparator(menu_, "sep", NULL, 0));
+    XtManageChild(XmCreateSeparatorGadget(menu_, "sep", NULL, 0));
 
-    button_ = XmCreatePushButton (menu_, "qwsav", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "qwsav", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   save_and_quit_proc, NULL);
 
-    button_ = XmCreatePushButton (menu_, "quit", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "quit", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   quit_proc, NULL);
@@ -740,28 +884,28 @@ create_edit_menu(Widget parent)
     cascade_ = XmCreateCascadeButton (parent, "edit", args, 1);
     XtManageChild (cascade_);
 
-    button_ = XmCreatePushButton (menu_, "cut", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "cut", NULL, 0);
     XtManageChild (button_);
 
-    button_ = XmCreatePushButton (menu_, "copy", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "copy", NULL, 0);
     XtManageChild (button_);
 
-    button_ = XmCreatePushButton (menu_, "delete", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "delete", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   delete_message_proc, NULL);
 
-    button_ = XmCreatePushButton (menu_, "undelete", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "undelete", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   undeleteCB, NULL);
 
-    button_ = XmCreatePushButton (menu_, "undel_last", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "undel_last", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   undelete_last_proc, NULL);
 
-    button_ = XmCreatePushButton (menu_, "clearpp", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "clearpp", NULL, 0);
     XtManageChild (button_);
 } /* create_edit_menu */
 
@@ -778,18 +922,26 @@ create_view_menu(Widget parent)
     cascade_ = XmCreateCascadeButton (parent, "view", args, 1);
     XtManageChild (cascade_);
 
-    button_ = XmCreatePushButton (menu_, "next", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "next", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
-		       next_messageCB, NULL);
+		   next_messageCB, NULL);
 
-    button_ = XmCreatePushButton (menu_, "prev", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "prev", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
-		       prev_messageCB, NULL);
+		   prev_messageCB, NULL);
 
-    button_ = XmCreatePushButton (menu_, "sortby", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "sortby", NULL, 0);
     XtManageChild (button_);
+
+    button_ = XmCreateSeparatorGadget(menu_, "separator", NULL, 0);
+    XtManageChild (button_);
+
+    button_ = XmCreateToggleButtonGadget (menu_, "folders", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNvalueChangedCallback,
+		   view_foldersCB, NULL);
 } /* create_view_menu */
 
 /*----------------------------------------------------------------------*/
@@ -805,17 +957,29 @@ create_comp_menu(Widget parent)
     cascade_ = XmCreateCascadeButton (parent, "comp", args, 1);
     XtManageChild (cascade_);
 
-    button_ = XmCreatePushButton (menu_, "new", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "new", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   (XtCallbackProc)setup_composeCB,
+		   (XtPointer)COMPOSE_NEW);
 
-    button_ = XmCreatePushButton (menu_, "reply", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "reply", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   (XtCallbackProc)setup_composeCB,
+		   (XtPointer)COMPOSE_REPLY);
 
-    button_ = XmCreatePushButton (menu_, "forward", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "forward", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   (XtCallbackProc)setup_composeCB,
+		   (XtPointer)COMPOSE_FORWARD);
 
-    button_ = XmCreatePushButton (menu_, "resend", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "resend", NULL, 0);
     XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   (XtCallbackProc)setup_composeCB,
+		   (XtPointer)COMPOSE_RESEND);
 } /* create_comp_menu */
 
 /*----------------------------------------------------------------------*/
@@ -832,7 +996,7 @@ create_help_menu(Widget parent)
     XtManageChild (cascade_);
     XtVaSetValues(parent, XmNmenuHelpWidget, cascade_, NULL);
 
-    button_ = XmCreatePushButton (menu_, "about", NULL, 0);
+    button_ = XmCreatePushButtonGadget (menu_, "about", NULL, 0);
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		       aboutCB, NULL);
@@ -1036,7 +1200,7 @@ create_rendertables(Widget parent)
     rlist[1] = XmRenditionCreate(parent, (XmStringTag)"LIST_ST", NULL, 0);
     rlist[2] = XmRenditionCreate(parent, (XmStringTag)"LIST_B", NULL, 0);
 
-    render_header = XmRenderTableAddRenditions(NULL, rarray, 5, XmREPLACE);
+    /*render_header = XmRenderTableAddRenditions(NULL, rarray, 5, XmREPLACE);*/
     render_list = XmRenderTableAddRenditions(NULL, rlist, 3, XmREPLACE);
 } /* create_rendertables */
 
@@ -1110,7 +1274,7 @@ aboutCB(Widget w, XtPointer clientdata, XtPointer calldata)
 
 	/* Set render table on the Message child widget */
 	tempwidget = XtNameToWidget(abt_window_, "Message");
-	XtVaSetValues(tempwidget, XmNrenderTable, render_header, NULL);
+	/*XtVaSetValues(tempwidget, XmNrenderTable, render_header, NULL);*/
 	about = XmStringGenerate(prog_name,
 				 NULL, XmCHARSET_TEXT,
 				 (XmStringTag)"BIG");
@@ -1162,3 +1326,42 @@ undeleteCB(Widget w, XtPointer clientdata, XtPointer calldata)
 	m = m->next;
     }
 } /* undeleteCB */
+
+/*----------------------------------------------------------------------*/
+
+static void
+view_foldersCB(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    if(XmToggleButtonGadgetGetState(w)){
+	show_mail_folders(toplevel_);
+    }else{
+	hide_mail_folders();
+    }
+} /* view_foldersCB */
+
+/*----------------------------------------------------------------------*/
+
+static void
+viewAC(Widget w, XEvent *ev, String *args, Cardinal *numargs)
+{
+    int		i;
+
+#ifdef DEBUG
+    printf("In viewAC(");
+    for(i = 0; i < *numargs; i++){
+	if(i != 0)
+	    printf(", ");
+	printf("%s", args[i]);
+    }
+    printf(")\n");
+#endif
+
+    if(*numargs < 1)
+	return;			/* Silently fail */
+
+    if(!strcmp(args[0], "next")){
+	next_messageCB(w, NULL, NULL);
+    }else if(!strcmp(args[0], "prev")){
+	prev_messageCB(w, NULL, NULL);
+    }
+} /* viewAC */

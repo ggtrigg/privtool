@@ -52,6 +52,7 @@ extern	void	inbox_proc ();
 extern	void	save_changes_proc ();
 extern	void	done_proc ();
 extern	void	undelete_last_proc ();
+extern	void	undelete ();
 extern	void	sort_by_time ();
 extern	void	sort_by_number ();
 extern	void	sort_by_subject ();

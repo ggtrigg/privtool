@@ -2,66 +2,93 @@
 ! Resources for motif privtool.
 ! $Id$
 
+!?.iconPixmap:				privtool.xpm
 *.background:				lightsteelblue2
 *.menu_bar*background:  		lightsteelblue3
 *.menu_bar*foreground:  		black
 
 *.menu_bar*file.labelString:		File
+*.menu_bar*file.mnemonic:		F
 *.menu_bar*edit.labelString:		Edit
+*.menu_bar*edit.mnemonic:		E
 *.menu_bar*view.labelString:		View
+*.menu_bar*view.mnemonic:		V
 *.menu_bar*comp.labelString:		Compose
-*.menu_bar*comp.sensitive:		false
+*.menu_bar*comp.mnemonic:		C
 *.menu_bar*help.labelString:		Help
+*.menu_bar*help.mnemonic:		H
 
 !
 ! File menu items
 !
 *.menu_bar*load.labelString:		Load In-Box
+*.menu_bar*load.mnemonic:		L
 *.menu_bar*save.labelString:		Save Changes
 *.menu_bar*save.sensitive:		false
+*.menu_bar*save.mnemonic:		S
 *.menu_bar*done.labelString:		Done
 *.menu_bar*done.sensitive:		false
+*.menu_bar*done.mnemonic:		D
 *.menu_bar*qwsav.labelString:		Save & Quit
+*.menu_bar*qwsav.mnemonic:		Q
 *.menu_bar*quit.labelString:		Quit
+*.menu_bar*quit.mnemonic:		t
 
 !
 ! Edit menu items
 !
 *.menu_bar*cut.labelString:		Cut
+*.menu_bar*cut.mnemonic:		C
 *.menu_bar*copy.labelString:		Copy
+*.menu_bar*copy.mnemonic:		p
 *.menu_bar*cut.sensitive:		false
 *.menu_bar*copy.sensitive:		false
 *.menu_bar*delete.labelString:		Delete
+*.menu_bar*delete.mnemonic:		D
 *.menu_bar*undelete.labelString:	Undelete
+*.menu_bar*undelete.mnemonic:		U
 *.menu_bar*undel_last.labelString:	Undelete Last
+*.menu_bar*undel_last.mnemonic:		L
 *.menu_bar*clearpp.labelString:		Clear Passphrase
+*.menu_bar*clearpp.mnemonic:		P
 *.menu_bar*clearpp.sensitive:		false
 
 !
 ! View menu items
 !
 *.menu_bar*next.labelString:		Next
+*.menu_bar*next.mnemonic:		N
 *.menu_bar*prev.labelString:		Previous
+*.menu_bar*prev.mnemonic:		P
 *.menu_bar*sortby.labelString:		Sort By
 *.menu_bar*sortby.sensitive:		false
+*.menu_bar*sortby.mnemonic:		S
+*.menu_bar*folders.labelString:		Folders...
+*.menu_bar*folders.mnemonic:		F
 
 !
 ! Compose menu items
 !
 *.menu_bar*new.labelString:		New...
+*.menu_bar*new.mnemonic:		N
 *.menu_bar*reply.labelString:		Reply...
+*.menu_bar*reply.mnemonic:		R
 *.menu_bar*forward.labelString:		Forward...
+*.menu_bar*forward.mnemonic:		F
 *.menu_bar*resend.labelString:		Resend...
+*.menu_bar*resend.mnemonic:		s
 
 !
 ! Help menu items
 !
 *.menu_bar*about.labelString:		About...
+*.menu_bar*about.mnemonic:		A
 
 !
 ! Toolbar stuff
 !
-*toolbar.XmPushButtonGadget.highlightThickness: 1
+*toolframe.traversalOn:			false
+*toolbar.XmPushButtonGadget.highlightThickness: 0
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
 *toolbar.next.labelType:		pixmap
@@ -72,12 +99,12 @@
 *toolbar.delete.labelPixmap:		delete.xpm
 *toolbar.delete.leftAttachment:		attach_widget
 *toolbar.delete.leftWidget:		next
+*toolbar.undelete.labelType:		pixmap
+*toolbar.undelete.labelPixmap:		undelete.xpm
+*toolbar.undelete.leftAttachment:	attach_widget
+*toolbar.undelete.leftWidget:		delete
 
 *.fontList:			-*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-1
-!*.XmTextField.fontList:		-misc-fixed-medium-r-*-*-*-120-100-100-*-*-iso8859-1
-!*.XmText.fontList:		-misc-fixed-medium-r-*-*-*-120-100-100-*-*-iso8859-1
-!*.XmList.fontList:		-misc-fixed-medium-r-*-*-*-120-100-100-*-*-iso8859-1
-!*.hdrtext.fontList:		-*-helvetica-medium-r-*-*-11-*-*-*-*-*-iso8859-1
 *.XmTextField.fontList:		fixed
 *.XmText.fontList:		fixed
 
@@ -105,7 +132,9 @@
 *.msgtext.rows:				24
 *.msgtext.translations: #override\n\
 <Key> space:		next-page()\n\
-<Key> b:		previous-page()
+<Key> b:		previous-page()\n\
+<Key> n:		view(next)\n\
+<Key> p:		view(prev)
 
 *slist.listSizePolicy:			constant
 *slist.visibleItemCount:		5
@@ -124,26 +153,28 @@
 ?.message.height:				500
 
 !
-! Render table stuff
+! Render table & renditions
 !
-*.HDR.fontType:			FONT_IS_FONT
+?.labelRenderTable:		SMALL RED STRUCK BOLD BIG BLUE LIST HDR
+?.iconRenderTable:		SMALL RED STRUCK BOLD BIG BLUE LIST HDR
+*.HDR.fontType:			font_is_font
 *.HDR.fontName:			-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
-*.HDR_B.fontType:		FONT_IS_FONT
+*.HDR_B.fontType:		font_is_font
 *.HDR_B.fontName:		-*-helvetica-bold-r-*-*-12-*-*-*-*-*-iso8859-1
-*.HDR_U.fontType:		FONT_IS_FONT
+*.HDR_U.fontType:		font_is_font
 *.HDR_U.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
-*.HDR_U.underlineType:		SINGLE_LINE
-*.LIST.fontType:		FONT_IS_FONT
+*.HDR_U.underlineType:		single_line
+*.LIST.fontType:		font_is_font
 *.LIST.fontName:		6x13
-*.LIST_ST.fontType:		FONT_IS_FONT
+*.LIST_ST.fontType:		font_is_font
 *.LIST_ST.fontName:		6x13
-*.LIST_ST.strikethruType:	SINGLE_LINE
-*.LIST_B.fontType:		FONT_IS_FONT
+*.LIST_ST.strikethruType:	single_line
+*.LIST_B.fontType:		font_is_font
 *.LIST_B.fontName:		6x13bold
-*.BIG.fontType:			FONT_IS_FONT
+*.BIG.fontType:			font_is_font
 *.BIG.fontName:			-*-charter-bold-r-*-*-24-*-*-*-*-*-iso8859-1
-*.BLUE.fontType:		FONT_IS_FONT
-*.BLUE.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
+?.labelRenderTable*fontType:	font_is_font
+?.labelRenderTable.fontName:	-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.BLUE.renditionForeground:	blue
 
 !
@@ -158,3 +189,72 @@
 !
 *about_popup.title:		About Privtool
 
+*bad_pphrase.dialogStyle:	DIALOG_FULL_APPLICATION_MODAL
+
+!
+! Alert resources
+!
+*.badpp_alert.messageString:	Error: Bad passphrase!
+*.badpp_alert.symbolPixmap:	xm_warning
+*.badpp_alert.okLabelString:	Retry
+*.badpp_alert_popup.title:	Alert
+
+*.badkey_alert.messageString:	Error: No key found in message, or\nbad key format!
+*.badkey_alert.symbolPixmap:	xm_warning
+*.badkey_alert_popup.title:	Alert
+
+*.badfile_alert.messageString:	Error: Bad Message Format!
+*.badfile_alert.symbolPixmap:	xm_warning
+*.badfile_alert_popup.title:	Alert
+
+*.dontquit_alert.messageString:	\
+You have open compose windows. Quitting will\n\
+lose the messages in those windows. Press Abort\n\
+to cancel the quit operation, or Continue to\n\
+exit Privtool.
+*.dontquit_alert.symbolPixmap:		xm_warning
+*.dontquit_alert_popup.title:		Alert
+*.dontquit_alert.okLabelString:		Abort
+*.dontquit_alert.cancelLabelString:	Continue
+
+*.failsave_alert.messageString:	\
+Error occured while writing to disk !\n\
+Press abort to cancel this operation, or ignore to\n\
+ignore the error (which may cause a loss of data !).
+*.failsave_alert.symbolPixmap:		xm_warning
+*.failsave_alert_popup.title:		Alert
+*.failsave_alert.okLabelString:		Abort
+*.failsave_alert.cancelLabelString:	Ignore
+
+*.nokey_alert.messageString:		\
+Error: Recipient has no public key!\n\
+Send un-encrypted?
+*.nokey_alert.symbolPixmap:		xm_warning
+*.nokey_alert_popup.title:		Alert
+
+*.nosec_alert.messageString:		\
+Error: No secret key found!\n\
+Send unsigned?
+*.nosec_alert.symbolPixmap:		xm_warning
+*.nosec_alert_popup.title:		Alert
+
+*.readonly_alert.messageString:	\
+Mail file is read-only so changes\n\
+Cannot be saved.
+*.readonly_alert.symbolPixmap:		xm_warning
+*.readonly_alert_popup.title:		Alert
+*.readonly_alert.okLabelString:		Abort
+*.readonly_alert.cancelLabelString:	Ignore
+
+*.remailfail_alert.messageString:	Remail failed!
+*.remailfail_alert.symbolPixmap:	xm_warning
+*.remailfail_alert_popup.title:		Alert
+
+!
+! Folder manager resources
+!
+?.folder.title:				Privtool - Folders
+*.folderC.fontList:			fixed
+*.folderC.directory.largeIconPixmap:	dir.xpm
+*.folderC.file.largeIconPixmap:		letter.xpm
+*.folderC*shadowThickness:		0

@@ -20,20 +20,12 @@
 
 #ifdef UI_MAIN
 
-#ifdef MOTIF
-/* OK so we're cheating here! Hopefully it won't confuse too many. :-)
-   ggt - Dec 18, 1996
- */
-#define Frame		Widget
-#define Panel		Widget
-#define Textsw		Widget
-#define Panel_item	Widget
-#endif
 
 typedef struct _compose_window {
 
 	struct _compose_window	*next, *prev;
 
+#ifndef MOTIF
 	Frame	deliver_frame;
 	Panel	deliver_panel;
 	Textsw	deliver_body_window;
@@ -43,6 +35,9 @@ typedef struct _compose_window {
 	Panel_item	send_to_item, send_cc_item, send_subject_item;
 	Panel_item	send_bcc_item;
 	Panel_item	compose_extra_headerlines[MAX_EXTRA_HEADERLINES];
+#else
+    Widget	deliver_frame;
+#endif
 
 	int	deliver_flags;
 	int	in_use;
@@ -53,6 +48,7 @@ typedef struct _display_window {
 
 	struct	_display_window	*next, *prev;
 
+#ifndef MOTIF
 	Frame	display_frame;
 	Panel	display_panel;
 
@@ -61,6 +57,7 @@ typedef struct _display_window {
 	Panel_item	date_item;
 	Textsw	sig_window;
 	Textsw	body_window;
+#endif
 
 	int	number;
 

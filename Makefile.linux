@@ -12,7 +12,6 @@
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
 DISPLAY_OBJECT = x.o xprops.o
-#DISPLAY_OBJECT = dummy.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!
@@ -119,14 +118,30 @@ PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX \
 #XRESOURCES=-DXRESOURCES=\".Xresources\"
 
 #
+# You may need to use the first line is mail is in /var/mail rather than
+# /var/spool/mail.
+#
+
+#MAIL_SPOOL_DIR=-DMAIL_SPOOL_DIR=\"/var/mail/\"
+MAIL_SPOOL_DIR=
+
+#
 # Use -g for debugging, change to -O for production use. Add -DNO_MIXMASTER
 # if you do not have the Mixmaster software. For Linux you will probably
-# want to add -DCOMPACT, to compact the layout somewhat.
+# want to add -DCOMPACT, to compact the layout somewhat. If you have a 
+# large screen (e.g. 800x600 upwards) then remove it.
 #
 # If you're concerned about the icon that Privtool uses, then remove
 # the -DNSA_ICON, and you may also want to add -DXSAFEMAIL. If you
 # prefer the program to start up open rather than iconised, then
 # add -DSTART_OPEN.
+#
+# If you're using the XBM icons and don't like the default icon, then
+# you can define USE_NEW_XBM instead.
+#
+# If your machine is set up to run without global write permission
+# to the mail spool directory then add -DSETGID and install Privtool
+# with group mail and setgid.
 #
 # If you're having problems with icons on Linux, add -DUSE_XBM. You
 # must define NSA_ICON for this to work, but the other icons should
@@ -139,7 +154,7 @@ DEBUG=-O2
 CFLAGS= $(DEBUG) -DSTART_OPEN -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
 	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT \
-	-DUSE_XBM
+	-DUSE_XBM $(MAIL_SPOOL_DIR)
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -193,5 +208,5 @@ privtool:	$(OFILES)
 		$(CC) -c $< -o $@ $(CPPFLAGS) $(CFLAGS)
 
 clean:
-		$(RM) privtool *.o
+		$(RM) privtool *.o linux/*.o
 

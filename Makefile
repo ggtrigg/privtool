@@ -12,7 +12,7 @@
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
 #DISPLAY_OBJECT = x.o xprops.o
-DISPLAY_OBJECT = motif.o
+DISPLAY_OBJECT = motif.o mfolder.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!
@@ -26,6 +26,13 @@ DISPLAY_OBJECT = motif.o
 FLOPPY_OBJECT = 
 FLOPPY_FLAGS = 
 FLOP_FILE =
+
+#
+# You may need to use the first line for Solaris.
+#
+
+#MAIL_SPOOL_DIR=-DMAIL_SPOOL_DIR=\"/var/mail/\"
+MAIL_SPOOL_DIR=
 
 OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
