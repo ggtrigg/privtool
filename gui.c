@@ -42,8 +42,8 @@
 #include "buffers.h"
 #include "message.h"
 #include "mailrc.h"
-#include "gui.h"
 #include "windows.h"
+#include "gui.h"
 
 /* Maximum number of remailers to use */
 
@@ -177,7 +177,12 @@ MESSAGE	*m;
 	/* Create message size string */
 
 	if (layout_compact) {
-		sprintf(mess_desc,"%3.3s %4d %-20.20s %17.16s %4d %-64.64s",
+		sprintf(mess_desc,
+#ifdef MOTIF
+			"%3.3s %4d %-20.20s %17.16s %4d %s",
+#else
+			"%3.3s %4d %-20.20s %17.16s %4d %-64.64s",
+#endif
 			mess_type,m->number,m->email,m->date,
 			m->lines,m->subject ? m->subject : "");
 	}
@@ -803,9 +808,10 @@ MESSAGE	*om;
 	}
 
 	/* Clear selected flag */
-
+#ifndef MOTIF
 	om->flags &= ~MESS_SELECTED;
 	om->list_pos = (-1);
+#endif
 
 	/* Update message info */
 

@@ -11,7 +11,8 @@
 #
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
-DISPLAY_OBJECT = x.o
+#DISPLAY_OBJECT = x.o
+DISPLAY_OBJECT = motif.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!
@@ -30,8 +31,8 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 #
 # Use the following lines if you don't have PGP Tools.
 #
-#PGPLDFLAGS=
-#PGPTOOLDIR=
+PGPLDFLAGS=
+PGPTOOLDIR=
 
 #
 # Use the following lines if you do have PGP Tools, and set PGPTOOLDIR
@@ -39,14 +40,14 @@ OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
 # may want to simply create a link from this directory to the PGP Tools
 # directory.
 #
-PGPTOOLDIR=./pgptools
-PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+#PGPTOOLDIR=./pgptools
+#PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
 
 #
 # Set the following to the path for your PGP executable - can be blank
 # if using PGP Tools
 #
-PGPEXEC=$(HOME)/bin/pgp
+PGPEXEC=/usr/local/bin/pgp
 
 #
 # Set the following to the path for your Mixmaster executable, and
@@ -70,18 +71,20 @@ PGPVERSION=2.6
 # $OPENWINHOME.
 #
 
-#OPENWINLDFLAGS=
-#OPENWINCPPFLAGS=
+OPENWINLDFLAGS=-L/usr/X11R6/lib
+OPENWINCPPFLAGS=-I/usr/X11R6/include
+OPENWINLIBS=-lXm -lXpm -lXext -lXmu -lXt -lX11
 
-OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
-OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
+#OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
+#OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
+#OPENWINLIBS= -lxview -lolgx -lX11
 
 #
 # If using SunOS/Solaris, use the first definition, if using Linux use the
 # second definition.
 #
 
-LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
+LDFLAGS= $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
 	$(PGPLDFLAGS)
 
 #LDFLAGS=$(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm $(PGPLDFLAGS) \
@@ -100,9 +103,9 @@ LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
 # pubring.pgp.
 #
 
-PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
+#PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
 	-DNO_ASM -DHIGHFIRST -DIDEA32
-#PGPTOOLS=
+PGPTOOLS=
 
 #
 # Define FIXED_WIDTH_FONT below to choose other than the OpenWindows
@@ -133,12 +136,12 @@ PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DDYN_ALLOC \
 # Add -DALLOCA if you have alloca().
 #
 
-#DEBUG=-g
-DEBUG=-O
+DEBUG=-g
+#DEBUG=-O
 
 CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
-	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON
+	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT -DMOTIF
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -151,7 +154,7 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 #
 
 #CPPFLAGS=$(OPENWINCPPFLAGS) -DSAFE $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
-CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
+CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -Dlinux $(FLOPPY_FLAGS)
 
 #
 # Code is written for cc, but should work with gcc. However, I'm wary
@@ -160,7 +163,8 @@ CPPFLAGS=$(OPENWINCPPFLAGS) $(PGPTOOLS) -DCRAP_STRSTR $(FLOPPY_FLAGS)
 #
 
 #CC=gcc
-CC=cc -DNON_ANSI
+#CC=cc -DNON_ANSI
+CC=cc -ansi -mpentium
 
 # Or, use acc for Solaris 2.x
 #CC=acc -DSYSV

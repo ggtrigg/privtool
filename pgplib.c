@@ -22,7 +22,7 @@
 #define PGPLIB
 
 #include <stdio.h>
-#ifndef SYSV
+#if !defined(SYSV) && !defined(linux)
 #include <vfork.h>
 #else
 #include <signal.h>

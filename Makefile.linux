@@ -12,6 +12,7 @@
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
 DISPLAY_OBJECT = x.o
+#DISPLAY_OBJECT = dummy.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!
@@ -46,7 +47,7 @@ PGPTOOLDIR=
 # Set the following to the path for your PGP executable - can be blank
 # if using PGP Tools (which doesn't seem to work on Linux).
 #
-PGPEXEC=$(HOME)/bin/pgp
+PGPEXEC=/usr/local/bin/pgp
 
 #
 # Set the following to the path for your Mixmaster executable, and
@@ -70,10 +71,10 @@ PGPVERSION=2.6
 # $OPENWINHOME.
 #
 
-#OPENWINLDFLAGS=
-OPENWINCPPFLAGS=
+OPENWINLDFLAGS=-L/cdrom/usr/openwin/lib
+OPENWINCPPFLAGS=-I/cdrom/usr/openwin/include
 
-OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
+#OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 #OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
 
 #
@@ -84,8 +85,10 @@ OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 #LDFLAGS= -Bdynamic $(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm \
 #	$(PGPLDFLAGS)
 
-LDFLAGS=$(OPENWINLDFLAGS) -lxview -lolgx -lX11 -lm $(PGPLDFLAGS) \
+LDFLAGS=$(OPENWINLDFLAGS) /cdrom/usr/openwin/lib/libxview.a /cdrom/usr/openwin/lib/libolgx.a -lX11 -lm $(PGPLDFLAGS) \
 	-L/usr/X11/lib
+#LDFLAGS=$(OPENWINLDFLAGS) -lX11 -lm $(PGPLDFLAGS) \
+#	-L/usr/X11/lib
 
 #
 # If you have PGP Tools, use the first line, otherwise use the
@@ -134,7 +137,7 @@ PGPTOOLS=
 #DEBUG=-g
 DEBUG=-O
 
-CFLAGS= $(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
+CFLAGS= $(DEBUG) -DSTART_OPEN -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" \
 	$(DEFAULT_FONT) $(XRESOURCES) -DNSA_ICON -DCOMPACT \
 	-DUSE_XBM
