@@ -195,8 +195,8 @@ char	prog_name[] = "Privtool";
 
 /* Set the description of the message for the message list */
 
-void	set_message_description(MESSAGE *m)
-
+void
+set_message_description(MESSAGE *m)
 {
 	char	mess_desc[256];
 	char	mess_size[32];
@@ -2189,10 +2189,8 @@ void	check_for_new_mail()
 	}
 }
 
-int	load_file_proc(s)
-
-char	*s;
-
+int
+load_file_proc(char *s)
 {
 	MESSAGE	*m,*om;
 	int	i;
@@ -2519,37 +2517,39 @@ undelete(MESSAGE *m)
     else
 	l = 1;
 
-    while (m) {
-	m->list_pos = l++;
-	set_message_description (m);
-	display_message_description (m);
+    if(!show_deleted) {
+	while (m) {
+	    m->list_pos = l++;
+	    set_message_description (m);
+	    display_message_description (m);
 
-	m = m->next;
-	while (m && (m->flags & MESS_DELETED))
 	    m = m->next;
-    }
+	    while (m && (m->flags & MESS_DELETED))
+		m = m->next;
+	}
 
 	while (p && (p->flags & MESS_DELETED)) {
-		p = p->prev;
+	    p = p->prev;
 	}
 
 	if (p)
-		l = p->list_pos + 1;
+	    l = p->list_pos + 1;
 	else
-		l = 1;
+	    l = 1;
 
 	while (m) {
-		m->list_pos = l++;
-		set_message_description (m);
-		display_message_description (m);
+	    m->list_pos = l++;
+	    set_message_description (m);
+	    display_message_description (m);
 
+	    m = m->next;
+	    while (m && (m->flags & MESS_DELETED))
 		m = m->next;
-		while (m && (m->flags & MESS_DELETED))
-			m = m->next;
 	}
+    }
 
-	update_message_list ();
-	sync_list();
+    update_message_list ();
+    sync_list();
 } /* undelete */
 
 static	char	dec_mess [] = "Decrypted message reads :\n\n";

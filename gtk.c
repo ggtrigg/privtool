@@ -57,24 +57,29 @@ static void	toggle_toolbar_cb(GtkWidget *, gpointer);
 static void	close_dialog_cb(GtkWidget *, gpointer);
 static void	save_cb(GtkWidget *, gpointer);
 static void	populate_combo();
+static void	load_folder_cb(GtkWidget *, gpointer);
+static void	undelete_cb(GtkWidget *, gpointer);
+static void	move_to_folder_cb(GtkWidget *, gpointer);
+static void	load_new_cb(GtkWidget *, gpointer);
+static void	print_cb(GtkWidget *, gpointer);
 
 /* Static data */
 static GtkWidget	*toplevel;
 static COMPOSE_WINDOW	*compose_first = NULL;
 
 static GtkItemFactoryEntry ife[] = {
-    {"/File/Load Inbox", "<control>L", NULL, 0, NULL},
+    {"/File/Load Inbox", "<control>L", load_new_cb, 0, NULL},
     {"/File/Save", "<control>S", save_cb, 0, NULL},
-    {"/File/Print", "<control>P", NULL, 0, NULL},
-    {"/File/Done", NULL, NULL, 0, NULL},
+    {"/File/Print", "<control>P", print_cb, 0, NULL},
+    {"/File/Done", NULL, done_proc, 0, NULL},
     {"/File/-", NULL, NULL, 0, "<Separator>"},
-    {"/File/Save & Quit", "<control>Q", NULL, 0, NULL},
+    {"/File/Save & Quit", "<control>Q", save_and_quit_proc, 0, NULL},
     {"/File/Quit", "<control>C", quit_proc, 0, NULL},
     {"/Edit/Cut", NULL, NULL, 0, NULL},
     {"/Edit/Copy", NULL, NULL, 0, NULL},
     {"/Edit/Delete", "<control>D", delete_message_proc, 0, NULL},
-    {"/Edit/Undelete", "<control>U", NULL, 0, NULL},
-    {"/Edit/Undelete Last", NULL, NULL, 0, NULL},
+    {"/Edit/Undelete", "<control>U", undelete_cb, 0, NULL},
+    {"/Edit/Undelete Last", NULL, undelete_last_proc, 0, NULL},
     {"/Edit/-", NULL, NULL, 0, "<Separator>"},
     {"/Edit/Add Key", NULL, NULL, 0, NULL},
     {"/Edit/Show Attachment", NULL, NULL, 0, NULL},
@@ -93,10 +98,10 @@ static GtkItemFactoryEntry ife[] = {
     {"/View/Full Header", "<control>H", NULL, 0, "<CheckItem>"},
     {"/View/Show Toolbar", "<control>T", toggle_toolbar_cb, 0, "<CheckItem>"},
     {"/View/Folders", "<control>F", NULL, 0, NULL},
-    {"/Folder/Copy to Folder", "<alt>C", NULL, 0, NULL},
-    {"/Folder/Move to Folder", "<alt>M", NULL, 0, NULL},
-    {"/Folder/Load Folder", "<alt>L", NULL, 0, NULL},
-    {"/Folder/Load Inbox", "<control>L", NULL, 0, NULL},
+    {"/Folder/Copy to Folder", "<alt>C", move_to_folder_cb, 0, NULL},
+    {"/Folder/Move to Folder", "<alt>M", move_to_folder_cb, 1, NULL},
+    {"/Folder/Load Folder", "<alt>L", load_folder_cb, 0, NULL},
+    {"/Folder/Load Inbox", NULL, NULL, 0, NULL},
     {"/Compose/New", NULL, NULL, 0, NULL},
     {"/Compose/Reply/Sender", NULL, NULL, 0, NULL},
     {"/Compose/Reply/Sender (include)", NULL, NULL, 0, NULL},
@@ -117,6 +122,7 @@ setup_ui(int level, int argc, char **argv)
     GtkWidget	*vbox, *mbar, *tbar, *vpane, *msglist, *swin, *txt, *statbar;
     GtkStyle	*cl_style;
 
+    show_deleted = 1;		/* Default value. */
     title = (char *)malloc(strlen(prog_name) + strlen(prog_ver) + 5);
     strcpy(title, prog_name);
     strcat(title, " - ");
@@ -160,7 +166,7 @@ setup_ui(int level, int argc, char **argv)
     /* Create message text area. */
     swin = gtk_scrolled_window_new(NULL, NULL);
     txt = gtk_text_new(NULL, NULL);
-    gtk_widget_set_usize(GTK_WIDGET(txt), 500, 450);
+    gtk_widget_set_usize(GTK_WIDGET(txt), 550, 450);
     gtk_text_set_editable(GTK_TEXT(txt), FALSE);
     gtk_object_set_data(GTK_OBJECT(toplevel), "msgtext", (gpointer)txt);
     gtk_container_add(GTK_CONTAINER(swin), txt);
@@ -301,9 +307,10 @@ close_deliver_window(COMPOSE_WINDOW *w)
 void
 close_passphrase_window()
 {
-    GtkWidget	*dialog =
-	(GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "ppdialog");
-
+    GtkWidget	*dialog;
+	
+    dialog = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					      "ppdialog");
     if(dialog) {
 	gtk_widget_hide(dialog);
     }
@@ -386,28 +393,43 @@ deleteAllMessages()
 void
 delete_message_proc()
 {
+    int		cur_row;
     GList	*ptr;
     GdkColor	*delcol;
     GtkWidget	*msglist;
+    GtkStyle	*style;
     MESSAGE	*msg;
-				/* TODO */
-    g_warning("delete_message_proc: To be done.");
+
     msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 					       "msglist");
-    delcol = (GdkColor *)gtk_object_get_data(GTK_OBJECT(toplevel),
-					     "delcol");
-    for(ptr = GTK_CLIST(msglist)->selection;
-	ptr != NULL;
-	ptr = g_list_next(ptr)) {
-	msg = (MESSAGE *)gtk_clist_get_row_data(GTK_CLIST(msglist),
-						(int)(ptr->data));
+
+    /* Delete all the selected messages. If there are none selected,
+       delete the currently displayed message.
+    */
+    if(GTK_CLIST(msglist)->selection == NULL) {
+	msg = last_message_read;
+	cur_row = gtk_clist_find_row_from_data(GTK_CLIST(msglist), msg);
 	delete_message(msg);
-	if(show_deleted){
-	    gtk_clist_set_foreground(GTK_CLIST(msglist), (int)(ptr->data),
-				     delcol);
+	if(show_deleted) {
+	    display_message_description(msg);
 	}
 	else {
-	    gtk_clist_remove(GTK_CLIST(msglist), (int)(ptr->data));
+	    gtk_clist_remove(GTK_CLIST(msglist), cur_row);
+	}
+    }
+    else {
+	for(ptr = GTK_CLIST(msglist)->selection;
+	    ptr != NULL;
+	    ptr = g_list_next(ptr)) {
+	    msg = (MESSAGE *)gtk_clist_get_row_data(GTK_CLIST(msglist),
+						    (int)(ptr->data));
+	    delete_message(msg);
+	    if(show_deleted) {
+		display_message_description(msg);
+	    }
+	    else {
+		gtk_clist_remove(GTK_CLIST(msglist), (int)(ptr->data));
+	    }
 	}
     }
 
@@ -443,35 +465,59 @@ void
 display_message_description(MESSAGE *m)
 {
 				/* TODO */
-    int		msgrow;
+    int		msgrow, set_style = 1;
+    char	msg_stat[5];
     GdkColor	*delcol;
     GtkWidget	*msglist;
     GtkStyle	*msgstyle;
 
-    g_warning("Flags: %d", m->flags);
     msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 					       "msglist");
     msgrow = gtk_clist_find_row_from_data(GTK_CLIST(msglist), m);
     if(m->flags & MESS_DELETED) {
 	delcol = (GdkColor *)gtk_object_get_data(GTK_OBJECT(toplevel),
 						 "delcol");
+	gtk_clist_set_row_style(GTK_CLIST(msglist), msgrow, NULL);
 	gtk_clist_set_foreground(GTK_CLIST(msglist), msgrow, delcol);
+	set_style = 0;
     }
     else if(m->flags & MESS_SELECTED) {
 	msgstyle = (GtkStyle *)gtk_object_get_data(GTK_OBJECT(toplevel),
 						   "boldstyle");
     }
     else {
-	msgstyle = gtk_rc_get_style(msglist);
+	msgstyle = NULL;	/* Reset style to clist default */
     }
-    gtk_clist_set_row_style(GTK_CLIST(msglist), msgrow, msgstyle);
+    memset(msg_stat, '\0', 5);
+    strncpy(msg_stat, m->description, 3);
+    gtk_clist_set_text(GTK_CLIST(msglist), msgrow, 0, msg_stat);
+
+    if(set_style) {
+	gtk_clist_set_row_style(GTK_CLIST(msglist), msgrow, msgstyle);
+    }
 }
 
 void
 display_message_sig(BUFFER *b)
 {
 				/* TODO */
+    char	*sigmess, *ptr;
+
     g_warning("display_message_sig: To be done.");
+    /* b->message is the complete signature message which may be
+       multi-line. We need to figure out a decent way to display that
+       without taking to much screen real-estate.  -gt 13/4/97 */
+
+    /* For now, just display the first line in the display message
+       area. */
+    if(b->message != NULL){
+	sigmess = strdup(b->message);
+	if((ptr = strchr(sigmess, '\n')) != NULL){
+	    *ptr = '\0';
+	}
+	set_display_footer(NULL, sigmess);
+	free(sigmess);
+    }
 }
 
 void
@@ -484,10 +530,13 @@ display_sender_info(MESSAGE *m)
     int		full_header_ = 0; /* Temporary!! Fix this. */
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
+    GtkStyle	*boldstyle;
 
     if(m == NULL)
 	return;
 
+    boldstyle = (GtkStyle *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"boldstyle");
     ptr = strtok(allhdr, "\n");
 
     if(ptr == NULL){
@@ -517,7 +566,7 @@ display_sender_info(MESSAGE *m)
 	    }
 	    skip = 0;
 
-	    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
+	    gtk_text_insert(GTK_TEXT(text), boldstyle->font, NULL, NULL,
 			    keyword, -1);
 	    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
 			    split, -1);
@@ -655,9 +704,12 @@ read_passphrase_string()
 {
     GtkWidget	*ppdialog =
 	(GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "ppdialog");
-    GtkWidget	*entry =
-	(GtkWidget *)gtk_object_get_user_data(GTK_OBJECT(ppdialog));
+    GtkWidget	*entry;
 
+    if(ppdialog == NULL)
+	return;
+
+    entry = (GtkWidget *)gtk_object_get_user_data(GTK_OBJECT(ppdialog));
     return gtk_entry_get_text(GTK_ENTRY(entry));
 }
 
@@ -686,13 +738,13 @@ set_display_footer(DISPLAY_WINDOW *w, char *s)
 
     ci = gtk_statusbar_get_context_id(GTK_STATUSBAR(statbar), "display");
     gtk_statusbar_push(GTK_STATUSBAR(statbar), ci, s);
+    gdk_flush();
 }
 
 void
 set_initial_scrollbar_position()
 {
-				/* TODO */
-    g_warning("set_initial_scrollbar_position: To be done.");
+    /* Don't need anything in here for the Gtk+ version. */
 }
 
 void
@@ -704,6 +756,7 @@ set_main_footer(char *s)
 
     ci = gtk_statusbar_get_context_id(GTK_STATUSBAR(statbar), "main");
     gtk_statusbar_push(GTK_STATUSBAR(statbar), ci, s);
+    gdk_flush();
 }
 
 void
@@ -725,12 +778,12 @@ show_busy()
 {
     static GdkCursor	*busy_cursor = NULL;
 
-    fprintf(stderr, "In show_busy.\n");
     if( busy_cursor == NULL ) {
 	busy_cursor = gdk_cursor_new(GDK_WATCH);
     }
 
     gdk_window_set_cursor(toplevel->window, busy_cursor);
+    gdk_flush();
 }
 
 void
@@ -750,6 +803,7 @@ show_newmail_icon()
     GtkStyle	*style;
     
     style = gtk_widget_get_style(toplevel);
+    /* TODO: Possible memory leak here? Need to save pixmap pointer? */
     pixmap = gdk_pixmap_create_from_xpm_d(toplevel->window,
 					  &mask,
 					  &style->bg[GTK_STATE_NORMAL],
@@ -765,6 +819,7 @@ show_normal_icon()
     GtkStyle	*style;
     
     style = gtk_widget_get_style(toplevel);
+    /* TODO: Possible memory leak here? Need to save pixmap pointer? */
     pixmap = gdk_pixmap_create_from_xpm_d(toplevel->window,
 					  &mask,
 					  &style->bg[GTK_STATE_NORMAL],
@@ -775,7 +830,8 @@ show_normal_icon()
 void
 shutdown_ui()
 {
-    gtk_widget_destroy(toplevel);
+    /* gtk_widget_destroy(toplevel); */
+    gtk_main_quit();		/* ???? */
 }
 
 void
@@ -838,7 +894,7 @@ sync_list()
 	gtk_widget_set_sensitive(prevbtn, TRUE);
 	gtk_widget_set_sensitive(nextbtn, TRUE);
     }
-}
+} /* sync_list */
 
 void
 update_log_item()
@@ -942,7 +998,8 @@ create_toolbar(GtkWidget *window)
 			    NULL, get_pixmap(window, delete_xpm),
 			    delete_message_proc, NULL);
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Undelete", "Undelete Message",
-			    NULL, get_pixmap(window, undelete_xpm), NULL, NULL);
+			    NULL, get_pixmap(window, undelete_xpm),
+			    undelete_cb, NULL);
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Compose", "Compose new message",
 			    NULL, get_pixmap(window, compose_xpm), NULL, NULL);
@@ -984,6 +1041,9 @@ create_msglist(void)
     gtk_clist_set_column_auto_resize(GTK_CLIST(clist), 3, TRUE);
     gtk_clist_set_column_auto_resize(GTK_CLIST(clist), 4, TRUE);
     gtk_clist_set_column_auto_resize(GTK_CLIST(clist), 5, TRUE);
+    gtk_clist_set_button_actions(GTK_CLIST(clist), 0, GTK_BUTTON_SELECTS);
+    gtk_clist_set_button_actions(GTK_CLIST(clist), 1, GTK_BUTTON_DRAGS);
+    gtk_clist_set_button_actions(GTK_CLIST(clist), 2, GTK_BUTTON_SELECTS);
     gtk_clist_set_compare_func(GTK_CLIST(clist), clist_sort_cmp);
     swin = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin),
@@ -1063,42 +1123,9 @@ update_mail_list(void)
 	snprintf(number, 9, "%d", m->number);
 	snprintf(size, 9, "%d/%d", m->lines, m->size);
 
-	/* Setting the status string. Pasted from "set_message_description"
-	   in gui.c. */
-	/* Set new/unread status */
+	/* Set new/unread/etc. status */
 	memset(mess_type, '\0', 5);
-	if (m->status == MSTAT_NONE) {
-	    mess_type[0] = 'N';
-	}
-	else if (m->status == MSTAT_UNREAD) {
-	    mess_type[0] = 'U';
-	}
-
-	/* Check signature status */
-	if (m->flags & MESS_SIGNED) {
-	    if (!(m->flags & MESS_VERIFIED)) {
-		mess_type [1] = 's';
-	    }
-	    else if (m->flags & MESS_BAD) {
-		mess_type [1] = 'X';
-	    }
-	    else {
-		mess_type [1] = 'S';
-	    }
-	}
-
-	/* Check encryption status */
-	if (m->flags & MESS_ENCRYPTED) {
-	    if (!(m->flags & (MESS_SIGNED|MESS_VERIFIED)))
-		mess_type[1] = '?';
-	    if (m->flags & MESS_VERIFIED) 
-		mess_type[2] = 'D';
-	    else
-		mess_type[2] = 'E';
-	}
-	else if (m->flags & MESS_NYM) {
-	    mess_type[2] = 'P';
-	}
+	strncpy(mess_type, m->description, 3);
 
 	cols[0] = mess_type;
 	cols[1] = number;
@@ -1117,8 +1144,10 @@ update_mail_list(void)
 static void
 clist_sort_cb(GtkWidget *clist, gint col, gpointer data)
 {
-    static int	last_col = -1;
-    static GtkSortType stype = GTK_SORT_ASCENDING;
+    static int		last_col = -1;
+    static GtkSortType	stype = GTK_SORT_ASCENDING;
+    int			i;
+    MESSAGE		*m, *lastm;
 
     if(last_col == col) {
 	if(stype == GTK_SORT_ASCENDING) {
@@ -1136,6 +1165,26 @@ clist_sort_cb(GtkWidget *clist, gint col, gpointer data)
     gtk_clist_set_sort_column(GTK_CLIST(clist), col);
     gtk_clist_sort(GTK_CLIST(clist));
     last_col = col;
+
+    /* Fix up the message next & prev pointers & list_pos field. */
+    lastm = NULL;
+    for(i = 0; i < GTK_CLIST(clist)->rows; i++) {
+	m = gtk_clist_get_row_data(GTK_CLIST(clist), i);
+	m->list_pos = i;
+	m->prev = lastm;
+	if(lastm) {
+	    lastm->next = m;
+	}
+	else {
+	    messages.start = m;
+	}
+	lastm = m; 
+    }
+    m->next = NULL;
+    messages.end = m;
+
+    /* Make sure the displayed message list entry is visible. */
+    sync_list();
 } /* clist_sort_cb */
 
 static gint
@@ -1291,6 +1340,7 @@ save_cb(GtkWidget *w, gpointer data)
 {
     deleteAllMessages();
     save_changes_proc();
+    update_mail_list();
     display_new_message();
     sync_list();
     update_message_list();
@@ -1338,3 +1388,141 @@ close_dialog_cb(GtkWidget *w, gpointer data)
 	gtk_widget_hide(GTK_WIDGET(data));
     }
 } /* close_dialog_cb */
+
+static void
+load_folder_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*combo;
+    gchar	*folder;
+
+    combo = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "combo");
+    folder = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(combo)->entry));
+
+    /* add_to_combo(folder); */
+    deleteAllMessages();
+    load_file_proc(folder);
+    update_mail_list();
+    display_new_message();
+    sync_list();
+    update_message_list();
+    /* show_undelete(False); */
+} /* load_folder_cb */
+
+static void
+undelete_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*msglist;
+    GList	*ptr;
+    MESSAGE	*msg;
+
+    /* Undelete all selected mail items.
+     */
+    msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					       "msglist");
+
+    for(ptr = GTK_CLIST(msglist)->selection;
+	ptr != NULL;
+	ptr = g_list_next(ptr)) {
+	msg = (MESSAGE *)gtk_clist_get_row_data(GTK_CLIST(msglist),
+						(int)(ptr->data));
+	undelete(msg);
+    }
+} /* undelete_cb */
+
+static void
+move_to_folder_cb(GtkWidget *w, gpointer data)
+{
+    /* Copy all selected mail items to the folder specified in the combo.
+       If none are selected then move the currently displayed message.
+       If the data flag is set, delete the message after copying it.
+    */
+    GtkWidget	*combo, *msglist;
+    int		n = 0;
+    GList	*ptr;
+    gchar	*folder, *fullname, mess[BUFSIZ];
+    MESSAGE	*msg;
+
+    combo = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "combo");
+    msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					       "msglist");
+    folder = gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(combo)->entry));
+
+    fullname = expand_filename(folder);
+
+    if(GTK_CLIST(msglist)->selection == NULL) {
+	msg = last_message_read;
+	if (!append_message_to_file (msg, fullname, FALSE)) {
+	    n++;
+	}
+	else if (!failed_save_notice_proc()) {
+	    return;
+	}
+    }
+    else {
+	for(ptr = GTK_CLIST(msglist)->selection;
+	    ptr != NULL;
+	    ptr = g_list_next(ptr)) {
+	    msg = (MESSAGE *)gtk_clist_get_row_data(GTK_CLIST(msglist),
+						    (int)(ptr->data));
+	    if (!append_message_to_file (msg, fullname, FALSE)) {
+		n++;
+	    }
+	    else if (!failed_save_notice_proc()) {
+		return;
+	    }
+	}
+    }
+
+    if (!n)
+	set_main_footer("No messages saved.");
+    else {
+	sprintf(mess, "%d messages %s to %s",
+		n, ((int)data == 1)? "moved": "saved", fullname);
+	set_main_footer(mess);
+	/* check_folder_icon(folder); */
+    }
+
+    if((int)data == 1){
+	delete_message_proc();
+    }
+}
+
+static void
+load_new_cb(GtkWidget *w, gpointer data)
+{
+    inbox_proc();
+    last_message_read->flags &= ~MESS_SELECTED;
+    display_message_description(last_message_read);
+    display_new_message();
+    sync_list();
+    update_message_list();
+    /* show_undelete(False); */ /* TODO */
+} /* load_new_cb */
+
+static void
+print_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*msglist;
+    GList	*ptr;
+    MESSAGE	*msg;
+
+    /* Print all selected mail items. If there are none selected then
+       print the currently displayed message.
+     */
+    msglist = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					       "msglist");
+
+    if( GTK_CLIST(msglist)->selection == NULL ) {
+	last_message_read->flags |= MESS_SELECTED;
+    }
+    else {
+	for(ptr = GTK_CLIST(msglist)->selection;
+	    ptr != NULL;
+	    ptr = g_list_next(ptr)) {
+	    msg = (MESSAGE *)gtk_clist_get_row_data(GTK_CLIST(msglist),
+						    (int)(ptr->data));
+	    msg->flags |= MESS_SELECTED;
+	}
+    }
+    print_cooked_proc();
+} /* print_cb */

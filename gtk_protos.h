@@ -15,6 +15,7 @@
 
 void	delete_message_proc();
 void	display_message_description(MESSAGE *);
+void	set_display_footer(DISPLAY_WINDOW *, char *);
 void	sync_list(void);
 void	update_message_list(void);
 

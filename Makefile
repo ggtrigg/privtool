@@ -5,8 +5,8 @@
 srcdir =	.
 VPATH =		.:./liteclue:./linux
 
-CC =		gcc
-CFLAGS =	-g -O2  -I/usr/X11R6/include
+CC =		pgcc
+CFLAGS =	-g  -I/usr/X11R6/include
 CPPFLAGS =	 -I/usr/X11R6/include -I/opt/lib/glib/include -I/opt/include  -DHAVE_CONFIG_H -I$(srcdir)  $(LINUX_CPP)
 LDFLAGS =	   -L/usr/X11R6/lib 
 LDLIBS =	-lgdbm  -L/opt/lib -L/usr/X11R6/lib -lgtk -lgdk -rdynamic -lgmodule -lglib -ldl -lXext -lX11 -lm   -lSM -lICE 
