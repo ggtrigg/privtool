@@ -578,7 +578,9 @@ MESSAGE	*m;
 
 	/* Clear the footer now it's displayed */
 
+#ifndef MOTIF
 	clear_display_footer(w);
+#endif
 	clear_main_footer ();
 }
 
@@ -1572,7 +1574,7 @@ try_again:
 				add_list_to_header (mail_message, bcc_addrs);
 			}
 #if 0
-			if (strcmp(nym, our_userid) {
+			if (strcmp(nym, our_userid)) {
 				add_to_buffer (mail_message, "From: ", 6);
 				add_to_buffer (mail_message, nym, strlen(nym));
 			}
@@ -2010,10 +2012,15 @@ void	inbox_proc()
 	update_random();
 
 	show_busy ();
-	if (reading_file (default_mail_file))
-		load_new_mail ();
-	else
-		load_file_proc (default_mail_file);
+	if (reading_file (default_mail_file)){
+	    load_new_mail ();
+	}
+	else{
+#ifdef MOTIF
+	    deleteAllMessages();
+#endif
+	    load_file_proc (default_mail_file);
+	}
 
 	clear_busy();
 }
