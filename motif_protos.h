@@ -14,5 +14,9 @@
 #define _MOTIF_PROTOS_H
 
 void display_message_description(MESSAGE *m);
+void set_main_footer(char *s);
+void set_display_footer(DISPLAY_WINDOW *w, char *s);
+void sync_list(void);
+void deleteAllMessages(void);
 
 #endif /* _MOTIF_PROTOS_H */

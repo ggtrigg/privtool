@@ -103,3 +103,20 @@ GetResourceString(Widget w, char *iname, char *iclass)
 
     return valret.addr;
 }
+
+/*----------------------------------------------------------------------*/
+
+#if 0
+void
+AddConverters()
+{
+    XtSetTypeConverter(XtRString, XtRPixmap, cvtStringToPixmap,
+		       NULL, 0, ??, NULL);
+}
+
+XtConverter
+cvtStringToPixmap()
+{
+    fprintf(stderr, "In cvtStringToPixmap\n");
+}
+#endif

@@ -26,6 +26,9 @@ gary@compgen.com
 */
 /* Revision History:
 $Log$
+Revision 1.1  1997/03/03 07:53:26  ggt
+Initial checkin of the LiteClue file to the repository.
+
 Revision 1.1  1996/10/19 16:08:51  gary
 Initial
 

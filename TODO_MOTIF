@@ -3,22 +3,40 @@
    ---------------------------------------------
     $Id$
 
+- Improve startup when no .privrc present.
+
 - Finish off footer stuff.
 
-- Implement the compose mail and associated bits (reply etc.).
+- Implement the compose mail and associated bits (reply etc.). - DONE
 
 - Implement the folder window.
+  (Have to fix up the Container-in-scrolledWindow problem.)
 
 - Implement drag-and-drop.
 
-- Implement undelete.
+- Implement undelete. - DONE
 
-- Check encrypted mail stuff.
+- Check encrypted mail stuff. - DONE
 
-- Update message list on initial display.
+- Update message list on initial display. - DONE
 
-- Keep selected message in list visible.
+- Keep selected message in list visible. - DONE
 
 - Check leaks from XmString's.
 
 - More help?
+
+- All the alert windows. - DONE (AFAIK)
+
+- More keyboard shortcuts? - DONE
+
+- Get the "hide deleted" mail working. - DONE
+
+- Implement the normal and new-mail icons.
+
+- Implement pixmap caching. - DONE (Unless I decide to implement a
+				    pixmap converter.)
+
+- Implement show_busy & clear_busy
+
+- Run purify.

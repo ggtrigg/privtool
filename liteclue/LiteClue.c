@@ -29,6 +29,9 @@ J Satchell, Eric Marttila
 */
 /* Revision History:
 $Log$
+Revision 1.1  1997/03/03 07:53:26  ggt
+Initial checkin of the LiteClue file to the repository.
+
 Revision 1.8  1997/01/17 13:44:14  gary
 Support of cancelWaitPeriod resource: this is a period from the point
 a help popdown occurs in which the normal waitPeriod is suspended
