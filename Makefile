@@ -72,6 +72,12 @@ DB_FLAGS = -DGDBM
 #
 PGPTOOLDIR=/home/ggt/pgptools.linux
 PGPLDFLAGS=-L$(PGPTOOLDIR) -lpgptools
+PGPCPPFLAGS=-I$(PGPTOOLDIR)
+
+# Lines for PGP 5.5 SDK
+#PGPTOOLDIR=/usr/local/pgp5
+#PGPLDFLAGS=-L$(PGPTOOLDIR)/lib -lPGPsdk
+#PGPCPPFLAGS=-I$(PGPTOOLDIR)/include
 
 #
 # Set the following to the path for your PGP executable - can be blank
@@ -103,10 +109,10 @@ PGPVERSION=2.6
 
 OPENWINLDFLAGS=-L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I/usr/X11R6/include
-OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
+#OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
 
 # This line makes only the Xbae library static.
-#OPENWINLIBS=-Wl,-rpath,/usr/X11R6/lib -lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic \
+OPENWINLIBS=-Wl,-rpath,/usr/X11R6/lib -lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic \
 	-lXpm -lXext -lXmu -lXt -lX11
 
 # This line makes both the Xm & Xbae libraries static.
@@ -152,7 +158,7 @@ LDFLAGS= $(XITLDFLAGS) $(OPENWINLDFLAGS) $(OPENWINLIBS) -lm \
 # pubring.pgp.
 #
 
-PGPTOOLS=-DPGPTOOLS -DUSE_HASH -I$(PGPTOOLDIR) -DUNIX -DSYSV -DIDEA32 \
+PGPTOOLS=-DPGPTOOLS -DUSE_HASH $(PGPCPPFLAGS) -DUNIX -DSYSV -DIDEA32 \
 	-DDEV_RANDOM -DDYN_ALLOC -DNO_ASM -DHIGHFIRST
 #PGPTOOLS=
 

@@ -51,6 +51,9 @@
 #include "buffers.h"
 #include "message.h"
 #include "mailrc.h"
+#ifdef MOTIF
+#include <X11/Intrinsic.h>
+#endif
 #include "windows.h"
 #include "gui.h"
 

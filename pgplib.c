@@ -1692,10 +1692,11 @@ int	run_program(char *prog, byte *message, int msg_len,
 	   exits */
 
 #ifndef SYSV
-	while (!wait4(child_pid,&statusp,WNOHANG,&rusage)) {
+	while (!wait4(child_pid,&statusp,WNOHANG,&rusage))
 #else
-	while (!waitpid (child_pid, &statusp, WNOHANG)) {
+	while (!waitpid (child_pid, &statusp, WNOHANG))
 #endif
+	{
 
 		/* Set things up for the select call. Only include the
 		   file descriptors which are still open. */

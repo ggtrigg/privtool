@@ -1420,7 +1420,7 @@ initialise_compose_win(COMPOSE_WINDOW *win, COMPOSE_TYPE comptype,
 	XtVaSetValues(win->send_to, XmNvalue, send_to, NULL);
 
 	if(last_message_read->subject != NULL){
-	    if(strncmp(last_message_read->subject, "Re:", 3))
+	    if(strncasecmp(last_message_read->subject, "Re:", 3))
 		XtVaSetValues(win->send_subject, XmNvalue, "Re: ", NULL);
 
 	    XmTextFieldInsert(win->send_subject,
