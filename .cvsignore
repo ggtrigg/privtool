@@ -4,3 +4,7 @@ config.log
 config.cache
 config.status
 .depend
+*.flc
+Makefile
+config.h
+.autodep
