@@ -53,6 +53,7 @@
 #include	"images/question.xpm"
 #include	"images/exclamation.xpm"
 #include	"images/exclamation2.xpm"
+#include	"images/privtool-logo-lc.xpm"
 
 /* Typedefs */
 typedef enum {
@@ -79,51 +80,55 @@ extern char		*our_userid;
 extern char		*current_nym(void);
 
 /* Static functions */
-static void	alert_cb(GtkWidget *, gpointer);
-static gint	alert_delete_cb(GtkWidget *, GdkEvent *, gpointer);
-static gint	delete_event(GtkWidget *, GdkEvent *, gpointer);
-static void	destroy (GtkWidget *, gpointer);
-static void	update_mail_list(void);
-static GtkWidget *create_menubar(void);
-static GtkWidget *create_toolbar(GtkWidget *);
-static GtkWidget *create_msglist(void);
-static GtkWidget *get_pixmap(GtkWidget *, gchar **);
-static void	sort_cb(GtkWidget *, gpointer);
-static void	clist_sort_cb(GtkWidget *, gint, gpointer);
-static gint	clist_sort_cmp(GtkCList *, gconstpointer, gconstpointer);
-static char	*extract_addresses(char *);
-static void	display_new_message(void);
-static gint	mail_check_cb(gpointer);
-static void	next_msg_cb(GtkWidget *, gpointer);
-static void	prev_msg_cb(GtkWidget *, gpointer);
-static void	select_msg_cb(GtkWidget *, gint, gint, GdkEvent *);
-static void	show_fullhdr_cb(GtkWidget *, gpointer);
-static void	show_deleted_cb(GtkWidget *, gpointer);
-static void	toggle_toolbar_cb(GtkWidget *, gpointer);
-static void	save_cb(GtkWidget *, gpointer);
-static void	populate_combo();
-static void	load_folder_cb(GtkWidget *, gpointer);
-static void	undelete_cb(GtkWidget *, gpointer);
-static void	move_to_folder_cb(GtkWidget *, gpointer);
-static void	load_new_cb(GtkWidget *, gpointer);
-static void	print_cb(GtkWidget *, gpointer);
-static void	show_folder_win_cb(GtkWidget *, gpointer);
-static void	fillin_folders(GtkWidget *);
-static void	process_dir(GtkWidget *, char *, GtkCTreeNode *);
-static void	folder_select_cb(GtkWidget *, GtkCTreeNode *, gint);
-static void	compose_cb(GtkWidget *, gpointer);
 static COMPOSE_WINDOW *compose_find_free();
-static void	reset_deliver_flags(COMPOSE_WINDOW *);
-static void	initialise_compose_win(COMPOSE_WINDOW *, COMPOSE_TYPE);
-static void	deliver_cb(GtkWidget *, gpointer);
-static void	show_undelete(gboolean);
-static void	filer_cb(GtkWidget *, gpointer);
-static void	insert_file_cb(GtkWidget *, gpointer);
+static GtkWidget *create_menubar(void);
+static GtkWidget *create_msglist(void);
+static GtkWidget *create_toolbar(GtkWidget *);
+static GtkWidget *get_pixmap(GtkWidget *, gchar **);
+static char	*extract_addresses(char *);
+static gint	alert_delete_cb(GtkWidget *, GdkEvent *, gpointer);
+static gint	clist_sort_cmp(GtkCList *, gconstpointer, gconstpointer);
 static gint	compmenu_post_cb(GtkWidget *, GdkEventButton *event);
-static void	compmenu_cb(GtkWidget *, gpointer);
-static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
-static void	edit_ops_cb(GtkWidget *, gpointer);
+static gint	delete_event(GtkWidget *, GdkEvent *, gpointer);
+static void	about_cb(GtkWidget *, gpointer);
+static void	about_close_cb(GtkWidget *, gpointer);
+static void	add_key_cb(GtkWidget *, gpointer);
 static void	add_signature(COMPOSE_WINDOW *);
+static void	alert_cb(GtkWidget *, gpointer);
+static void	clist_sort_cb(GtkWidget *, gint, gpointer);
+static void	compmenu_cb(GtkWidget *, gpointer);
+static void	compose_cb(GtkWidget *, gpointer);
+static void	deliver_cb(GtkWidget *, gpointer);
+static void	destroy (GtkWidget *, gpointer);
+static void	display_new_message(void);
+static void	edit_ops_cb(GtkWidget *, gpointer);
+static void	filer_cb(GtkWidget *, gpointer);
+static void	fillin_folders(GtkWidget *);
+static void	folder_select_cb(GtkWidget *, GtkCTreeNode *, gint);
+static void	hide_addkey(void);
+static void	hide_attach(void);
+static void	initialise_compose_win(COMPOSE_WINDOW *, COMPOSE_TYPE);
+static void	insert_file_cb(GtkWidget *, gpointer);
+static void	load_folder_cb(GtkWidget *, gpointer);
+static void	load_new_cb(GtkWidget *, gpointer);
+static void	move_to_folder_cb(GtkWidget *, gpointer);
+static void	msgdrop_cb(GtkWidget *, GdkDragContext *, gint, gint, guint, gpointer);
+static void	next_msg_cb(GtkWidget *, gpointer);
+static void	populate_combo();
+static void	prev_msg_cb(GtkWidget *, gpointer);
+static void	print_cb(GtkWidget *, gpointer);
+static void	process_dir(GtkWidget *, char *, GtkCTreeNode *);
+static void	reset_deliver_flags(COMPOSE_WINDOW *);
+static void	save_cb(GtkWidget *, gpointer);
+static void	select_msg_cb(GtkWidget *, gint, gint, GdkEvent *);
+static void	show_deleted_cb(GtkWidget *, gpointer);
+static void	show_folder_win_cb(GtkWidget *, gpointer);
+static void	show_fullhdr_cb(GtkWidget *, gpointer);
+static void	show_undelete(gboolean);
+static void	sort_cb(GtkWidget *, gpointer);
+static void	toggle_toolbar_cb(GtkWidget *, gpointer);
+static void	undelete_cb(GtkWidget *, gpointer);
+static void	update_mail_list(void);
 
 /* Static data */
 static GtkWidget	*toplevel;
@@ -152,7 +157,7 @@ static GtkItemFactoryEntry ife[] = {
     {"/Edit/Undelete", "<control>U", undelete_cb, 0, NULL},
     {"/Edit/Undelete Last", NULL, undelete_last_proc, 0, NULL},
     {"/Edit/-", NULL, NULL, 0, "<Separator>"},
-    {"/Edit/Add Key", NULL, NULL, 0, NULL},
+    {"/Edit/Add Key", NULL, add_key_cb, 0, NULL},
     {"/Edit/Show Attachment", NULL, NULL, 0, NULL},
     {"/Edit/Clear Passphrase", NULL, NULL, 0, NULL},
     {"/Edit/Properties", "<control>E", show_props, 0, NULL},
@@ -188,7 +193,7 @@ static GtkItemFactoryEntry ife[] = {
     {"/Compose/Forward", "<alt>F", compose_cb, COMPOSE_FORWARD, NULL},
     {"/Compose/Resend", "<alt>R", compose_cb, COMPOSE_RESEND, NULL},
     {"/Help/--", NULL, NULL, 0, "<Tearoff>"},
-    {"/Help/About", "<control>A", NULL, 0, NULL}
+    {"/Help/About", "<control>A", about_cb, 0, NULL}
 };
 
 static GtkItemFactoryEntry comp_ife[] = {
@@ -206,6 +211,7 @@ void
 setup_ui(int level, int argc, char **argv)
 {
     gchar		*title, *gtkrc_path, *f;
+    guint		check_interval;
     guint32		interval;
     GdkColor		delcol;
     GtkWidget		*vbox, *mbar, *tbar, *vpane, *msglist, *swin, *txt,
@@ -324,17 +330,22 @@ setup_ui(int level, int argc, char **argv)
     else {
 	interval = atoi(f) * 1000;
     }
-    if(interval > 0)
-	gtk_timeout_add(interval, mail_check_cb, (gpointer)interval);
+    if(interval > 0) {
+	check_interval = gtk_timeout_add(interval, mail_check_cb,
+					 (gpointer)interval);
+	gtk_object_set_data(GTK_OBJECT(toplevel), "mailchkint",
+			    (gpointer)check_interval);
+    }
 
    gtk_main();
 }
 
-static gint
+gint
 mail_check_cb(gpointer data)
 {
     gchar	*f;
-    guint32	interval;
+    guint32	last_interval = (guint32)data, interval;
+    guint	check_interval;
 
     check_for_new_mail();
 
@@ -345,9 +356,94 @@ mail_check_cb(gpointer data)
     else {
 	interval = atoi(f) * 1000;
     }
-    if(interval > 0)
-	gtk_timeout_add(interval, mail_check_cb, (gpointer)interval);
+    if((interval > 0) && (interval != last_interval)) {
+	check_interval = (guint)gtk_object_get_data(GTK_OBJECT(toplevel),
+						    "mailchkint");
+	gtk_timeout_remove(check_interval);
+	check_interval = gtk_timeout_add(interval, mail_check_cb,
+					 (gpointer)interval);
+	gtk_object_set_data(GTK_OBJECT(toplevel), "mailchkint",
+			    (gpointer)check_interval);
+    }
 } /* mail_check_cb */
+
+static void
+about_cb(GtkWidget *widget, gpointer data)
+{
+    static GtkWidget	*dialog = NULL;
+    gint		x, y, w, h, dialog_x, dialog_y;
+    GtkWidget		*title, *message, *image, *ok_button, *hbox, *vbox;
+
+    if( dialog == NULL ) {
+	dialog = gtk_dialog_new();
+
+	/* Create child widgets */
+	hbox = gtk_hbox_new(FALSE, 4);
+	vbox = gtk_vbox_new(FALSE, 4);
+	title = gtk_label_new("Privtool");
+	gtk_widget_set_name(title, "about_title");
+	message = gtk_label_new("Written by: Mark Grant <mark@unicorn.com>\nGtk+ Interface by: Glenn Trigg <ggt@linuxfan.com>");
+	gtk_widget_set_name(message, "about_text");
+	gtk_label_set_justify(GTK_LABEL(message), GTK_JUSTIFY_LEFT);
+	gtk_widget_realize(dialog);
+	image = get_pixmap(dialog, privtool_logo_lc_xpm);
+	ok_button = gtk_button_new_with_label("OK");
+	gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox),
+				       4);
+
+	/* Add child widgets to the dialog */
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox,
+			   TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), image,
+			   TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), vbox,
+			   TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), title,
+			   FALSE, FALSE, 20);
+	gtk_box_pack_start(GTK_BOX(vbox), message,
+			   TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), ok_button,
+			   TRUE, TRUE, 0);
+
+	/* Show child widgets */
+	gtk_widget_show(hbox);
+	gtk_widget_show(vbox);
+	gtk_widget_show(title);
+	gtk_widget_show(message);
+	gtk_widget_show(image);
+	gtk_widget_show(ok_button);
+
+	/* Add signals */
+        gtk_signal_connect(GTK_OBJECT(ok_button), "clicked",
+                           GTK_SIGNAL_FUNC (about_close_cb), dialog);
+	gtk_widget_grab_focus(ok_button);
+	gtk_window_set_transient_for(&GTK_DIALOG(dialog)->window,
+				     GTK_WINDOW(toplevel));
+    }
+    gdk_window_get_origin(GTK_WIDGET(toplevel)->window, &x, &y);
+    gdk_window_get_size(GTK_WIDGET(toplevel)->window, &w, &h);
+    dialog_x = x + w/4;
+    dialog_y = y + h/4;
+
+    gtk_widget_set_uposition(GTK_WIDGET(dialog), dialog_x, dialog_y); 
+    gtk_widget_show(dialog);
+} /* about_cb */
+
+static void
+about_close_cb(GtkWidget *w, gpointer data)
+{
+    GtkWidget	*dialog = (GtkWidget *)data;
+
+    gtk_widget_hide(dialog);
+} /* about_close_cb */
+
+static void
+add_key_cb(GtkWidget *w, gpointer data)
+{
+    if(last_message_read != NULL){
+	add_key_proc(NULL, last_message_read);
+    }
+} /* add_key_cb */
 
 unsigned int
 alert(GtkWidget *parent, char *message, ALERT_TYPE atype,
@@ -625,7 +721,6 @@ create_display_window()
 void
 create_passphrase_window()
 {
-				/* TODO */
     GtkWidget	*dialog = NULL, *message, *entry, *ok_button;
 
     if( dialog == NULL ) {
@@ -636,6 +731,8 @@ create_passphrase_window()
 	entry = gtk_entry_new();
 	ok_button = gtk_button_new_with_label("OK");
 	gtk_entry_set_visibility(GTK_ENTRY(entry), FALSE);
+	gtk_container_set_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox),
+				       4);
 
 	/* Add child widgets to the dialog */
 	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), message,
@@ -730,6 +827,8 @@ display_message_body(BUFFER *b)
     GtkWidget	*text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
 							 "msgtext");
 
+    hide_addkey();
+    hide_attach();
     gtk_text_freeze(GTK_TEXT(text));
     gtk_text_set_point(GTK_TEXT(text), gtk_text_get_length(GTK_TEXT(text)));
 
@@ -780,24 +879,25 @@ display_message_description(MESSAGE *m)
 void
 display_message_sig(BUFFER *b)
 {
-				/* TODO */
-    char	*sigmess, *ptr;
+    GtkWidget	*text;
 
-    g_warning("display_message_sig: To be done.");
+    if(b->message == NULL)
+	return;
+
     /* b->message is the complete signature message which may be
        multi-line. We need to figure out a decent way to display that
-       without taking to much screen real-estate.  -gt 13/4/97 */
+       without taking to much screen real-estate.  -gt 13/4/97.
 
-    /* For now, just display the first line in the display message
-       area. */
-    if(b->message != NULL){
-	sigmess = strdup(b->message);
-	if((ptr = strchr(sigmess, '\n')) != NULL){
-	    *ptr = '\0';
-	}
-	set_display_footer(NULL, sigmess);
-	free(sigmess);
-    }
+       Why not just append it to the message body? Can't see anything
+       wrong with that!  -gt 6/7/99.
+    */
+
+    text = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					    "msgtext");
+    gtk_text_set_point(GTK_TEXT(text), gtk_text_get_length(GTK_TEXT(text)));
+    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL, "\n", 1);
+    gtk_text_insert(GTK_TEXT(text), NULL, NULL, NULL,
+		    b->message, -1);
 }
 
 void
@@ -898,6 +998,30 @@ failed_save_notice_proc()
     return 0;
 }
 
+static void
+hide_addkey()
+{
+    GtkWidget		*mi;
+    GtkItemFactory	*ife;
+
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    mi = gtk_item_factory_get_widget(ife, "/Edit/Add Key");
+    gtk_widget_set_sensitive(mi, FALSE);
+}
+
+static void
+hide_attach()
+{
+    GtkWidget		*mi;
+    GtkItemFactory	*ife;
+
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    mi = gtk_item_factory_get_widget(ife, "/Edit/Show Attachment");
+    gtk_widget_set_sensitive(mi, FALSE);
+}
+
 void
 hide_header_frame()
 {
@@ -939,10 +1063,19 @@ no_sec_notice_proc(int w)
 void
 open_passphrase_window(char *s)
 {
+    gint	x, y, w, h, dialog_x, dialog_y;
     GtkWidget	*ppdialog =
 	(GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel), "ppdialog");
 
     if(ppdialog) {
+	gtk_window_set_transient_for(&GTK_DIALOG(ppdialog)->window,
+				     GTK_WINDOW(toplevel));
+	gdk_window_get_origin(GTK_WIDGET(toplevel)->window, &x, &y);
+	gdk_window_get_size(GTK_WIDGET(toplevel)->window, &w, &h);
+	dialog_x = x + w/4;
+	dialog_y = y + h/4;
+
+	gtk_widget_set_uposition(GTK_WIDGET(ppdialog), dialog_x, dialog_y); 
 	gtk_widget_grab_focus(GTK_WIDGET(gtk_object_get_user_data(GTK_OBJECT(ppdialog))));
 	gtk_widget_show(ppdialog);
     }
@@ -1078,15 +1211,25 @@ set_main_footer(char *s)
 void
 show_addkey(DISPLAY_WINDOW *w)
 {
-				/* TODO */
-    g_warning("show_addkey: To be done.");
+    GtkWidget		*mi;
+    GtkItemFactory	*ife;
+
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    mi = gtk_item_factory_get_widget(ife, "/Edit/Add Key");
+    gtk_widget_set_sensitive(mi, TRUE);
 }
 
 void
 show_attach(DISPLAY_WINDOW *w)
 {
-				/* TODO */
-    g_warning("show_attach: To be done.");
+    GtkWidget		*mi;
+    GtkItemFactory	*ife;
+
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    mi = gtk_item_factory_get_widget(ife, "/Edit/Show Attachment");
+    gtk_widget_set_sensitive(mi, TRUE);
 }
 
 void
@@ -1322,7 +1465,7 @@ create_menubar(void)
 {
     GtkItemFactory	*ifactory;
     GtkAccelGroup	*ag;
-    GtkWidget		*tbar_tgl;
+    GtkWidget		*mbar_tgl;
 
     ag = gtk_accel_group_get_default();
     ifactory = gtk_item_factory_new(GTK_TYPE_MENU_BAR, "<Main>", ag);
@@ -1334,10 +1477,14 @@ create_menubar(void)
 
     /* Set the default state of some toggle menu items.
      */
-    tbar_tgl = gtk_item_factory_get_widget(ifactory, "/View/Show Toolbar");
-    gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(tbar_tgl), TRUE);
-    tbar_tgl = gtk_item_factory_get_widget(ifactory, "/View/Show Deleted");
-    gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(tbar_tgl), TRUE);
+    mbar_tgl = gtk_item_factory_get_widget(ifactory, "/View/Show Toolbar");
+    gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(mbar_tgl), TRUE);
+    mbar_tgl = gtk_item_factory_get_widget(ifactory, "/View/Show Deleted");
+    gtk_check_menu_item_set_state(GTK_CHECK_MENU_ITEM(mbar_tgl), TRUE);
+    mbar_tgl = gtk_item_factory_get_widget(ifactory, "/Edit/Add Key");
+    gtk_widget_set_sensitive(mbar_tgl, FALSE);
+    mbar_tgl = gtk_item_factory_get_widget(ifactory, "/Edit/Show Attachment");
+    gtk_widget_set_sensitive(mbar_tgl, FALSE);
 
     return ifactory->widget;
 } /* create_menubar */
