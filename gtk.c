@@ -998,10 +998,11 @@ read_extra_headerline(COMPOSE_WINDOW *w, int i)
 void
 read_message_to_deliver(COMPOSE_WINDOW *w, BUFFER *b)
 {
-    char	*text;
+    guint	length;
 
-    text = GTK_TEXT(w->text)->text.ch;
-    add_to_buffer(b, text, gtk_text_get_length(GTK_TEXT(w->text)));
+    length = gtk_text_get_length(GTK_TEXT(w->text));
+    add_to_buffer(b, gtk_editable_get_chars(GTK_EDITABLE(w->text), 0, length),
+		  length);
 }
 
 int
