@@ -83,7 +83,8 @@ PGPVERSION=2.6
 OPENWINLDFLAGS=-L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I/usr/X11R6/include
 OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
-#OPENWINLIBS=-lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic -lXpm -lXext -lXmu -lXt -lX11
+#OPENWINLIBS=-Wl,-rpath,/usr/X11R6/lib -lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic \
+	-lXpm -lXext -lXmu -lXt -lX11
 #OPENWINLIBS=-L/cdrom/2.0.1/usr/X11R6/lib -Wl,-Bstatic -lXm -lXbae \
 	-Wl,-Bdynamic -lXpm -lXext -lXmu -lXt -lX11
 
