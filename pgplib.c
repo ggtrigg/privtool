@@ -242,6 +242,14 @@ static	FILE	*open_pgp_file (char *s, char *attr)
 			return fp;
 	}
 
+	/* Then try ${HOME}/.pgp (the default for pgp itself). */
+
+	if ((pgppath = getenv("HOME"))) {
+	    sprintf (temp, "%s/.pgp/%s", pgppath, s);
+	    if ((fp = fopen (temp, attr)))
+		return fp;
+	}
+
 	/* If not, try local. This could possibly cause security problems,
 	   so you may want to take it out with -DMOST_SECURE */
 
