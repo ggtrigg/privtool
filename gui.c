@@ -1506,7 +1506,7 @@ COMPOSE_WINDOW	*w;
 	int	id_count = 0;
 	int	cc_count = 0;
 	int	bcc_count = 0;
-	char	*uid,*alias;
+	char	*alias;
 	char	*key_name;
 	int	encrypt_flags;
 	int	i, j;
@@ -2157,7 +2157,6 @@ void	load_new_mail()
 void	check_for_new_mail()
 
 {
-	MESSAGE	*m,*last;
 	static	long	test_interval = 0;
 	time_t	now;
 
@@ -2463,8 +2462,7 @@ void	sort_by_status ()
 void	undelete_last_proc ()
 
 {
-	MESSAGE	*m, *p;
-	int	l;
+	MESSAGE	*m;
 
 	update_random();
 
@@ -2582,7 +2580,6 @@ int	raw;
 {
 	MESSAGE	*m;
 	BUFFER	*out;
-	char	*s;
 	char	mess [128];
 	int	c = 0;
 
