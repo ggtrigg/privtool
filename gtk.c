@@ -20,6 +20,9 @@
 #include	<string.h>
 #include	<gtk/gtk.h>
 #include	<time.h>
+#include	<dirent.h>
+#include	<sys/stat.h>
+/* #include	<sys/param.h> */
 
 #include	"def.h"
 #include	"buffers.h"
@@ -38,6 +41,9 @@
 #include	"images/compose.xpm"
 #include	"images/reply.xpm"
 #include	"images/folderwin.xpm"
+#include	"images/g_letter.xpm"
+#include	"images/mini-folder.xpm"
+#include	"images/mini-ofolder.xpm"
 
 /* Static functions */
 static gint	delete_event(GtkWidget *, GdkEvent *, gpointer);
@@ -62,6 +68,10 @@ static void	undelete_cb(GtkWidget *, gpointer);
 static void	move_to_folder_cb(GtkWidget *, gpointer);
 static void	load_new_cb(GtkWidget *, gpointer);
 static void	print_cb(GtkWidget *, gpointer);
+static void	show_folder_win_cb(GtkWidget *, gpointer);
+static void	fillin_folders(GtkWidget *);
+static void	process_dir(GtkWidget *, char *, GtkCTreeNode *);
+static void	folder_select_cb(GtkWidget *, GtkCTreeNode *, gint);
 
 /* Static data */
 static GtkWidget	*toplevel;
@@ -97,7 +107,7 @@ static GtkItemFactoryEntry ife[] = {
     {"/View/Show Deleted", NULL, NULL, 0, "<CheckItem>"},
     {"/View/Full Header", "<control>H", NULL, 0, "<CheckItem>"},
     {"/View/Show Toolbar", "<control>T", toggle_toolbar_cb, 0, "<CheckItem>"},
-    {"/View/Folders", "<control>F", NULL, 0, NULL},
+    {"/View/Folders", "<control>F", show_folder_win_cb, 0, "<ToggleItem>"},
     {"/Folder/Copy to Folder", "<alt>C", move_to_folder_cb, 0, NULL},
     {"/Folder/Move to Folder", "<alt>M", move_to_folder_cb, 1, NULL},
     {"/Folder/Load Folder", "<alt>L", load_folder_cb, 0, NULL},
@@ -947,7 +957,18 @@ x_setup_send_window()
 static gint
 delete_event(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
-    return (FALSE);
+    GtkWidget	*fldr_t;
+
+    if( (gint)data == 1) {
+	/* gtk_widget_hide(widget); */
+	fldr_t = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						  "folderbtn");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fldr_t), FALSE);
+	return(TRUE);
+    }
+
+    save_and_quit_proc();
+    return (TRUE);
 } /* delete_event */
 
 static void
@@ -1006,8 +1027,13 @@ create_toolbar(GtkWidget *window)
     gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Reply", "Reply to sender",
 			    NULL, get_pixmap(window, reply_xpm), NULL, NULL);
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
-    gtk_toolbar_append_item(GTK_TOOLBAR(toolbar), "Folders", "Folder window",
-			    NULL, get_pixmap(window, folderwin_xpm), NULL, NULL);
+    w = gtk_toolbar_append_element(GTK_TOOLBAR(toolbar),
+				   GTK_TOOLBAR_CHILD_TOGGLEBUTTON, NULL,
+				   "Folders", "Folder window", NULL,
+				   get_pixmap(window, folderwin_xpm),
+				   show_folder_win_cb, NULL);
+    gtk_object_set_data(GTK_OBJECT(window), "folderbtn", (gpointer)w);
+
     gtk_toolbar_append_space(GTK_TOOLBAR(toolbar));
     w = gtk_combo_new();
     gtk_widget_show(w);
@@ -1491,8 +1517,11 @@ static void
 load_new_cb(GtkWidget *w, gpointer data)
 {
     inbox_proc();
-    last_message_read->flags &= ~MESS_SELECTED;
-    display_message_description(last_message_read);
+    update_mail_list();
+    if( last_message_read ) {
+	last_message_read->flags &= ~MESS_SELECTED;
+	display_message_description(last_message_read);
+    }
     display_new_message();
     sync_list();
     update_message_list();
@@ -1526,3 +1555,196 @@ print_cb(GtkWidget *w, gpointer data)
     }
     print_cooked_proc();
 } /* print_cb */
+
+static void
+show_folder_win_cb(GtkWidget *w, gpointer data)
+{
+    static GtkWidget	*fwin = NULL;
+    gboolean		active;
+    GtkWidget		*swin, *tree, *fldr_m, *fldr_t;
+    GtkItemFactory	*ife;
+
+    /* Get the menu toggle item and the toolbar toggle item so we can
+       keep their toggled state in sync.
+    */
+    ife = (GtkItemFactory *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						"menufact");
+    fldr_m = gtk_item_factory_get_widget(ife, "/View/Folders");
+    fldr_t = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+					      "folderbtn");
+
+    if(w == NULL) {
+	/* Must have been the menu toggle activated. */
+	active = GTK_CHECK_MENU_ITEM(fldr_m)->active;
+    }
+    else {
+	active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w));
+    }
+
+    if( active ) {
+	if( !fwin) {
+	    fwin = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	    gtk_widget_set_usize(GTK_WIDGET(fwin), 200, 400);
+
+	    gtk_signal_connect(GTK_OBJECT(fwin), "delete_event",
+			       GTK_SIGNAL_FUNC (delete_event), (gpointer)1);
+
+	    swin = gtk_scrolled_window_new(NULL, NULL);
+	    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin),
+					   GTK_POLICY_AUTOMATIC,
+					   GTK_POLICY_AUTOMATIC);
+	    gtk_container_add(GTK_CONTAINER(fwin), swin);
+
+	    tree = gtk_ctree_new(2, 1);
+	    gtk_ctree_set_spacing(GTK_CTREE(tree), 4);
+	    gtk_ctree_set_show_stub(GTK_CTREE(tree), TRUE);
+	    gtk_clist_set_row_height(GTK_CLIST(tree), 20);
+	    gtk_clist_columns_autosize(GTK_CLIST(tree));
+	    gtk_clist_set_selection_mode(GTK_CLIST(tree),
+					 GTK_SELECTION_SINGLE);
+	    gtk_clist_set_button_actions(GTK_CLIST(tree), 0,
+					 GTK_BUTTON_SELECTS|GTK_BUTTON_EXPANDS);
+	    gtk_container_add(GTK_CONTAINER(swin), tree);
+
+	    gtk_signal_connect(GTK_OBJECT(tree), "tree_select_row",
+			       GTK_SIGNAL_FUNC (folder_select_cb), NULL);
+
+	    gtk_widget_show(GTK_WIDGET(tree));
+	    gtk_widget_show(GTK_WIDGET(swin));
+
+	    fillin_folders(tree);
+	}
+
+	gtk_widget_show(GTK_WIDGET(fwin));
+	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(fldr_m), TRUE);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fldr_t), TRUE);
+    }
+    else {
+	if(fwin) {
+	    gtk_widget_hide(GTK_WIDGET(fwin));
+	    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(fldr_m), FALSE);
+	    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fldr_t), FALSE);
+	}
+    }
+} /* show_folder_win_cb */
+
+
+static void
+fillin_folders(GtkWidget *tree)
+{
+    char		*folder;    /* Directory containing mail folders. */
+    char		*homedir, *fullfolder;
+
+    if ((folder = (char *)find_mailrc("folder"))){
+	if(strchr(folder, '/') != NULL){ /* Is a specified path. */
+	    fullfolder = g_strdup(folder);
+	}else{			/* Relative to home directory. */
+	    fullfolder = g_strconcat(g_get_home_dir(), "/", folder, NULL);
+	}
+
+	process_dir(tree, fullfolder, NULL);
+	gtk_ctree_sort_recursive(GTK_CTREE(tree), NULL);
+	g_free(fullfolder);
+    }
+} /* fillin_folders */
+
+/* Add nodes to the ctree, representing the files and
+   directories in the given starting directory. This descends into
+   subdirectories recursively until the entire sub-tree is covered.
+ */
+static void
+process_dir(GtkWidget *tree, char *dirname, GtkCTreeNode *parent)
+{
+    char		*pathname;
+    int			numkids, i;
+    GtkCTreeNode	*node;
+    gchar		*name[3], *tag;
+    DIR			*dirp;
+    struct dirent	*de;
+    struct stat		statbuf;
+    static GdkPixmap	*pixmap = NULL, *folder_p = NULL, *ofolder_p = NULL;
+    static GdkBitmap	*mask, *folder_m, *ofolder_m;
+    GtkStyle		*style;
+
+    if((dirp = opendir(dirname)) == NULL){
+	perror(dirname);
+	return;
+    }
+
+    if( !pixmap ) {
+	style = gtk_widget_get_style(toplevel);
+	pixmap = gdk_pixmap_create_from_xpm_d(toplevel->window,
+					      &mask,
+					      &style->bg[GTK_STATE_NORMAL],
+					      letter_xpm);
+	folder_p = gdk_pixmap_create_from_xpm_d(toplevel->window,
+						&folder_m,
+						&style->bg[GTK_STATE_NORMAL],
+						mini_folder_xpm);
+	ofolder_p = gdk_pixmap_create_from_xpm_d(toplevel->window,
+						 &ofolder_m,
+						 &style->bg[GTK_STATE_NORMAL],
+						 mini_ofolder_xpm);
+    }
+
+    /* Clean out the tree.
+       (but only if we're at the top i.e parent == NULL) */
+    if(parent == NULL) {
+	gtk_clist_clear(GTK_CLIST(tree));
+    }
+
+    name[0] = name[2] = NULL;
+
+    /* Now fill with new ones. */
+    while((de = readdir(dirp)) != NULL){
+
+	if(!strcmp(de->d_name, ".")) /* No need for this. */
+	    continue;
+	if(!strcmp(de->d_name, ".."))
+	    continue;		/* No '..'. */
+
+	pathname = g_strconcat(dirname, "/", de->d_name, NULL);
+	stat(pathname, &statbuf);
+
+	name[1] = de->d_name;
+	if(S_ISDIR(statbuf.st_mode)) {
+	    node = gtk_ctree_insert_node(GTK_CTREE(tree), parent, NULL,
+					 name, 4, folder_p, folder_m,
+					 ofolder_p, ofolder_m,
+					 FALSE, FALSE);
+	}
+	else {
+	    node = gtk_ctree_insert_node(GTK_CTREE(tree), parent, NULL,
+					 name, 4, pixmap, mask,
+					 NULL, NULL,
+					 TRUE, FALSE);
+	}
+	tag = g_strconcat((parent == NULL)? "+":
+			  gtk_ctree_node_get_row_data(GTK_CTREE(tree), parent),
+			  "/", de->d_name, NULL);
+	gtk_ctree_node_set_row_data(GTK_CTREE(tree), node, tag);
+
+	if(S_ISDIR(statbuf.st_mode)) { /* recurse into sub-directory */
+	    process_dir(tree, pathname, node);
+	}
+	g_free(pathname);
+    }
+    closedir(dirp);
+} /* process_dir */
+
+static void
+folder_select_cb(GtkWidget *w, GtkCTreeNode *node, gint col)
+{
+    gboolean	is_leaf;
+    gchar	*text;
+    GtkWidget	*combo;
+
+    gtk_ctree_get_node_info(GTK_CTREE(w), node, &text,
+			    NULL, NULL, NULL, NULL, NULL, &is_leaf, NULL);
+    text = gtk_ctree_node_get_row_data(GTK_CTREE(w), node);
+    if(is_leaf) {
+	combo = (GtkWidget *)gtk_object_get_data(GTK_OBJECT(toplevel),
+						 "combo");
+	gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo)->entry), text);
+    }
+} /* folder_select_cb */
