@@ -119,6 +119,7 @@ static	char	decrypt_passphrase[]="Passphrase entry (Decryption)";
 /* Global variables */
 
 char	*passphrase;
+int	show_deleted;
 void	(*callback_proc)();
 COMPOSE_WINDOW	*callback_win;
 

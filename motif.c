@@ -85,7 +85,6 @@ extern char		*our_userid;
 void			update_message_list(void);
 void			set_foldwin_toggles(Boolean);
 void			update_combo(char *);
-int			show_deleted = 1;
 int			full_header_ = 0;
 int			debug_ = 0;
 
@@ -882,6 +881,7 @@ setup_ui(int level, int argc, char **argv)
     Widget	control_;
     char	*title, *dbglvl;
 
+    show_deleted = 1;		/* Default value. */
     toplevel_ = XtVaOpenApplication(&app_context_, "Privtool", options,
 				    XtNumber(options),
 				    &argc, argv, NULL,

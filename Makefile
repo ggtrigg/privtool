@@ -83,10 +83,14 @@ PGPVERSION=2.6
 OPENWINLDFLAGS=-L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I/usr/X11R6/include
 OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
+
+# This line makes only the Xbae library static.
 #OPENWINLIBS=-Wl,-rpath,/usr/X11R6/lib -lXm -Wl,-Bstatic -lXbae -Wl,-Bdynamic \
 	-lXpm -lXext -lXmu -lXt -lX11
-#OPENWINLIBS=-L/cdrom/2.0.1/usr/X11R6/lib -Wl,-Bstatic -lXm -lXbae \
-	-Wl,-Bdynamic -lXpm -lXext -lXmu -lXt -lX11
+
+# This line makes both the Xm & Xbae libraries static.
+#OPENWINLIBS=-Wl,-Bstatic -lXm -lXbae  -Wl,-Bdynamic \
+	-lXpm -lXext -lXmu -lXt -lX11
 
 #OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 #OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
@@ -160,7 +164,7 @@ CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
 	$(DEFAULT_FONT) $(XRESOURCES) -D_POSIX_SOURCE -DNSA_ICON -DCOMPACT \
 	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux -DMAILER_LINE -Iliteclue \
-	-D_SVID_SOURCE $(PGPTOOLS)
+	-D_SVID_SOURCE $(PGPTOOLS) -Iimages
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -217,3 +221,26 @@ clean:
 
 TAGS:		$(OFILES:%.o=%.c)
 		etags $(OFILES:%.o=%.c)
+
+INSTALL =	/usr/bin/install
+INSTALLROOT =	/usr/local
+BINDIR =	$(INSTALLROOT)/bin
+APPDIR =	$(INSTALLROOT)/app-defaults
+ICONDIR =	$(INSTALLROOT)/icons
+PIXMAPS =	images/prev.xpm images/next.xpm images/delete.xpm \
+		images/undelete.xpm images/folderwin.xpm \
+		images/dir.xpm images/letter.xpm
+
+install:	privtool $(BINDIR) $(APPDIR) $(ICONDIR)
+		$(INSTALL) -g mail -m 2755 privtool $(INSTALLROOT)/bin
+		$(INSTALL) -m 644 Privtool.ad $(INSTALLROOT)/app-defaults
+		$(INSTALL) -m 644 $(PIXMAPS) $(INSTALLROOT)/icons
+
+$(BINDIR):
+		mkdir -p $(BINDIR)
+
+$(APPDIR):
+		mkdir -p $(APPDIR)
+
+$(ICONDIR):
+		mkdir -p $(ICONDIR)

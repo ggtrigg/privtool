@@ -1,16 +1,34 @@
-In this tar file there is:
+To build the Motif version of privtool you will need to get the
+Xbae widget set (XbaeCaption & XbaeMatrix widgets). Privtool only uses
+the Caption widget from this library.
+This library is available from:
+	http://shadow.apana.org.au/~lister
 
-   privtool - the executable
-Privtool.ad - the resource file
-      *.xpm - various pixmaps
+Once the Xbae library & includes are installed edit the Makefile.motif
+to taste and type:
+	make -f Makefile.motif
 
-privtool (the executable) should go somewhere in your path. (/usr/local/bin
-most likely).
+To install privtool type:
+	make -f Makefile.motif install
 
-Privtool.ad should go somewhere in your XFILESEARCHPATH. If you don't have
-one then put this in /usr/local/app-defaults and setenv XFILESEARCHPATH
-to /usr/local/%T/%N.ad.
+The files installed and their default locations are:
 
-The pixmaps should be put somewhere in your XBMLANGPATH. If you don't
-have one then put them in /usr/local/bitmaps and setenv XBMLANGPATH to
-/usr/local/bitmaps/%B.
+    privtool - /usr/local/bin
+ Privtool.ad - /usr/local/app-defaults
+       *.xpm - /usr/local/icons
+
+The makefile is set up to install the binary with a group ownership of
+"mail" and g+s permission. This is how some Linux installations want
+mil readers installed.
+
+You will need to make sure that you have /usr/local/app-defaults/%N.ad
+in your XFILESEARCHPATH environment variable and /usr/local/icons/%B
+in your XBMLANGPATH environment variable.
+(and have /usr/local/bin in your path of course! :-)
+
+I am working on an autoconf script to make the business of compiling
+and installing privtool easier, now that there are so many options
+to worry about. (Motif/XView, pgptools/none, remailer/none etc.)
+
+Glenn Trigg
+ggt@netspace.net.au
