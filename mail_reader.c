@@ -587,7 +587,7 @@ get_time (MESSAGE *m)
 	    strptime (m->date, "%d %b %y %T", &t);
     }
 
-    return timegm (&t);
+    return mktime (&t);
 }
 
 MESSAGE	*
