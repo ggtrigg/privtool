@@ -1,0 +1,85 @@
+.TH PRIVTOOL 1 "Development/Building" "Glenn Trigg" \" -*- nroff -*-
+.\"
+.de EX		\"Begin example
+.ne 5
+.if n .sp 1
+.if t .sp .5
+.nf
+.in +5n
+..
+.de EE		\"End example
+.fi
+.in -5n
+.if n .sp 1
+.if t .sp .5
+..
+.SH NAME
+privtool \- mail client with GUI and PGP support
+.SH SYNOPSIS
+.B privtool
+[-f mail_folder] [window system options]
+.SH DESCRIPTION
+.PP
+.B Privtool
+("Privacy Tool") is intended to be a PGP-aware replacement 
+for the standard Sun Workstation mailtool program, with a similar user 
+interface and automagick support for PGP-signing and PGP-encryption. Just 
+to make things clear, I have written this program from scratch, it is
+.B not
+a modified mailtool.
+.PP
+.B Privtool
+currently provides a choice of three different user interfaces (chosen
+at compile time) which are XView, Motif or Gtk+. It also supports
+three different methods of achieving public key encryption & signing.
+These are PGP, PGPTools library or GnuPG. 
+.PP
+When the program starts up, it displays a list of messages in your 
+mailbox, along with flags to indicate whether messages are signed 
+or encrypted, and if they have had their signatures verified or 
+have been decrypted.
+.PP
+When you double click on a message, it will be decrypted (requesting
+your passphrase if neccesary), and/or will have the signature checked,
+and the decrypted message will be displayed in the top part of the
+display window, with signature information in the bottom part. The
+mail header is not displayed, but can be read by pressing the 'Header'
+button to display the header window. In addition, the program has
+support for encrypted mailing list feeds, and if the decrypted
+message includes another standard-format message it will replace
+the original message and be fed back into the display processing
+chain.
+.PP
+When composing a message or replying to one, the compose window has
+several check-boxes, including one for signature, and one for
+encryption. If these are selected, then the message will be automatically
+encrypted and/or signed (requesting your passphrase when neccesary) before
+it is sent. You may also select a 'Remail' box, which will use the
+Mixmaster anonymous remailer client program to send the message through
+one or more remailers.
+.SH OPTIONS
+.PP
+.B Privtool
+is quite customisable through its user interface. It does, however,
+understand one option apart from any options which get interpreted
+by the windowing system being used.
+.PP
+.TP 15
+.I \-f <mail_folder>
+specify the initial mail folder to load.
+.SH BUGS
+.PP
+No MIME, IMAP, or POP support.
+.PP
+Please report any problems to the current maintainer, Glenn Trigg, at
+.IR <ggt@linuxfan.com> .
+.SH NOTES
+More extensive documentation is provided in html format as a part of
+this package.
+.SH AUTHOR
+Initial work was performed by Mark Grant
+.IR <mark@unicorn.com> .
+Motif and Gtk+ interfaces were writted by Glenn Trigg
+.IR <ggt@linuxfan.com> .
+.SH SEE ALSO
+.BR mail (1).
