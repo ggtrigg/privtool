@@ -9,6 +9,7 @@ CFLAGS =	@CFLAGS@ @X_CFLAGS@
 CPPFLAGS =	@CPPFLAGS@ @DEFS@ -I$(srcdir) @gui_cpp@ @os_cpp@
 LDFLAGS =	@LDFLAGS@
 LDLIBS =	@LIBS@ @X_PRE_LIBS@ @X_EXTRA_LIBS@
+AUTODEP =	@AUTODEP@
 
 INSTALL =	@INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -49,7 +50,7 @@ $(DIRS):
 .PHONY:		clean
 
 clean:
-		$(RM) privtool $(OBJS)
+		$(RM) privtool $(OBJS) $(DEPS)
 
 TAGS:		$(SOURCE)
 		etags $(SOURCE)
@@ -57,9 +58,31 @@ TAGS:		$(SOURCE)
 tags:		$(SOURCE)
 		ctags $(SOURCE)
 
+ifeq ($(AUTODEP),)
 depend:		.depend
 
 .depend:	$(SOURCE)
 		$(CC) $(CFLAGS) $(CPPFLAGS) -M $(SOURCE) > .depend
 
 include .depend
+
+else
+
+AUTODEP_DIR =	.autodep
+AUTODEP +=	-o $(AUTODEP_DIR)/%f.dep
+DEPS =		$(patsubst %.o,$(AUTODEP_DIR)/%.dep,$(OBJS))
+
+depend:
+		@echo "No need to \"make $@\", autodep does this automatically."
+$(AUTODEP_DIR):
+		@mkdir -p $(AUTODEP_DIR)
+
+%.o:	%.c
+		$(AUTODEP) $(COMPILE.c) -o $@ $<
+
+-include $(DEPS)
+
+endif
+
+pppp:
+	: $(DEPS)

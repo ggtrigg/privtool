@@ -300,6 +300,14 @@ else
   AC_MSG_ERROR(lpr executable not found.)
 fi
 
+AC_PATH_PROG(AUTODEP, autodep,
+  NOT_FOUND,
+  /usr/bin /bin /usr/local/bin /usr/ucb)
+if test ${AUTODEP} = "NOT_FOUND"; then
+  AC_MSG_ERROR(autodep executable not found.)
+  AUTODEP=''
+fi
+
 if test ${TRY_MIXMASTER} -gt 0; then
   AC_PATH_PROG(MIXEXEC, mixmaster,
   NOT_FOUND,
@@ -431,6 +439,7 @@ fi
 
 AC_SUBST(gui_source)
 AC_SUBST(gui_cpp)
+AC_SUBST(AUTODEP)
 
 dnl Checking for -lXit:
 if test ${HAVE_MOTIF} -gt 0 -a ${TRY_XIT} -gt 0; then
