@@ -16,10 +16,34 @@
 #include	<X11/StringDefs.h>
 #include	<X11/Shell.h>
 #include	<X11/ShellP.h>
+#include	<Xm/Xm.h>
+#include	<Xm/Container.h>
+#include	<Xm/IconG.h>
 #include	"m_util.h"
 #include	"debug.h"
+#include	"pixmapcache.h"
 
 static char	*GenFullName(Widget widget, int size, char *(*name_func)());
+static Boolean	cvtStringToPixmap(Display *, XrmValuePtr, Cardinal *,
+				  XrmValuePtr, XrmValuePtr, XtPointer *);
+
+#define	done(type, value)					\
+	{							\
+	    if (toVal->addr != NULL) {				\
+		if (toVal->size < sizeof(type)) {		\
+		    toVal->size = sizeof(type);			\
+		    return False;				\
+		}						\
+		*(type*)(toVal->addr) = (value);		\
+	    }							\
+	    else {						\
+		static type static_val;				\
+		static_val = (value);				\
+		toVal->addr = (XPointer)&static_val;		\
+	    }							\
+	    toVal->size = sizeof(type);				\
+	    return True;					\
+	}
 
 /*----------------------------------------------------------------------*/
 
@@ -27,7 +51,7 @@ char *
 FullName(Widget	widget)
 {
     return GenFullName(widget, 0, XtName);
-}
+} /* FullName */
 
 /*----------------------------------------------------------------------*/
 
@@ -35,7 +59,7 @@ String
 ClassNameFromWClass(WidgetClass class)
 {
     return class->core_class.class_name;
-}
+} /* ClassNameFromWClass */
 
 /*----------------------------------------------------------------------*/
 
@@ -48,7 +72,7 @@ ClassName(Widget widget)
     else{
 	return widget->core.widget_class->core_class.class_name;
     }
-}
+} /* ClassName */
 
 /*----------------------------------------------------------------------*/
 
@@ -56,7 +80,7 @@ char *
 FullClassName(Widget widget)
 {
     return GenFullName(widget, 0, ClassName);
-}
+} /* FullClassName */
 
 /*----------------------------------------------------------------------*/
 
@@ -83,7 +107,7 @@ GenFullName(Widget widget, int size, char *(*name_func)())
 	buf[0] = '\0';
     }
     return buf;
-}
+} /* GenFullName */
 
 /*----------------------------------------------------------------------*/
 
@@ -108,20 +132,59 @@ GetResourceString(Widget w, char *iname, char *iclass)
 
 /*----------------------------------------------------------------------*/
 
-#if 1
 void
-AddConverters()
+AddConverters(Widget toplevel)
 {
+    XtConvertArgRec	convertArg[5];
+
     DEBUG1(("AddConverters\n"));
 
-    XtSetTypeConverter(XtRString, XtRPixmap,
-		       (XtTypeConverter)cvtStringToPixmap,
-		       NULL, 0, XtCacheByDisplay|XtCacheRefCount, NULL);
-}
+    /* Initialization of IconGadget to force the Motif converter
+       to be loaded before ours. */
+    XtInitializeWidgetClass(xmIconGadgetClass);
 
-void
-cvtStringToPixmap()
+    convertArg[0].address_mode = XtWidgetBaseOffset;
+    convertArg[0].address_id = 0;
+    convertArg[0].size = sizeof(Widget);
+
+    XtSetTypeConverter(XtRString, XmRDynamicPixmap,
+		       (XtTypeConverter)cvtStringToPixmap,
+		       convertArg, 1, XtCacheByDisplay|XtCacheRefCount, NULL);
+    XtSetTypeConverter(XtRString, XmRLargeIconPixmap,
+		       (XtTypeConverter)cvtStringToPixmap,
+		       convertArg, 1, XtCacheByDisplay|XtCacheRefCount, NULL);
+    XtSetTypeConverter(XtRString, XmRSmallIconPixmap,
+		       (XtTypeConverter)cvtStringToPixmap,
+		       convertArg, 1, XtCacheByDisplay|XtCacheRefCount, NULL);
+} /* AddConverters */
+
+/*----------------------------------------------------------------------*/
+
+static Boolean
+cvtStringToPixmap(Display *display, XrmValuePtr args, Cardinal *num_args,
+		  XrmValuePtr fromVal, XrmValuePtr toVal,
+		  XtPointer *converter_data)
 {
-    fprintf(stderr, "In cvtStringToPixmap\n");
-}
-#endif
+    char	*name = (char *)fromVal->addr;
+    Widget	w;
+    Pixel	fg, bg;
+    Pixmap	pixmap;
+
+    DEBUG1(("In cvtStringToPixmap (converting %s)\n", name));
+
+    if(*num_args < 1){
+	XtErrorMsg("wrongParameters","cvtStringToPixmap","XtToolkitError",
+		   "String to Pixmap conversion needs 1 argument.",
+		   (String *)NULL, (Cardinal *)NULL);
+
+	return False;
+    }
+
+    w = (Widget)(args[0].addr);
+    XtVaGetValues(w, XmNforeground, &fg, XmNbackground, &bg,
+		  NULL);
+    if((pixmap = get_cached_pixmap(w, name, NULL)) == 0){
+	pixmap = XmGetPixmap(XtScreen(w), name, fg, bg);
+    }
+    done(Pixmap, pixmap);
+} /* cvtStringToPixmap */

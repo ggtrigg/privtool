@@ -60,17 +60,19 @@ cache_pixmap_from_data(char **data, char *name)
 /*----------------------------------------------------------------------*/
 
 Pixmap
-get_cached_pixmap(Widget w, char *name)
+get_cached_pixmap(Widget w, char *name, Pixmap *arm_pixmap)
 {
     int		i;
     PMCEntry	*entry;
     Pixmap	pixmap, mask;
-    char	*bgnd;
+    Pixmap	armap, armask;
+    char	*bgnd, *arm;
 
     if(first_entry == NULL)
 	return 0;
 
     bgnd = GetResourceString(w, "background", "Background");
+    arm = GetResourceString(w, "armColor", "ArmColor");
 
     for(entry = first_entry; entry != NULL; entry = entry->next){
 	if(!strcmp(name, entry->name)){
@@ -92,6 +94,18 @@ get_cached_pixmap(Widget w, char *name)
 					&pixmap,
 					&mask,
 					NULL);
+	    if(arm){
+		free(entry->image->colorTable[i].c_color);
+		entry->image->colorTable[i].c_color = strdup(arm);
+		XpmCreatePixmapFromXpmImage(XtDisplayOfObject(w),
+					    RootWindowOfScreen(XtScreenOfObject(w)),
+					    entry->image,
+					    &armap,
+					    &armask,
+					    NULL);
+		if(arm_pixmap != NULL)
+		    *arm_pixmap = armap;
+	    }
 	    return pixmap;
 	}
     }

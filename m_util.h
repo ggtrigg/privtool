@@ -18,6 +18,6 @@ char		*FullClassName(Widget);
 char		*ClassName(Widget);
 char		*ClassNameFromWClass(WidgetClass);
 char		*GetResourceString(Widget w, char *name, char *class);
-void		cvtStringToPixmap(void);
+void		AddConverters(Widget toplevel);
 
 #endif /* _M_UTIL_H */

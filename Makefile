@@ -12,7 +12,7 @@
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
 #DISPLAY_OBJECT = x.o xprops.o
-DISPLAY_OBJECT = motif.o mfolder.o pixmapcache.o m_util.o
+DISPLAY_OBJECT = motif.o mfolder.o mprops.o pixmapcache.o m_util.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!

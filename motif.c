@@ -37,6 +37,7 @@
 #include	"motif_protos.h"
 #include	<Xm/AtomMgr.h>
 #include	<Xm/CSText.h>
+#include	<Xm/CSTextP.h>
 #include	<Xm/CascadeB.h>
 #include	<Xm/CascadeBG.h>
 #include	<Xm/ComboBox.h>
@@ -66,6 +67,7 @@
 #include	<X11/Xmu/Editres.h>
 #include	<Xbae/Caption.h>
 #include	"mfolder.h"
+#include	"mprops.h"
 #include	"LiteClue.h"
 #include	"pixmapcache.h"
 #include	"m_util.h"
@@ -79,6 +81,8 @@
 #include	"delete.xpm"
 #include	"undelete.xpm"
 #include	"folderwin.xpm"
+#include	"letter.xpm"
+#include	"dir.xpm"
 
 extern char		*our_userid;
 
@@ -192,6 +196,7 @@ static void		addkey_proc(Widget, XtPointer, XtPointer);
 static void		attach_proc(Widget, XtPointer, XtPointer);
 static void		hide_addkey();
 static void		hide_attach();
+static void		props_proc(Widget, XtPointer, XtPointer);
 
 static XtActionsRec actions[] = {
     {"view", (XtActionProc)viewAC},
@@ -902,6 +907,8 @@ setup_ui(int level, int argc, char **argv)
     strcat(title, prog_ver);
     XtVaSetValues(toplevel_, XmNtitle, title, NULL);
 
+    AddConverters(toplevel_);
+
     /* Shell for toolbar "bubble" help */
     liteClue_ = XtVaCreatePopupShell( "LiteClue_shell",
 				     xcgLiteClueWidgetClass,
@@ -912,8 +919,8 @@ setup_ui(int level, int argc, char **argv)
     cache_pixmap_from_data(delete_xpm, "delete.xpm");
     cache_pixmap_from_data(undelete_xpm, "undelete.xpm");
     cache_pixmap_from_data(folderwin_xpm, "folderwin.xpm");
-    cache_pixmap_from_data(undelete_xpm, "dir.xpm");
-    cache_pixmap_from_data(folderwin_xpm, "letter.xpm");
+    cache_pixmap_from_data(dir_xpm, "dir.xpm");
+    cache_pixmap_from_data(letter_xpm, "letter.xpm");
 
     /* Add editres protocol support */
     XtAddEventHandler(toplevel_, 0, True, _XEditResCheckMessages, NULL);
@@ -1569,20 +1576,13 @@ create_toolbar_button(Widget parent, char *name,
 		      XtPointer clientdata)
 {
     Widget	btn;
-    Pixmap	pixmap;
 
     btn = XmCreatePushButton(parent, name, NULL, 0);
     XtManageChild(btn);
     XcgLiteClueAddWidget(liteClue_, btn, cluehelp, 0, 0);
     XtAddCallback(btn, XmNactivateCallback,
 		  callback, clientdata);
-    
-    if((pixmap = get_cached_pixmap(btn, GetResourceString(btn,
-							  "labelPixmap",
-							  "LabelPixmap")
-				   )) != 0){
-	XtVaSetValues(btn, XmNlabelPixmap, pixmap, NULL);
-    }
+
     return btn;
 } /* create_toolbar_button */
 
@@ -1594,20 +1594,13 @@ create_toolbar_toggle(Widget parent, char *name,
 		      XtPointer clientdata)
 {
     Widget	btn;
-    Pixmap	pixmap;
 
     btn = XmCreateToggleButton(parent, name, NULL, 0);
     XtManageChild(btn);
     XcgLiteClueAddWidget(liteClue_, btn, cluehelp, 0, 0);
     XtAddCallback(btn, XmNvalueChangedCallback,
 		  callback, clientdata);
-    
-    if((pixmap = get_cached_pixmap(btn, GetResourceString(btn,
-							  "labelPixmap",
-							  "LabelPixmap")
-				   )) != 0){
-	XtVaSetValues(btn, XmNlabelPixmap, pixmap, NULL);
-    }
+
     return btn;
 } /* create_toolbar_toggle */
 
@@ -1703,6 +1696,11 @@ create_edit_menu(Widget parent)
     XtManageChild (button_);
     XtAddCallback (button_, XmNactivateCallback,
 		   clearpp_proc, NULL);
+
+    button_ = XmCreatePushButtonGadget (menu_, "props", NULL, 0);
+    XtManageChild (button_);
+    XtAddCallback (button_, XmNactivateCallback,
+		   props_proc, NULL);
 } /* create_edit_menu */
 
 /*----------------------------------------------------------------------*/
@@ -2878,3 +2876,11 @@ toggleTbarCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	XtUnmanageChild(tbarframe_);
     }
 } /* toggleTbarCb */
+
+/*----------------------------------------------------------------------*/
+
+static void
+props_proc(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    show_props(toplevel_);
+} /* props_proc */

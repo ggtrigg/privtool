@@ -76,6 +76,10 @@
 *.menu_bar*showattach.mnemonic:		S
 *.menu_bar*clearpp.labelString:		Clear Passphrase
 *.menu_bar*clearpp.mnemonic:		P
+*.menu_bar*props.labelString:		Properties
+*.menu_bar*props.mnemonic:		e
+*.menu_bar*props.accelerator:		Ctrl<Key>e
+*.menu_bar*props.acceleratorText:	Ctrl-E
 
 !
 ! View menu items
@@ -434,6 +438,7 @@ Not a regular file.
 *.folderMain.scrollBarDisplayPolicy:	as_needed
 *.folderC*background:			white smoke
 *.folderC.selectionPolicy:		browse_select
+*.folderC.entryViewType:		large_icon
 *.folderC.spatialStyle:			cells
 *.folderC.spatialResizeModel:		grow_minor
 *.folderC.spatialSnapModel:		center
@@ -473,7 +478,7 @@ Not a regular file.
 !*compose*tbox.rightAttachment:			attach_form
 *compose*tbox.sign.labelString:			Sign
 *compose*tbox.XmToggleButton.indicatorOn:	indicator_check_box
-*compose*tbox.XmToggleButton.selectColor:	goldenrod
+*XmToggleButton.selectColor:			goldenrod
 *compose*tbox.encrypt.labelString:		Encrypt
 *compose*tbox.log.labelString:			Log
 *compose*tbox.raw.labelString:			Raw
@@ -503,3 +508,94 @@ Not a regular file.
 *.stext.cursorPositionVisible:			true
 
 *XmFileSelectionBox.resizePolicy:		resize_grow
+
+!
+! Properties window resources
+!
+?.props_popup.title:				Privtool - Properties
+
+*props.apply.labelString:			Apply
+*props.XmNotebook*XbaeMatrix.allowColumnResize:	True
+
+*props*XmTextField.background:			white smoke
+*props.XmNotebook.orientation:			vertical
+*props.XmNotebook.bindingType:			none
+*props.XmNotebook.backPagePlacement:		top_right
+*props.XmNotebook.backPageSize:			1
+*props.XmNotebook.backPageForeground:		lightsteelblue2
+*props.XmNotebook.backPageBackground:		lightsteelblue2
+
+*props.XmNotebook.guibtn.labelString:		User Interface
+*props.XmNotebook.aliasbtn.labelString:		Alias
+*props.XmNotebook.mailbtn.labelString:		Mail Filing
+*props.XmNotebook.pgpbtn.labelString:		Privtool
+*props.XmNotebook*XbaeMatrix.textBackground:	white smoke
+*props.XmNotebook*XbaeMatrix.gridType:		grid_shadow_in
+*props.XmNotebook*XmPushButton.alignment:	alignment_center
+
+!
+! GUI/Mail Filing page
+!
+*props.XmNotebook*dircap.labelString:		Mail File Directory
+*props.XmNotebook*menucap.labelString:		Initial Mail Menu
+*props.XmNotebook*menucap.labelPosition:	top
+*props.XmNotebook*menucap.labelAlignment:	left
+*props.XmNotebook*menugrid.columns:		1
+*props.XmNotebook*menugrid.columnWidths:	20
+*props.XmNotebook*menugrid.rows:		10
+*props.XmNotebook*menugrid.visibleRows:		10
+*props.XmNotebook*menuctrl.orientation:		horizontal
+
+!
+! Alias page
+!
+*props.XmNotebook*aliaspage.orientation:	horizontal
+*props.XmNotebook*aliasgrid.columns:		2
+*props.XmNotebook*aliasgrid.rows:		8
+*props.XmNotebook*aliasgrid.visibleRows:	8
+*props.XmNotebook*aliasgrid.columnWidths:	12, 40
+*props.XmNotebook*aliasgrid.columnLabels:	Name, Address
+
+*props.XmNotebook*add.labelString:		Add
+*props.XmNotebook*delete.labelString:		Delete
+*props.XmNotebook*from.labelString:		From
+*props.XmNotebook*from.set:			True
+*props.XmNotebook*subject.labelString:		Subject
+
+!
+! Pgp (Privtool) page
+!
+*props.XmNotebook*pgppage.XmRowColumn.orientation: horizontal
+*props.XmNotebook*pgpkeygrid.columns:		2
+*props.XmNotebook*pgpkeygrid.rows:		4
+*props.XmNotebook*pgpkeygrid.visibleRows:	4
+*props.XmNotebook*pgpkeygrid.columnWidths:	12, 40
+*props.XmNotebook*pgpkeygrid.columnLabels:	Name, Keyname
+*props.XmNotebook*pseudogrid.columns:		1
+*props.XmNotebook*pseudogrid.rows:		5
+*props.XmNotebook*pseudogrid.visibleRows:	5
+*props.XmNotebook*pseudogrid.columnWidths:	18
+*props.XmNotebook*pgpkeycap.labelString:	PGP Key Translations
+*props.XmNotebook*pgpkeycap.labelPosition:	top
+*props.XmNotebook*pgpkeycap.labelAlignment:	left
+*props.XmNotebook*pseudocap.labelString:	PGP Pseudonyms
+*props.XmNotebook*pseudocap.labelPosition:	top
+*props.XmNotebook*pseudocap.labelAlignment:	left
+*props.XmNotebook*dpcap.labelString:		Default Pseudonym
+*props.XmNotebook*gridsep.orientation:		vertical
+*props.XmNotebook*killcap.labelString:		Kill Mail Matching
+*props.XmNotebook*killcap.labelPosition:	top
+*props.XmNotebook*killcap.labelAlignment:	left
+*props.XmNotebook*killgrid.columns:		2
+*props.XmNotebook*killgrid.rows:		5
+*props.XmNotebook*killgrid.visibleRows:		5
+*props.XmNotebook*killgrid.columnWidths:	1,18
+*props.XmNotebook*killgrid.fixedColumns:	1
+*props.XmNotebook*pgppage*btnctrl.radioBehavior: True
+*props.XmNotebook*seccap.labelString:		Security Level
+*props.XmNotebook*intcap.labelString:		Test Interval (s)
+*props.XmNotebook*security.columns:		2
+*props.XmNotebook*interval.columns:		5
+*props.XmNotebook*security.spinBoxChildType:	numeric
+*props.XmNotebook*security.minimumValue:	1
+*props.XmNotebook*security.maximumValue:	4

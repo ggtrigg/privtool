@@ -1506,6 +1506,8 @@ try_again:
 				"Linux",
 #elif defined(__FreeBSD__)
 				"FreeBSD",
+#elif defined(__sgi)
+				"SGI",
 #else
 				"Unknown",
 #endif

@@ -14,6 +14,6 @@
 #define _PIXMAPCACHE_H
 
 void		cache_pixmap_from_data(char **data, char *name);
-Pixmap		get_cached_pixmap(Widget w, char *name);
+Pixmap		get_cached_pixmap(Widget w, char *name, Pixmap *);
 
 #endif /* _PIXMAPCACHE_H */
