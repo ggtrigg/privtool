@@ -1,0 +1,93 @@
+
+Compiling Privtool:
+
+I'm currently compiling Privtool on Linux using gcc to compile
+PGP Tools and Privtool. The Linux Makefile is set up by
+default to do this. The default Makefile is still for SunOS,
+using gcc to compile PGP Tools and cc for SunOS, however some 
+modifications to the PGP Tools header files are required to make them 
+compile. I added a second set of non-ansi prototypes to the headers and 
+used #ifdef NON_ANSI to select the appropriate variant.
+
+In order to run Privtool, you need a copy of PGP (it's been tested
+with 2.3a up to with 2.63i), and preferably a copy of PGP Tools. 
+
+In order to use the remailing facilities in Privtool, you will need
+a copy of the Mixmaster client program. You should give the path to
+the Mixmaster program in the MIXEXEC variable in the Makefile, and
+the path to the Mixmaster directory (where Privtool can find the
+type2.list file) in the MIXPATH variable in the Makefile. If you do
+not have Mixmaster, then leave these entries blank, and define
+NO_MIXMASTER in the Makefile.
+
+We also now support Premail for decoding incoming messages from nym
+accounts. If you have Premail installed then put the path in the PREMAILEXEC
+definition line in the Makefile, otherwise define NO_PREMAIL.
+
+Compiling with PGP Tools (default) :
+
+You need to set the PGPTOOLDIR line in the Makefile to the appropriate 
+directory for PGP Tools include files and libraries, and you need to
+compile all the PGP Tools objects other than ptd.o into a library,
+libpgptools.a. You also need to set PGPVERSION to the version number
+that will be used in signatures and encrypted messages. By default this
+is set to 2.6, but you can set it to whatever you desire.
+
+Finally, you should edit the PGPTOOLS= line in the Makefile to match
+the definitions you used when compiling PGP Tools, so that the header
+files will work correctly. Unless you are low on memory, you will want
+to leave in the -DUSE_HASH, which will keep a public key hash table in
+RAM and significantly reduce signature verification time if you have
+a large public key ring.
+
+If you have an audio device set up as /dev/audio, and no microphone
+connected, Privtool can use this to supplement its random number generation
+code with the physical randomness that the audio device generates. To
+enable this support, add -DUSE_AUDIO to the PGPTOOLS= line. If you have
+the /dev/random random number generator then you should add -DDEV_RANDOM
+to the PGPTOOLS= line. This is included by default with Linux and is
+safe to include even if you don't have the generator; the code will
+silently fail and simply use the old random number code.
+
+By default the code to read secret keys from floppy disk is disabled. To
+enable it simply uncomment the appropriate lines in the Makefile.
+
+Compiling without PGP Tools :
+
+Uncomment the empty PGPLDFLAGS= and PGPTOOLDIR= lines in the Makefile,
+and comment out the second set. Set PGPEXEC to the path for your PGP
+executable, ignore the PGPVERSION line (the version number of your
+executable will be used), comment out the PGPTOOLS= lines, and uncomment
+the empty PGPTOOLS= line.
+
+General Issues :
+
+I've never lost a mail message in the eighteen months I've been using Privtool,
+however you may wish to keep the -DSAFE in the CPPFLAGS line until you're
+sure that it's safe to remove it. This will keep a backup copy of your
+mailbox and mail save files each time Privtool updates them.
+
+Four compiler lines are given, one for gcc, one for cc (assumes that
+your copy of PGP Tools has been modified for NON_ANSI support), one
+for Linux (untested) and one for Solaris 2.x acc. Simply uncomment the 
+appropriate one and comment out the others. For simplicity I'm now
+providing seperate Makefiles for Linux and FreeBSD. The FreeBSD setup
+has only been lightly tested and may need some work.
+
+For the Linux version, we use Rich Salz's parsedate() function, included
+in the linux subdirectory. See the COPYRIGHT file in that directory for
+more information.
+
+Finally, if you have your OpenWindows libaries in a standard place that the
+compiler will find, then uncomment the empty OPENWINLDFLAGS= and
+OPENWINCPPFLAGS= lines and comment out the others, otherwise set the
+value of OPENWINHOME to the appropriate directory.
+
+
+
+You should now be able to run make and compile the program. Some warnings will
+be given by ANSI compilers, but most are just due to the format of the
+icon files.
+
+
+

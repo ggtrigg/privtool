@@ -1,93 +1,115 @@
+ $Id$ -*-text-*-
 
-Compiling Privtool:
+	Privtool Beta Release
+	---------------------
 
-I'm currently compiling Privtool on Linux using gcc to compile
-PGP Tools and Privtool. The Linux Makefile is set up by
-default to do this. The default Makefile is still for SunOS,
-using gcc to compile PGP Tools and cc for SunOS, however some 
-modifications to the PGP Tools header files are required to make them 
-compile. I added a second set of non-ansi prototypes to the headers and 
-used #ifdef NON_ANSI to select the appropriate variant.
+Privtool ("Privacy Tool") is intended to be a PGP-aware replacement 
+for the standard Sun Workstation mailtool program, with a similar user 
+interface and automagick support for PGP-signing and PGP-encryption. Just 
+to make things clear, I have written this program from scratch, it is
+*not* a modified mailtool (and I hope that the Sun program code is much 
+cleaner than mine 8-) !). 
 
-In order to run Privtool, you need a copy of PGP (it's been tested
-with 2.3a up to with 2.63i), and preferably a copy of PGP Tools. 
+Compilation
+-----------
 
-In order to use the remailing facilities in Privtool, you will need
-a copy of the Mixmaster client program. You should give the path to
-the Mixmaster program in the MIXEXEC variable in the Makefile, and
-the path to the Mixmaster directory (where Privtool can find the
-type2.list file) in the MIXPATH variable in the Makefile. If you do
-not have Mixmaster, then leave these entries blank, and define
-NO_MIXMASTER in the Makefile.
+Privtool uses a configure script to produce a Makefile and config.h which
+will then compile a privtool that has the options you desire. The configure
+options which determine how privtool is compiled are described below.
 
-We also now support Premail for decoding incoming messages from nym
-accounts. If you have Premail installed then put the path in the PREMAILEXEC
-definition line in the Makefile, otherwise define NO_PREMAIL.
+The basic process for compilation is:
 
-Compiling with PGP Tools (default) :
+    configure <configure options>
+    make
+    su
+    make install
 
-You need to set the PGPTOOLDIR line in the Makefile to the appropriate 
-directory for PGP Tools include files and libraries, and you need to
-compile all the PGP Tools objects other than ptd.o into a library,
-libpgptools.a. You also need to set PGPVERSION to the version number
-that will be used in signatures and encrypted messages. By default this
-is set to 2.6, but you can set it to whatever you desire.
+Configure Options
+-----------------
 
-Finally, you should edit the PGPTOOLS= line in the Makefile to match
-the definitions you used when compiling PGP Tools, so that the header
-files will work correctly. Unless you are low on memory, you will want
-to leave in the -DUSE_HASH, which will keep a public key hash table in
-RAM and significantly reduce signature verification time if you have
-a large public key ring.
+Running "configure --help" will give a summary of all the recognised
+configure options. The privtool specific options are:
 
-If you have an audio device set up as /dev/audio, and no microphone
-connected, Privtool can use this to supplement its random number generation
-code with the physical randomness that the audio device generates. To
-enable this support, add -DUSE_AUDIO to the PGPTOOLS= line. If you have
-the /dev/random random number generator then you should add -DDEV_RANDOM
-to the PGPTOOLS= line. This is included by default with Linux and is
-safe to include even if you don't have the generator; the code will
-silently fail and simply use the old random number code.
+  --with-gtk
+  --with-motif[=DIR]
+  --with-xview[=DIR]
+       These options specify which user interface to use. The --with-motif
+       and --with-xview options can take a directory specification indicating
+       the installed directory for the toolkit.
 
-By default the code to read secret keys from floppy disk is disabled. To
-enable it simply uncomment the appropriate lines in the Makefile.
+  --with-pgptools[=DIR]
+  --with-pgp[=prog]
+       Options to specify how privtool will perform its public key
+       encryption & signing. If the pgptools library is specified its
+       installed directory can also be entered. The --with-pgp option
+       can be "pgp" or "gpg", if neither is specified then configure
+       will try to find one or the other.
 
-Compiling without PGP Tools :
+  --with-mixmaster[=DIR]
+       Specify that anonymous remailing functionality is required, optionally
+       indicating the installed directory of mixmaster.
 
-Uncomment the empty PGPLDFLAGS= and PGPTOOLDIR= lines in the Makefile,
-and comment out the second set. Set PGPEXEC to the path for your PGP
-executable, ignore the PGPVERSION line (the version number of your
-executable will be used), comment out the PGPTOOLS= lines, and uncomment
-the empty PGPTOOLS= line.
+  --with-mixpath=DIR
+       Specify the remailers working directory. The path is not optional
+       this time.
 
-General Issues :
+  --with-premail[=DIR]
+       Specify that premail functionality is required and optionally the
+       premail installed path.
 
-I've never lost a mail message in the eighteen months I've been using Privtool,
-however you may wish to keep the -DSAFE in the CPPFLAGS line until you're
-sure that it's safe to remove it. This will keep a backup copy of your
-mailbox and mail save files each time Privtool updates them.
+  --with-xit[=DIR]
+       This was an internal Motif development support tool at a place where
+       I no longer work. You're not likely to see this - ignore this option.
 
-Four compiler lines are given, one for gcc, one for cc (assumes that
-your copy of PGP Tools has been modified for NON_ANSI support), one
-for Linux (untested) and one for Solaris 2.x acc. Simply uncomment the 
-appropriate one and comment out the others. For simplicity I'm now
-providing seperate Makefiles for Linux and FreeBSD. The FreeBSD setup
-has only been lightly tested and may need some work.
+  --enable-floppy=FLOPPY_DEV
+       Enable support for reading key from floppy on the device FLOPPY_DEV.
 
-For the Linux version, we use Rich Salz's parsedate() function, included
-in the linux subdirectory. See the COPYRIGHT file in that directory for
-more information.
+  --enable-xmailer
+       Specify that the X-mailer header line is inserted in outgoing mail
+       headers.
 
-Finally, if you have your OpenWindows libaries in a standard place that the
-compiler will find, then uncomment the empty OPENWINLDFLAGS= and
-OPENWINCPPFLAGS= lines and comment out the others, otherwise set the
-value of OPENWINHOME to the appropriate directory.
+  --enable-safemode
+       Enable safe mode. (Keeps a copy of your mail file when saving.)
 
+  --enable-mailspool=DIR
+       Specify the mail spool directory (if necessary). Privtool will
+       use /var/spool/mail as a default but on systems which use a different
+       mail spool directory this can be used. Also note that individual
+       privtool users can specify their mail spool file using the
+       properties window (in Gtk only) or using the MAIL environment.
 
+  --enable-audio
+       Specify use of /dev/audio for random byte source.
 
-You should now be able to run make and compile the program. Some warnings will
-be given by ANSI compilers, but most are just due to the format of the
-icon files.
+  --enable-random
+       Specify use of /dev/random for random byte source. This will be
+       automatically searched for.
 
+  --with-x
+       Use the X Window System, specifying one of the first three options
+       implies this.
 
+  --with-gtk-prefix=PFX
+       Prefix where GTK is installed (optional).
 
+  --with-gtk-exec-prefix=PFX
+       Exec prefix where GTK is installed (optional).
+
+  --disable-gtktest
+       Do not try to compile and run a test GTK program.
+
+Installing Privtool
+-------------------
+
+The make install target is specific to the Gtk version at the moment. This
+version of privtool is a stand-alone executable and a minimum install
+would be to simply move this executable to a bin directory somewhere.
+The install target also installs the man page and a gtkrc file which
+reflects my personal preferences for colours and fonts.
+
+Running Privtool
+----------------
+
+Just run it! Seriously, the user guide for the Motif and Gtk versions
+can be found in the doc_motif & doc_gtk directories. User instructions
+for the XView version are in README.orig.
