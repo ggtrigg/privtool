@@ -33,6 +33,7 @@
 *.menu_bar*copy.sensitive:		false
 *.menu_bar*delete.labelString:		Delete
 *.menu_bar*undelete.labelString:	Undelete
+*.menu_bar*undel_last.labelString:	Undelete Last
 *.menu_bar*clearpp.labelString:		Clear Passphrase
 *.menu_bar*clearpp.sensitive:		false
 
@@ -60,7 +61,6 @@
 !
 ! Toolbar stuff
 !
-*toolbar.shadowThickness: 		2
 *toolbar.XmPushButtonGadget.highlightThickness: 1
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
@@ -81,9 +81,25 @@
 *.XmTextField.fontList:		fixed
 *.XmText.fontList:		fixed
 
-*.msg.editable:				false
-*.msg.cursorPositionVisible:		false
-*.msg.traversalOn:			false
+!
+! Message area attachments etc.
+!
+*.msgform.XmTextField.editable:			false
+*.msgform.XmTextField.cursorPositionVisible:	false
+*.msgform.XmTextField.traversalOn:		false
+*.msgform.XmTextField.topAttachment:		attach_form
+*.msgform.XmTextField.bottomAttachment:		attach_form
+*.msgform.msg1.leftAttachment:			attach_form
+*.msgform.msg1.rightAttachment:			attach_position
+*.msgform.msg1.rightPosition:			50
+*.msgform.msg2.leftAttachment:			attach_widget
+*.msgform.msg2.leftWidget:			msg1
+*.msgform.msg2.leftOffset:			-2
+*.msgform.msg2.rightAttachment:			attach_form
+
+*.frame.shadowType:				shadow_out
+*.msgframe.shadowType:				shadow_out
+*.toolframe.shadowType:				shadow_out
 
 *.msgtext.columns:			80
 *.msgtext.rows:				24
