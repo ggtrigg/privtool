@@ -106,6 +106,7 @@ typedef struct {
     GtkWidget	*record;		/* record */
     GtkWidget	*badbeep;		/* nobeepbadsig */
     GtkWidget	*sigfile;		/* signature file */
+    GtkWidget	*wrapcol;		/* wrap column */
 } PropWidgets;
 
 static PropWidgets	propw;
@@ -329,6 +330,15 @@ proptop_cb(GtkWidget *w, gpointer data)
 	    remove_mailrc("indentprefix");
 	}
 
+	buf = gtk_entry_get_text(GTK_ENTRY(propw.wrapcol));
+	if(*buf != '\0') {
+	    fprintf(nprivrc, "set wrapmargin=%s\n", buf);
+	    replace_mailrc("wrapmargin", buf);
+	}
+	else {
+	    remove_mailrc("wrapmargin");
+	}
+
 	buf = gtk_entry_get_text(GTK_ENTRY(propw.organizn));
 	if(*buf != '\0') {
 	    fprintf(nprivrc, "set organization='%s'\n", buf);
@@ -444,6 +454,7 @@ proptop_cb(GtkWidget *w, gpointer data)
 		(strncmp(buf2, "set record=", 11) != 0) &&
 		(strncmp(buf2, "set sigfile=", 12) != 0) &&
 		(strncmp(buf2, "set filemenu2=", 14) != 0) &&
+		(strncmp(buf2, "set wrapmargin=", 15) != 0) &&
 		(strncmp(buf2, "set defaultusereplyto", 17) != 0) &&
 		(strncmp(buf2, "set defaultusefrom", 17) != 0) &&
 		(strncmp(buf2, "set nodefaultsign", 17) != 0) &&
@@ -646,7 +657,7 @@ create_compose_page()
     GtkItemFactory	*ifactory;
 
     vbox = gtk_vbox_new(FALSE, 0);
-    table = gtk_table_new(5, 2, FALSE);
+    table = gtk_table_new(5, 4, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, TRUE, 4);
 
     align = gtk_alignment_new(1, 0.5, 0, 0);
@@ -657,7 +668,7 @@ create_compose_page()
     gtk_widget_show(w);
     gtk_widget_show(align);
     propw.replyto = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.replyto, 1, 2, 0, 1,
+    gtk_table_attach(GTK_TABLE(table), propw.replyto, 1, 4, 0, 1,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(propw.replyto);
 
@@ -668,7 +679,7 @@ create_compose_page()
 		     GTK_FILL, 0, 4, 4);
     gtk_widget_show(w);
     propw.domain = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.domain, 1, 2, 1, 2,
+    gtk_table_attach(GTK_TABLE(table), propw.domain, 1, 4, 1, 2,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(align);
     gtk_widget_show(propw.domain);
@@ -686,6 +697,18 @@ create_compose_page()
     gtk_widget_show(propw.indent);
 
     align = gtk_alignment_new(1, 0.5, 0, 0);
+    w = gtk_label_new("Wrap Column");
+    gtk_container_add(GTK_CONTAINER(align), w);
+    gtk_table_attach(GTK_TABLE(table), align, 2, 3, 2, 3,
+		     GTK_FILL, 0, 4, 4);
+    gtk_widget_show(align);
+    gtk_widget_show(w);
+    propw.wrapcol = gtk_entry_new();
+    gtk_table_attach(GTK_TABLE(table), propw.wrapcol, 3, 4, 2, 3,
+		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
+    gtk_widget_show(propw.wrapcol);
+
+    align = gtk_alignment_new(1, 0.5, 0, 0);
     w = gtk_label_new("Log Folder Name");
     gtk_container_add(GTK_CONTAINER(align), w);
     gtk_table_attach(GTK_TABLE(table), align, 0, 1, 3, 4,
@@ -693,7 +716,7 @@ create_compose_page()
     gtk_widget_show(align);
     gtk_widget_show(w);
     propw.record = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.record, 1, 2, 3, 4,
+    gtk_table_attach(GTK_TABLE(table), propw.record, 1, 4, 3, 4,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(propw.record);
 
@@ -705,7 +728,7 @@ create_compose_page()
     gtk_widget_show(align);
     gtk_widget_show(w);
     propw.sigfile = gtk_entry_new();
-    gtk_table_attach(GTK_TABLE(table), propw.sigfile, 1, 2, 4, 5,
+    gtk_table_attach(GTK_TABLE(table), propw.sigfile, 1, 4, 4, 5,
 		     GTK_FILL|GTK_EXPAND, 0, 4, 4);
     gtk_widget_show(propw.sigfile);
 
@@ -1011,6 +1034,9 @@ load_compose_page()
 
     if( (rcval = find_mailrc("domain")) )
 	gtk_entry_set_text(GTK_ENTRY(propw.domain), rcval);
+
+    if( (rcval = find_mailrc("wrapmargin")) )
+	gtk_entry_set_text(GTK_ENTRY(propw.wrapcol), rcval);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(propw.comp_sign),
 			   !(int)find_mailrc("nodefaultsign"));
