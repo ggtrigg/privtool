@@ -3186,7 +3186,7 @@ int	add_key (BUFFER *m)
 #else
 	FILE	*temp_fp;
 	char	temp_name [PATH_MAX];
-	char	*argv[5];
+	char	*argv[6];
 	int	pgp_ret;
 #endif
 
@@ -3359,12 +3359,20 @@ int	add_key (BUFFER *m)
 	fclose (temp_fp);
 
 	/* So, it's now in the temporary file, call PGP */
-
+#ifdef HAVE_GNUPG
+	argv[0] = "gpg";
+	argv[1] = "--import";
+	argv[2] = "--batch";
+	argv[3] = "--no-tty";
+	argv[4] = temp_name;
+	argv[5] = NULL;
+#else
 	argv[0] = "pgp";
 	argv[1] = "-ka";
 	argv[2] = "+batchmode=on";
 	argv[3] = temp_name;
 	argv[4] = NULL;
+#endif
 
 	pgp_ret = run_pgp (NULL, 0, argv, NULL);
 
@@ -3387,14 +3395,25 @@ int	add_key (BUFFER *m)
 		return ADD_BAD_KEY;
 	}	
 
-	/* Check for new keys */
+	/* Check that there was something returned. */
+	if(stdout_messages.length <= 0)
+	    return ADD_OK;	/* Whet else to do? */
 
+	/* Check for new keys */
+#ifdef HAVE_GNUPG
+	if (strstr((char *)stdout_messages.message, "not changed"))
+#else
 	if (strstr((char *)stdout_messages.message,"No new keys"))
+#endif
 		return ADD_OLD_KEY;
 
 	/* Check for bad key */
 
+#ifdef HAVE_GNUPG
+	if (strstr((char *)stdout_messages.message, "no valid OpenPGP data found"))
+#else
 	if (strstr((char *)stdout_messages.message,"Keyring add error"))
+#endif
 		return ADD_BAD_KEY;
 
 	/* OK, if we get here, then it should have worked... */
