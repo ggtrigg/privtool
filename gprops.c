@@ -200,7 +200,7 @@ proptop_cb(GtkWidget *w, gpointer data)
     GtkWidget	*window = (GtkWidget *)data, *tgl;
     GList	*hdrlist;
     int		numrows, i;
-    char	*newname, *alias_name, *buf, buf2[BUFSIZ];
+    char	*newname, *alias_name, *buf, buf2[BUFSIZ], *temp;
     FILE	*nprivrc, *privrc;
     MAILRC	*m;
     DialogReason reason;
@@ -272,10 +272,15 @@ proptop_cb(GtkWidget *w, gpointer data)
 	    fprintf(nprivrc, "set mailspoolfile=%s\n", buf);
 	}
 
+	temp = find_mailrc("retrieveinterval");
 	buf = gtk_entry_get_text(GTK_ENTRY(propw.check_interval));
+	i = strcmp(temp, buf);
 	if(*buf != '\0') {
 	    fprintf(nprivrc, "set retrieveinterval=%s\n", buf);
 	    replace_mailrc("retrieveinterval", buf);
+	}
+	if(i) {
+	    mail_check_cb(0L);
 	}
 
 	buf = gtk_entry_get_text(GTK_ENTRY(propw.print_cmd));
