@@ -49,6 +49,7 @@ static void		destinationCb(Widget, XtPointer, XtPointer);
 static void		transferProc(Widget, XtPointer, XtPointer);
 static void		fix_container_size(Widget);
 static void		containerConvertCb(Widget, XtPointer, XtPointer);
+static void		cDragProc(Widget, XtPointer, XtPointer);
 
 static char		*fullfolder;
 static Widget		folderwin = NULL, container;
@@ -59,6 +60,7 @@ void
 show_mail_folders(Widget parent)
 {
     Widget	mainwin;
+    int		i;
 
     if(folderwin == NULL){
 	folderwin = XtVaCreatePopupShell("folder",
@@ -91,10 +93,18 @@ show_mail_folders(Widget parent)
 		      (XtCallbackProc) iconSelectCb, NULL);
 	XtAddCallback(container, XmNdestinationCallback,
 		      (XtCallbackProc) destinationCb, NULL);
+#if 0
 	XtAddCallback(container, XmNconvertCallback,
 		      (XtCallbackProc) containerConvertCb, NULL);
+#endif
 	XtAddEventHandler(mainwin, StructureNotifyMask, False,
 			  resizeCb, container);
+
+	i = 0;
+#if 0
+	XtSetArg(args[i], XmNdragProc, cDragProc); i++;
+	XmDropSiteUpdate(container, args, i);
+#endif
 
 	fillin_folders(container);
     }
@@ -143,12 +153,12 @@ process_dir(char *dirname)
     int			numkids, i;
     Widget		icon;
     WidgetList		kids;
-    Arg			args[6];
+    Arg			args[16];
     XmString		xname;
     DIR			*dirp;
     struct dirent	*de;
     struct stat		statbuf;
-    Pixmap		pixmap;
+    /*Pixmap		pixmap;*/
 
     if((dirp = opendir(dirname)) == NULL){
 	perror(dirname);
@@ -173,17 +183,19 @@ process_dir(char *dirname)
 	    continue;		/* No '..' if already at top of folder dir. */
 
 	xname = XmStringGenerate(de->d_name, NULL, XmCHARSET_TEXT, NULL);
-	XtSetArg(args[0], XmNlabelString, xname);
+	i = 0;
+	XtSetArg(args[i], XmNlabelString, xname); i++;
 
 	strcpy(pathname, dirname);
 	strcat(pathname, "/");
 	strcat(pathname, de->d_name);
 	stat(pathname, &statbuf);
-	XtSetArg(args[1], XmNuserData, (XtPointer)S_ISDIR(statbuf.st_mode));
+	XtSetArg(args[i], XmNuserData, (XtPointer)S_ISDIR(statbuf.st_mode)); i++;
 
 	icon = XmCreateIconGadget(container,
 				  (S_ISDIR(statbuf.st_mode))? "directory": "file",
 				  args, 2);
+
 #if 0
 	if((pixmap = get_cached_pixmap(icon,
 				       GetResourceString(icon,
@@ -338,12 +350,44 @@ closeCb(Widget w, XtPointer clientdata, XtPointer calldata)
 static void
 fix_container_size(Widget container)
 {
+    Widget		swin, hscroll;
     XtWidgetGeometry	curr;
+    WidgetList		cwids;
+    int			numcwids, i;
+    Dimension		width, height, shadowThickness, spacing, hsheight;
+    Position		x, y;
 
-    XtQueryGeometry(XtParent(container), NULL, &curr);
+    swin = XtParent(XtParent(container));
+    hscroll = XtNameToWidget(swin, ".HorScrollBar");
+    XtVaGetValues(hscroll, XmNheight, &hsheight, NULL);
+    XtVaGetValues(swin, XmNspacing, &spacing, XmNshadowThickness,
+		  &shadowThickness, NULL);
+    XtQueryGeometry(swin, NULL, &curr);
+    curr.width -= 2 * shadowThickness;
+    curr.height -= 2 * shadowThickness;
     XtVaSetValues(container, XmNwidth, curr.width,
 		  XmNheight, curr.height, NULL);
-    XmContainerRelayout(container);
+
+    XtVaGetValues(container, XmNchildren, &cwids,
+		  XmNnumChildren, &numcwids, NULL);
+
+    /* Find out if the window is too small to hold all icons. */
+    for(i = 0; i < numcwids; i++){
+	/* Skip non IconGadget's */
+	if(XtClass(cwids[i]) != xmIconGadgetClass)
+	    continue;
+	XtVaGetValues(cwids[i], XmNx, &x, XmNy, &y,
+		      XmNwidth, &width, XmNheight, &height, NULL);
+	if((x + width) <= 0 || (y+height) <= 0){
+	    break;
+	}
+    }
+    if(i < numcwids){
+	curr.height -= ((2 * spacing) + hsheight);
+	XtVaSetValues(container, XmNwidth, curr.width + 200,
+		      XmNheight, curr.height, NULL);
+    }
+    /*XmContainerRelayout(container);*/
 } /* fix_container_size */
 
 /*----------------------------------------------------------------------*/
@@ -353,15 +397,21 @@ destinationCb(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     XmDestinationCallbackStruct *cbs = (XmDestinationCallbackStruct *)calldata;
 
-    Atom	TARGETS = XmInternAtom(XtDisplay(w), XmSTARGETS, False);
-
     DEBUG1(("destinationCb: event = 0x%x\n", cbs->event));
     DEBUG2(("  selection = %s\n",
 	    XmGetAtomName(XtDisplay(w), cbs->selection)));
     DEBUG2(("  location_data = 0x%x (%s)\n",
 	    cbs->location_data, XtName(cbs->location_data)));
+
+    XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_SUCCEED);
+#if 0
+    /* Only process DnD transfers. */
+    if(cbs->selection != MOTIF_DROP)
+	return;
+
     XmTransferValue(cbs->transfer_id, TARGETS, (XtCallbackProc) transferProc,
 		    NULL, XtLastTimestampProcessed(XtDisplay(w)));
+#endif
 } /* destinationCb */
 
 /*----------------------------------------------------------------------*/
@@ -371,7 +421,10 @@ transferProc(Widget w, XtPointer clientdata, XtPointer calldata)
 {
     XmSelectionCallbackStruct *cbs = (XmSelectionCallbackStruct *)calldata;
 
-    DEBUG2(("transferProc: event = 0x%x\n", cbs->event));
+    DEBUG1(("transferProc: event = 0x%x\n", cbs->event));
+    DEBUG2(("  selection = %s\n",
+	    XmGetAtomName(XtDisplay(w), cbs->selection)));
+
     XmTransferDone(cbs->transfer_id, XmTRANSFER_DONE_FAIL);
 } /* transferProc */
 
@@ -442,3 +495,18 @@ containerConvertCb(Widget w, XtPointer clientdata, XtPointer calldata)
 	cbs->status = XmCONVERT_DEFAULT;
     }
 }
+
+/*----------------------------------------------------------------------*/
+
+static void
+cDragProc(Widget w, XtPointer clientdata, XtPointer calldata)
+{
+    XmDragProcCallbackStruct	*cbs = (XmDragProcCallbackStruct *)calldata;
+    Widget	cwid;
+
+    DEBUG2(("cDragProc\n"));
+
+    if((cwid = XmObjectAtPoint(w, cbs->x, cbs->y)) != NULL){
+	XtVaSetValues(cwid, XmNvisualEmphasis, XmSELECTED, NULL);
+    }
+} /* cDragProc */
