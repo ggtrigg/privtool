@@ -11,7 +11,7 @@
 
 - Implement drag-and-drop.
 
-- Implement undelete.
+- Implement undelete. - DONE
 
 - Check encrypted mail stuff.
 
@@ -22,3 +22,9 @@
 - Check leaks from XmString's.
 
 - More help?
+
+- All the alert windows.
+
+- More keyboard shortcuts?
+
+- Get the "hide deleted" mail working.
