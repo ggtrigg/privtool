@@ -70,8 +70,7 @@
 #include <X11/Xos.h>
 #endif
 
-#define int32	int
-
+#include "def.h"
 #include "mailrc.h"
 
 /* These really shouldn't be hard-coded. But, when this is ported to
@@ -96,7 +95,7 @@ extern 	LIST	mailrc;
 static	Panel	top_panel,alias_panel,file_panel,privtool_panel,priv2_panel;
 static	Panel	display_panel;
  
-static	Frame		props_frame=NULL;	 
+static	Frame		props_frame= (Frame) XV_NULL;	 
 static	Panel		panel;
 static 	Panel_item	alias_list,file_list,pgpkeyxlat_list,pgpnyms_list;
 static 	Panel_item	alias_text,address_text,dir_text,file_text,dir_num;
@@ -380,7 +379,7 @@ static 	void 	render_file_panel()
 		NULL);
 
 	file_text =  xv_create(file_panel,PANEL_TEXT,
-		PANEL_LABEL_STRING,"Permanet File:",
+		PANEL_LABEL_STRING,"Permanent File:",
 		PANEL_LABEL_WIDTH,font_size*14,
 		PANEL_VALUE_DISPLAY_LENGTH,30,
 		NULL);
@@ -1272,28 +1271,28 @@ Event		*event;
 	switch ((int) xv_get(item,PANEL_VALUE)) {
 
 		case 0:
-			if (alias_panel == NULL) render_alias_panel();
+			if (alias_panel == XV_NULL) render_alias_panel();
 			xv_set(alias_panel,XV_SHOW,TRUE,NULL);
 /*			window_fit_height(alias_panel);
 			window_fit_height(panel);
 			window_fit_height(props_frame); */
 			break;
 		case 1:
-			if (file_panel == NULL) render_file_panel();
+			if (file_panel == XV_NULL) render_file_panel();
 			xv_set(file_panel,XV_SHOW,TRUE,NULL);
 /* 			window_fit_height(file_panel);
 			window_fit_height(panel);
 			window_fit_height(props_frame); */
 			break;
 		case 2:
-			if (privtool_panel == NULL) render_privtool_panel();
+			if (privtool_panel == XV_NULL) render_privtool_panel();
 			xv_set(privtool_panel,XV_SHOW,TRUE,NULL);
 /*			window_fit_height(privtool_panel);
 			window_fit_height(panel);
 			window_fit_height(props_frame); */
 			break;
 		case 3:
-		        if (priv2_panel == NULL) render_priv2_panel();
+		        if (priv2_panel == XV_NULL) render_priv2_panel();
 			xv_set(priv2_panel,XV_SHOW,TRUE,NULL);
 /*			window_fit_height(priv2_panel);
 			window_fit_height(panel);
@@ -1322,10 +1321,10 @@ properties_proc()
 		PANEL_NOTIFY_PROC,	category_notify,
 		NULL);
 
-	file_panel  = NULL;
-	alias_panel = NULL;
-	privtool_panel = NULL;
-	priv2_panel = NULL;
+	file_panel  = XV_NULL;
+	alias_panel = XV_NULL;
+	privtool_panel = XV_NULL;
+	priv2_panel = XV_NULL;
 	
 	render_alias_panel();
 	window_fit_height(panel);
