@@ -1,12 +1,13 @@
 
 /*
- *	@(#)pgplib.c	1.51 3/5/96
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
  *	pgplib.c, (mostly) by Mark Grant 1993
  *
  *	Provides a basic interface to pgp and/or PGPTools.
  *
- *	Most parts (c) Copyright 1993-1994 by Mark Grant. All rights reserved.
+ *	Most parts (c) Copyright 1993-1996 by Mark Grant. All rights reserved.
  *	The author assumes no liability for damages resulting from the 
  *	use of this software, even if the damage results from defects in
  *	this software. No warranty is expressed or implied.
@@ -84,7 +85,7 @@ static	char	end_key [] = "\n-----END PGP PUBLIC KEY BLOCK-----";
 /* Use this routine if either your machine doesn't have strstr () or it's
    crap like it seems to be on SunOS */
 
-static	char	*strstr (s1, s2)
+static	char	*mystrstr (s1, s2)
 
 char	*s1;
 char	*s2;
@@ -630,7 +631,7 @@ byte	*trust;
 	/* Add it to the table */
 
 #ifdef USE_HASH
-	pgp_hash_put (id, (char *)userid, key, trust);
+	pgp_hash_put (id, (char *)userid, key, *trust);
 #endif
 
 	/* Tidy up */
@@ -1441,7 +1442,8 @@ byte	*md5_pass;
 
 					/* Need to skip to next packet */
 
-					pgp_examine_packet (inf, &t, &length);
+					pgp_examine_packet (inf, &t, 
+						(word32 *)&length);
 					fifo_skipn (inf, length);
 
 					break;
@@ -1552,7 +1554,8 @@ byte	*md5_pass;
 
 					/* Need to skip to next packet */
 
-					pgp_examine_packet (inf, &t, &length);
+					pgp_examine_packet (inf, &t, 
+						(word32 *)&length);
 					fifo_skipn (inf, length);
 
 					break;
@@ -2354,17 +2357,20 @@ byte	*md5_pass;
 	add_to_buffer(encrypted,stdout_messages.message,
 		stdout_messages.length);
 
-	if (strstr((char *)error_messages.message,"Error") && 
-		strstr((char *)error_messages.message,"Bad"))
+	if (error_messages.message != NULL &&
+	    strstr((char *)error_messages.message,"Error") && 
+	    strstr((char *)error_messages.message,"Bad"))
 		ret_val = ERR_BAD_PHRASE;
 
-	if (strstr((char *)error_messages.message,"Signature error")&&
-		strstr((char *)error_messages.message,"Keyring file")&&
-		strstr((char *)error_messages.message,"not exist")) {
+	if (error_messages.message != NULL &&
+	    strstr((char *)error_messages.message,"Signature error")&&
+	    strstr((char *)error_messages.message,"Keyring file")&&
+	    strstr((char *)error_messages.message,"not exist")) {
 		ret_val = ERR_NO_SECRET_KEY;
 	}
 
-	if (strstr((char *)error_messages.message,"not found")) {
+	if (error_messages.message != NULL &&
+	    strstr((char *)error_messages.message,"not found")) {
 		ret_val = ERR_NO_KEY;
 	}
 

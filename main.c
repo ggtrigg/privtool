@@ -1,8 +1,9 @@
 
 /*
- * %W% %G%
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	(c) Copyright 1993-1995 by Mark Grant, and by other
+ *	(c) Copyright 1993-1996 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -44,8 +45,16 @@
 char	default_mail_file[MAXPATHLEN];
 char    globRCfile[MAXPATHLEN];
 char    globRCbak[MAXPATHLEN];
+
+/* Currently open mail file */
+
 FILE	*mail_fp;
+
+/* Our user id, so that we don't have to call cuserid() all the time. */
+
 char	*our_userid;
+
+/* Various lists for mailrc entries */
 
 LIST	mailrc;
 LIST	alias;
@@ -58,9 +67,30 @@ LIST    template_list;
 LIST    template_list_fname;
 LIST	ignore;
 
+/* These store the group ids when we're running setgid mail */
+
+#ifdef SETGID
+gid_t	real_gid;
+gid_t	mail_gid;
+#endif
+
+/* Mail spool directory */
+
+#ifdef MAIL_SPOOL_DIR
+static	char	mail_spool_dir[] = MAIL_SPOOL_DIR;
+#else
+static	char	mail_spool_dir[] = "/var/spool/mail/";
+#endif
+
+/* This is the nym to use */
+
 static	char	*our_nym;
 
+/* This is the security level -- higher is more security */
+
 static	int	security_level = DEFAULT_SECURITY;
+
+/* These are the entries that we should strip quotes from */
 
 static	char	*strip_quotes[] = {
 
@@ -79,10 +109,14 @@ static	char	*strip_quotes[] = {
 	"filemenu2",
 	"templates",
 	"domain",
+	"organization",
+	"sigfile",
 	"replyto",
 	NULL,
 
 };
+
+/* Create a mailrc entry */
 
 MAILRC	*new_mailrc()
 
@@ -102,6 +136,8 @@ MAILRC	*new_mailrc()
 	return m;
 }
 
+/* Free a mailrc entry */
+
 void	free_mailrc(m)
 
 MAILRC	*m;
@@ -118,7 +154,7 @@ MAILRC	*m;
 	}
 }
 
-/* Clear list */
+/* Clear a list */
 
 void	clear_list(l)
 
@@ -142,11 +178,15 @@ LIST	*l;
 	l->end = NULL;
 }
 
+/* Clear the aliases list */
+
 void clear_aliases()
 
 {
 	clear_list (&alias);
 }
+
+/* Add an entry to a list */
 
 static	add_to_list(l,m)
 
@@ -193,6 +233,8 @@ MAILRC	*m;
 	l->start->prev = m;
 	l->start = m;
 }
+
+/* Add an entry to the PGP keys list */
 
 static	add_pgpkey(s)
 
@@ -823,7 +865,7 @@ char	*argv[];
 
 	/* Get our user id */
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
 /* cuserid:
    a) is obselete and replaced by getpwuid.
    b) returns the effective user id rather than the real one.
@@ -833,6 +875,14 @@ char	*argv[];
 	our_userid = getlogin();
 #else
 	our_userid = cuserid (0);
+#endif
+
+	/* Do all the SETGID stuff */
+
+#ifdef SETGID
+	real_gid = getgid ();
+	mail_gid = getegid ();
+	setegid (real_gid);
 #endif
 
 	/* Initialise pgp library */
@@ -865,13 +915,8 @@ char	*argv[];
 	    if (s)
 	      strcpy (default_mail_file, s);
 	    else {
-#if defined(__FreeBSD__) || defined (SVR4)
-	      sprintf(default_mail_file,"/var/mail/%s",
+	      sprintf(default_mail_file,"%s/%s", mail_spool_dir,
 		      cuserid(NULL));
-#else
-              sprintf(default_mail_file,"/var/spool/mail/%s",
-                      cuserid(NULL));
-#endif
 	    }
 	  }
 

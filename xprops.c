@@ -531,9 +531,9 @@ static 	void	load_alias ()
 		while(TRUE) {
 			p_buf=fgets(buf,BUFLEN,privrc);
 			if(!p_buf) break;
-			strcpy(str,strtok(p_buf," "));
+			strcpy(str,strtok(p_buf," \t"));
 			if (strncmp(str,"alias",strlen(str))==0) { 
-				strcpy(str,strtok(NULL," "));
+				strcpy(str,strtok(NULL," \t"));
 				strcat(str,"=");		
 				strcat(str,strtok(NULL,"\n"));
 				xv_set(alias_list,

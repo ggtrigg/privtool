@@ -1,8 +1,9 @@
 
 /*
- *	@(#)mail_reader.c	1.47 6/11/96
+ *	$RCSfile$	$Revision$ 
+ *	$Date$
  *
- *	(c) Copyright 1993-1995 by Mark Grant, and by other
+ *	(c) Copyright 1993-1996 by Mark Grant, and by other
  *	authors as appropriate. All right reserved.
  *
  *	The authors assume no liability for damages resulting from the 
@@ -57,6 +58,20 @@
 #include "buffers.h"
 #include "message.h"
 
+#ifdef SETGID
+
+/*
+ * If we're SETGID mail, then we changed to the real user id on startup
+ * and will need to change back to mail when we create a lock file or
+ * a temporary file. We will also need to do so if we want to create a
+ * new file. Currently we will only do this for lock and temp files, and
+ * assume that the mail file will already exist.
+ */
+
+extern	gid_t	real_gid;
+extern	gid_t	mail_gid;
+#endif
+
 /* Define line buffer sizes - this way either all routines will work ok,
    or none will */
 
@@ -71,6 +86,22 @@ static	int	read_only = FALSE;
 extern	char	default_mail_file [];
 extern	FILE	*mail_fp;
 extern	char	*our_userid;
+
+static	void	set_real ()
+
+{
+#ifdef SETGID
+	setegid (real_gid);
+#endif
+}
+
+static	void	set_mail ()
+
+{
+#ifdef	SETGID
+	setegid (mail_gid);
+#endif
+}
 
 #ifndef linux
 #ifdef SYSV
@@ -1257,10 +1288,12 @@ int	save_all;
 
 	/* Wait for lock file */
 
+	set_mail ();
 	while ((fd = creat(lock_file,0)) < 0) {
 		usleep (50000);
 	}
 	close (fd);
+	set_real ();
 
 	/* Ok, now let's try to open the mail file */
 
@@ -1271,7 +1304,9 @@ int	save_all;
 	   code */
 
 	if (!fp) {
+		set_mail ();
 		unlink (lock_file);
+		set_real ();
 		return -1;
 	}
 
@@ -1288,7 +1323,9 @@ int	save_all;
 	if (ferror (fp)) {
 		ftruncate (fileno(fp), l);
 		fclose (fp);
+		set_mail ();
 		unlink (lock_file);
+		set_real ();
 
 		return -1;
 	}
@@ -1296,7 +1333,9 @@ int	save_all;
 	/* Ok, we did it, so let's delete the lock file and return */
 
 	fclose (fp);
+	set_mail ();
 	unlink (lock_file);
+	set_real ();
 
 	return 0;
 }
@@ -1392,6 +1431,8 @@ int	save_changes ()
 	sprintf(save_file,"%s.save",last_file);
 #endif
 
+	set_mail ();
+
 	/* Wait for lock file */
 
 	while ((fd = creat(lock_file,0)) < 0) {
@@ -1399,14 +1440,16 @@ int	save_changes ()
 	}
 	close (fd);
 
-	/* Open the temporary file */
+	/* Open the temporary file. We need mail GID to do this. */
 
 	tmp_fp = fopen (tmp_file, "wt");
 	
 	if (!tmp_fp) {
 		unlink (lock_file);
+		set_real ();
 		return -1;
 	}
+	set_real ();
 
 	m = messages.start;
 
@@ -1436,8 +1479,11 @@ int	save_changes ()
 	fflush (tmp_fp);
 	if (ferror(tmp_fp)) {
 		fclose (tmp_fp);
+
+		set_mail ();
 		unlink (tmp_file);
 		unlink (lock_file);
+		set_real ();
 
 		return -1;
 	}
@@ -1448,6 +1494,7 @@ int	save_changes ()
 
 	/* Rename the temporary file to the real file */
 
+	set_mail ();
 #ifdef SAFE	
 	unlink (save_file);
 	rename (last_file, save_file);
@@ -1455,6 +1502,7 @@ int	save_changes ()
 	unlink (last_file);
 #endif
 	rename (tmp_file, last_file);
+	set_real ();
 
 	/*
 	** External mail notification programs like xbiff and xfaces come into
@@ -1470,7 +1518,9 @@ int	save_changes ()
 
 	/* Remove the lock file */
 
+	set_mail ();
 	unlink (lock_file);
+	set_real ();
 
 	return 0;
 }
