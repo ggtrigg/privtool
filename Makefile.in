@@ -1,6 +1,11 @@
 
 @SET_MAKE@
 
+prefix =	@prefix@
+exec_prefix =	@exec_prefix@
+bindir =	@bindir@
+datadir =	@datadir@
+
 srcdir =	@srcdir@
 VPATH =		@srcdir@:@srcdir@/liteclue:@srcdir@/linux
 
@@ -43,6 +48,11 @@ OBJS =		$(notdir $(SOURCE:%.c=%.o))
 
 privtool:	$(OBJS)
 		$(LINK.c) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+
+install:	privtool
+		$(INSTALL) -s -g mail -m 2755 privtool $(bindir)/
+		$(INSTALL) -d $(datadir)/gtk/privtool/
+		$(INSTALL_DATA) gtkrc $(datadir)/gtk/privtool/
 
 $(DIRS):
 		mkdir $@
