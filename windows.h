@@ -36,7 +36,9 @@ typedef struct _compose_window {
 	Panel_item	send_bcc_item;
 	Panel_item	compose_extra_headerlines[MAX_EXTRA_HEADERLINES];
 #else
-    Widget	deliver_frame;
+    Widget	deliver_frame, send_to, send_cc, send_subject;
+    Widget	send_bcc, text, sign, encrypt, log, raw, remail;
+    Widget	extra_headers[MAX_EXTRA_HEADERLINES];
 #endif
 
 	int	deliver_flags;

@@ -4,6 +4,7 @@
 
 !?.iconPixmap:				privtool.xpm
 *.background:				lightsteelblue2
+*.XcgLiteClue.background:		linen
 *.menu_bar*background:  		lightsteelblue3
 *.menu_bar*foreground:  		black
 
@@ -13,6 +14,8 @@
 *.menu_bar*edit.mnemonic:		E
 *.menu_bar*view.labelString:		View
 *.menu_bar*view.mnemonic:		V
+*.menu_bar*folder.labelString:		Folder
+*.menu_bar*folder.mnemonic:		d
 *.menu_bar*comp.labelString:		Compose
 *.menu_bar*comp.mnemonic:		C
 *.menu_bar*help.labelString:		Help
@@ -21,13 +24,11 @@
 !
 ! File menu items
 !
-*.menu_bar*load.labelString:		Load In-Box
-*.menu_bar*load.mnemonic:		L
+*.menu_bar*file_pane.load.labelString:	Load In-Box
+*.menu_bar*file_pane.load.mnemonic:	L
 *.menu_bar*save.labelString:		Save Changes
-*.menu_bar*save.sensitive:		false
 *.menu_bar*save.mnemonic:		S
 *.menu_bar*done.labelString:		Done
-*.menu_bar*done.sensitive:		false
 *.menu_bar*done.mnemonic:		D
 *.menu_bar*qwsav.labelString:		Save & Quit
 *.menu_bar*qwsav.mnemonic:		Q
@@ -39,10 +40,10 @@
 !
 *.menu_bar*cut.labelString:		Cut
 *.menu_bar*cut.mnemonic:		C
-*.menu_bar*copy.labelString:		Copy
-*.menu_bar*copy.mnemonic:		p
+*.menu_bar*edit_pane.copy.labelString:	Copy
+*.menu_bar*edit_pane.copy.mnemonic:	p
 *.menu_bar*cut.sensitive:		false
-*.menu_bar*copy.sensitive:		false
+*.menu_bar*edit_pane.copy.sensitive:	false
 *.menu_bar*delete.labelString:		Delete
 *.menu_bar*delete.mnemonic:		D
 *.menu_bar*undelete.labelString:	Undelete
@@ -67,6 +68,16 @@
 *.menu_bar*folders.mnemonic:		F
 
 !
+! Folder menu items
+!
+*.menu_bar*fold_pane.copy.labelString:	Copy to folder
+*.menu_bar*fold_pane.copy.mnemonic:	C
+*.menu_bar*fold_pane.move.labelString:	Move to folder
+*.menu_bar*fold_pane.copy.mnemonic:	M
+*.menu_bar*fold_pane.load.labelString:	Load folder
+*.menu_bar*fold_pane.copy.mnemonic:	L
+
+!
 ! Compose menu items
 !
 *.menu_bar*new.labelString:		New...
@@ -87,8 +98,9 @@
 !
 ! Toolbar stuff
 !
-*toolframe.traversalOn:			false
-*toolbar.XmPushButtonGadget.highlightThickness: 0
+*toolbar.XmPushButton.traversalOn: 	false
+*toolbar.XmToggleButton.traversalOn: 	false
+*toolbar.XmPushButton.highlightThickness: 0
 *toolbar.prev.labelType:		pixmap
 *toolbar.prev.labelPixmap:		prev.xpm
 *toolbar.next.labelType:		pixmap
@@ -103,10 +115,23 @@
 *toolbar.undelete.labelPixmap:		undelete.xpm
 *toolbar.undelete.leftAttachment:	attach_widget
 *toolbar.undelete.leftWidget:		delete
+*toolbar.folders.indicatorOn:		False
+*toolbar.folders.labelType:		pixmap
+*toolbar.folders.labelPixmap:		folderwin.xpm
+*toolbar.folders.leftAttachment:	attach_widget
+*toolbar.folders.leftWidget:		undelete
+*toolbar.combo.leftAttachment:		attach_none
+*toolbar.combo.rightAttachment:		attach_form
+*toolbar.combo.comboBoxType:		drop_down_combo_box
+*toolbar.combo*List.visibleItemCount:	5
 
-*.fontList:			-*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-1
-*.XmTextField.fontList:		fixed
-*.XmText.fontList:		fixed
+! Resources to make the sash sensible (combined with the ConfigureNotify
+! handling in the source).
+!
+*frame.panedwin.sashHeight:			3
+*frame.panedwin.sashIndent:			0
+*frame.panedwin.sashShadowThickness:		1
+*frame.panedwin.separatorOn:			false
 
 !
 ! Message area attachments etc.
@@ -128,8 +153,28 @@
 *.msgframe.shadowType:				shadow_out
 *.toolframe.shadowType:				shadow_out
 
-*.msgtext.columns:			80
-*.msgtext.rows:				24
+!
+! General Text & CSText resources.
+!
+*.XmCSText.columns:				80
+*.XmCSText.rows:				24
+*.XmCSText.background:				white smoke
+*.XmCSText.wordWrap:				true
+*.XmCSText.scrollHorizontal:			false
+*.XmCSText.editMode:				MULTI_LINE_EDIT
+*.XmCSText.editable:				false
+*.XmCSText.cursorPositionVisible:		false
+*.XmText.columns:				80
+*.XmText.rows:					24
+*.XmText.background:				white smoke
+*.XmText.wordWrap:				true
+*.XmText.scrollHorizontal:			false
+*.XmText.editMode:				MULTI_LINE_EDIT
+*.XmText.editable:				false
+*.XmText.cursorPositionVisible:			false
+
+*.XmList.background:				white smoke
+
 *.msgtext.translations: #override\n\
 <Key> space:		next-page()\n\
 <Key> b:		previous-page()\n\
@@ -140,11 +185,6 @@
 *slist.visibleItemCount:		5
 *slistSW.scrollingPolicy:		automatic
 
-*.XmText.editMode:				MULTI_LINE_EDIT
-*.XmText.editable:				false
-*.XmCSText.editable:				false
-*.XmText.cursorPositionVisible:			false
-?.XmCSText.cursorPositionVisible:		false
 *XmScrolledWindow.scrollingPolicy:		automatic
 *message.panedwin.hdrtextSW.positionIndex:	0
 *message.panedwin.hdrtextSW.paneMinimum:	80
@@ -155,8 +195,11 @@
 !
 ! Render table & renditions
 !
-?.labelRenderTable:		SMALL RED STRUCK BOLD BIG BLUE LIST HDR
-?.iconRenderTable:		SMALL RED STRUCK BOLD BIG BLUE LIST HDR
+?.buttonRenderTable:		SYSTEM RED BLUE STRUCK BOLD BIG HDR
+?.labelRenderTable:		SYSTEM RED BLUE STRUCK BOLD BIG HDR
+?.textRenderTable:		LIST RED BLUE STRUCK BOLD BIG HDR HDR_B HDR_U
+*.SYSTEM.fontName:		-*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-1
+*.SYSTEM.fontType:		font_is_font
 *.HDR.fontType:			font_is_font
 *.HDR.fontName:			-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_B.fontType:		font_is_font
@@ -164,18 +207,18 @@
 *.HDR_U.fontType:		font_is_font
 *.HDR_U.fontName:		-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
 *.HDR_U.underlineType:		single_line
+*.HDR_U.renditionForeground:	DarkGreen
 *.LIST.fontType:		font_is_font
 *.LIST.fontName:		6x13
-*.LIST_ST.fontType:		font_is_font
-*.LIST_ST.fontName:		6x13
-*.LIST_ST.strikethruType:	single_line
-*.LIST_B.fontType:		font_is_font
-*.LIST_B.fontName:		6x13bold
+*.LIST.tabList:			10fu
+*.BLUE.renditionForeground:	blue
+*.STRUCK.fontType:		font_is_font
+*.STRUCK.fontName:		6x13
+*.STRUCK.strikethruType:	single_line
+*.BOLD.fontType:		font_is_font
+*.BOLD.fontName:		6x13bold
 *.BIG.fontType:			font_is_font
 *.BIG.fontName:			-*-charter-bold-r-*-*-24-*-*-*-*-*-iso8859-1
-?.labelRenderTable*fontType:	font_is_font
-?.labelRenderTable.fontName:	-*-helvetica-medium-r-*-*-12-*-*-*-*-*-iso8859-1
-*.BLUE.renditionForeground:	blue
 
 !
 ! PassPhrase popup window resources.
@@ -253,8 +296,89 @@ Cannot be saved.
 !
 ! Folder manager resources
 !
+*ClipWindow*background:			white
 ?.folder.title:				Privtool - Folders
+?.folder.width:				230
+?.folder.height:			350
+*.folderMain.scrollingPolicy:		automatic
 *.folderC.fontList:			fixed
+*.folderC.background:			white
+*.folderC.spatialStyle:			cells
+*.folderC.spatialResizeModel:		grow_balanced
+*.folderC.spatialSnapModel:		center
+*.folderC.largeCellWidth:		70
 *.folderC.directory.largeIconPixmap:	dir.xpm
 *.folderC.file.largeIconPixmap:		letter.xpm
 *.folderC*shadowThickness:		0
+
+!
+! Folder window menu
+!
+*.folder_menu_bar*file.labelString:	File
+*.folder_menu_bar*file.mnemonic:	F
+*.folder_menu_bar*close.labelString:	Close
+*.folder_menu_bar*close.mnemonic:	C
+
+!
+! Compose window resources
+!
+*compose.width:					512
+*compose.height:				545
+?.compose.title:				Privtool - Compose
+*compose*OK.labelString:			Send
+*compose*ctrl.topAttachment:			attach_form
+*compose*ctrl.leftAttachment:			attach_form
+*compose*ctrl.rightAttachment:			attach_form
+*compose*ctrl.topOffset:			4
+*compose*ctrl.leftOffset:			4
+*compose*ctrl.rightOffset:			4
+*compose*tbox.orientation:			horizontal
+*compose*tbox.topAttachment:			attach_widget
+*compose*tbox.topWidget:			ctrl
+*compose*tbox.leftAttachment:			attach_form
+*compose*tbox.rightAttachment:			attach_form
+*compose*tbox.sign.labelString:			Sign
+*compose*tbox.encrypt.labelString:		Encrypt
+*compose*tbox.log.labelString:			Log
+*compose*tbox.raw.labelString:			Raw
+*compose*tbox.remail.labelString:		Remail
+*compose*stextSW.topAttachment:			attach_widget
+*compose*stextSW.topWidget:			tbox
+*compose*stextSW.leftAttachment:		attach_form
+*compose*stextSW.rightAttachment:		attach_form
+*compose*stextSW.bottomAttachment:		attach_form
+
+*compose.*.tolbl.leftAttachment:		attach_form
+*compose.*.tolbl.topAttachment:			attach_form
+*compose.*.tolbl.bottomAttachment:		attach_form
+*compose.*.to.leftAttachment:			attach_widget
+*compose.*.to.leftWidget:			tolbl
+*compose.*.to.rightAttachment:			attach_form
+*compose.*.to.topAttachment:			attach_form
+*compose.*.to.bottomAttachment:			attach_form
+*compose.*.subjlbl.leftAttachment:		attach_form
+*compose.*.subjlbl.topAttachment:		attach_form
+*compose.*.subjlbl.bottomAttachment:		attach_form
+*compose.*.subj.leftAttachment:			attach_widget
+*compose.*.subj.leftWidget:			subjlbl
+*compose.*.subj.rightAttachment:		attach_form
+*compose.*.subj.topAttachment:			attach_form
+*compose.*.subj.bottomAttachment:		attach_form
+*compose.*.cclbl.leftAttachment:		attach_form
+*compose.*.cclbl.topAttachment:			attach_form
+*compose.*.cclbl.bottomAttachment:		attach_form
+*compose.*.cc.leftAttachment:			attach_widget
+*compose.*.cc.leftWidget:			cclbl
+*compose.*.cc.rightAttachment:			attach_form
+*compose.*.cc.topAttachment:			attach_form
+*compose.*.cc.botomAttachment:			attach_form
+
+*compose*XmTextField.background:		white smoke
+
+*XbaeCaption.labelTextAlignment:		alignment_end
+*compose.*.tocap.labelString:			To:
+*compose.*.subjcap.labelString:			Subject:
+*compose.*.cccap.labelString:			CC:
+*compose.*.bcccap.labelString:			BCC:
+*.stext.editable:				true
+*.stext.cursorPositionVisible:			true

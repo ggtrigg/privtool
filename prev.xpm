@@ -1,7 +1,7 @@
 /* XPM */
 static char * prev_xpm[] = {
 "24 24 15 1 XPMEXT",
-" 	s background	c None",
+" 	s Background	c None",
 ".	c black",
 "X	c white",
 "o	c #717179798686",

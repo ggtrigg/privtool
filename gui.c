@@ -1487,15 +1487,22 @@ try_again:
 		if (!(deliver_flags & DELIVER_REMAIL)) {
 			char	*domain, *replyto, *organization;
 #ifdef MAILER_LINE
-			sprintf(buff,"Mailer: %s",prog_name);
-#ifdef linux
-			strcat (buff, "(Linux)");
+			sprintf(buff, "X-Mailer: %s [%s] (%s/%s)\n",
+				prog_name, prog_ver,
+#if defined(linux)
+				"Linux",
+#elif defined(__FreeBSD__)
+				"FreeBSD",
 #else
-#ifdef __FreeBSD__
-			strcat (buff, "(FreeBSD)");
+				"Unknown",
 #endif
+#ifdef MOTIF
+				"Motif"
+#else
+				"XView"
 #endif
-			strcat (buff, "\n");
+				);
+
 			add_to_buffer(mail_message,buff,strlen(buff));
 #endif
 

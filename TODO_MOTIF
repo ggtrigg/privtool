@@ -31,4 +31,5 @@
 
 - Implement the normal and new-mail icons.
 
-- Implement pixmap caching.
+- Implement pixmap caching. - DONE (Unless I decide to implement a
+				    pixmap converter.)

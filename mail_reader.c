@@ -612,6 +612,8 @@ MESSAGE	*m;
 #else
 #ifdef linux
 #define getdate(x) (parsedate((x),NULL))
+	if(m->header_date == NULL)
+	    return 0;
 	tmp = getdate (m->header_date);
 	t = localtime (&tmp);
 #else

@@ -12,7 +12,7 @@
 
 MAIL_OBJECT = mail_reader.o $(LINUX_OBJ)
 #DISPLAY_OBJECT = x.o xprops.o
-DISPLAY_OBJECT = motif.o mfolder.o
+DISPLAY_OBJECT = motif.o mfolder.o pixmapcache.o m_util.o
 
 #
 # WARNING: Currently the floppy code doesn't work properly !!!
@@ -35,7 +35,7 @@ FLOP_FILE =
 MAIL_SPOOL_DIR=
 
 OFILES = pgplib.o buffers.o $(MAIL_OBJECT) messages.o main.o gui.o \
-	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT)
+	$(DISPLAY_OBJECT) $(FLOPPY_OBJECT) liteclue/LiteClue.o
 
 #
 # Use the following lines if you don't have PGP Tools.
@@ -82,7 +82,7 @@ PGPVERSION=2.6
 
 OPENWINLDFLAGS=-L/usr/X11R6/lib
 OPENWINCPPFLAGS=-I/usr/X11R6/include
-OPENWINLIBS=-lXm -lXpm -lXext -lXmu -lXt -lX11
+OPENWINLIBS=-lXm -lXbae -lXpm -lXext -lXmu -lXt -lX11
 
 #OPENWINLDFLAGS=-L$(OPENWINHOME)/lib
 #OPENWINCPPFLAGS=-I$(OPENWINHOME)/include
@@ -149,13 +149,13 @@ DEFAULT_FONT=-DFIXED_WIDTH_FONT=\"fixed\"
 # at the beginning of the file name.
 #
 
-#DEBUG=-g
 DEBUG=-g
+#DEBUG=-O6
 
 CFLAGS=$(DEBUG) -DPGPEXEC=\"$(PGPEXEC)\" -DPGPVERSION=\"$(PGPVERSION)\" \
 	-DMIXEXEC=\"$(MIXEXEC)\" -DMIXPATH=\"$(MIXPATH)\" -DNO_MIXMASTER \
 	$(DEFAULT_FONT) $(XRESOURCES) -D_BSD_SOURCE -DNSA_ICON -DCOMPACT \
-	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux
+	-DMOTIF -DSTART_OPEN -Dlinux -Ilinux -DMAILER_LINE -Iliteclue
 
 #
 # Note: Keep -DSAFE until you are sure of correct operation on
@@ -212,3 +212,5 @@ privtool:	$(OFILES)
 clean:
 		$(RM) privtool *.o
 
+TAGS:		$(OFILES:%.o=%.c)
+		etags $(OFILES:%.o=%.c)

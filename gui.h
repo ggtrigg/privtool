@@ -21,6 +21,7 @@
 /* mail_reader routines */
 
 extern	char	*current_mail_file ();
+extern  char    *expand_filename ();
 
 /* GUI procedure definitions */
 
