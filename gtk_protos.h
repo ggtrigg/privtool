@@ -20,6 +20,7 @@ typedef enum {
     ALERT_ERROR
 } ALERT_TYPE;
 
+gint	mail_check_cb(gpointer);
 unsigned int alert(GtkWidget *, char *, ALERT_TYPE, unsigned int, ...);
 void	clear_busy(void);
 void	delete_message_proc();
